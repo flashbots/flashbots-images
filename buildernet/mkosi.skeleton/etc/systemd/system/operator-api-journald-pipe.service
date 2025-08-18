@@ -1,0 +1,15 @@
+[Unit]
+Description=Operator API journald pipe
+Wants=network-online.target
+After=network.target network-online.target operator-api.service
+Requires=operator-api.service
+BindsTo=operator-api.service
+
+[Service]
+Type=exec
+User=operator-api
+RuntimeDirectory=operator-api
+ExecStart=while true; \
+  do \
+    socat -u SYSTEM:'journalctl -q -t operator-api-pipe --no-pager' PIPE:$RUNTIME_DIRECTORY/journal.fifo; \
+  done

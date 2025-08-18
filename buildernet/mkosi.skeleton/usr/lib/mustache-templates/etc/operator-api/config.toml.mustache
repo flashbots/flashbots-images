@@ -1,0 +1,37 @@
+[general]
+listen_addr = "0.0.0.0:3535"
+pipe_file = "/run/operator-api/journal.fifo"
+pprof = false
+log_json = true
+log_debug = false
+
+# HTTP Basic Auth: the salt, and where to persistently store the hashed secret
+basic_auth_secret_path = "/var/lib/persistent/operator-api/basic-auth-hash"
+basic_auth_secret_salt = "bb36ef0b6643"
+
+# HTTP server timeouts
+# http_read_timeout_ms = 2500
+# http_write_timeout_ms = 2500
+
+# TLS configuration
+tls_enabled = true
+tls_create_if_missing = true
+# TODO: Can we serve lets encrypt certs instead of generating?
+tls_cert_hosts = ["127.0.0.1","localhost","{{dns_name}}"]
+tls_cert_path = "/var/lib/persistent/operator-api/cert.pem"
+tls_key_path = "/var/lib/persistent/operator-api/key.pem"
+
+# Make sure to update buildernet/mkosi.skeleton/etc/sudoers.d/operator-api
+# when adding a new action
+[actions]
+reboot = "reboot"
+rbuilder_restart = "systemctl restart rbuilder"
+rbuilder_stop = "systemctl stop rbuilder"
+fetch_config = "systemctl start fetch-config"
+rbuilder_bidding_restart = ""systemctl restart rbuilder-bidding"
+ssh_stop = "systemctl stop ssh"
+ssh_start = "systemctl start ssh"
+haproxy_restart = "systemctl restart haproxy"
+
+[file_uploads]
+rbuilder_blocklist = "/var/lib/persistent/rbuilder/rbuilder.blocklist.json"

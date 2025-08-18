@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mkosi-chroot systemctl enable "azure-complete-provisioning.service"
-ln -sf "/etc/systemd/system/azure-complete-provisioning.service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"

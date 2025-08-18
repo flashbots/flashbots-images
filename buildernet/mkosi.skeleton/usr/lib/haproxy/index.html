@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Welcome to BuilderNet</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.1.0/build/pure-min.css" integrity="sha384-yHIFVG6ClnONEA5yB5DJXfW2/KC173DIQrYoZMEtBvGzmf0PKiGyNEqe9N6BNDBH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@2.1.0/build/grids-responsive-min.css" />
+
+    <style>
+        :root {
+            --primary-color: rgb(0, 68, 255);
+            --primary-light: #129fea1f;
+            --secondary-light: #30d2f80d;
+            --border-color: #e5e5e5;
+        }
+
+        body {
+            padding: 20px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+        }
+
+
+        .logo {
+            float: right;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 64px;
+            transition: transform 0.2s;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .section {
+            margin: 2rem 0;
+        }
+
+        pre {
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        a:hover {
+            border-bottom: 2px solid var(--primary-color);
+            background-color: var(--primary-light);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .code-tag {
+            font-family: monospace;
+            background: var(--primary-light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 1.1em;
+        }
+
+        .note {
+            background: var(--secondary-light);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--border-color);
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="content">
+        <a href="https://collective.flashbots.net/c/buildernet/31" class="logo">
+            <img class="logo" src="https://buildernet.org/img/logo.png" alt="BuilderNet Logo" />
+        </a>
+
+        <header class="header section">
+            <h1>Welcome to BuilderNet</h1>
+        </header>
+
+        <section class="section">
+            <h2>Documentation</h2>
+            <ul class="links-list">
+                <li><a href="https://buildernet.org/docs/send-orderflow">buildernet.org/docs/send-orderflow</a></li>
+                <li><a href="https://buildernet.org">buildernet.org</a>, <a href="https://collective.flashbots.net/c/buildernet/31">forum</a></li>
+            </ul>
+        </section>
+        <hr>
+
+        <section class="section">
+            <h2>Sending Orderflow to BuilderNet</h2>
+
+            <pre>curl https://_BUILDERNET_INSTANCE_ \
+    --header 'Content-Type: application/json' \
+    --header 'X-Flashbots-Signature: _public_key_address_:_signature_' \
+    --data '{
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "eth_sendBundle",
+        "params": [{
+            "blockNumber": "0x1361bd3",
+            "txs": [
+                "0x100000...",
+                "0x200000..."
+            ]
+        }]
+    }'
+</pre>
+
+            <p>You can use the <tt>--cacert builder-cert.pem</tt> option with <tt>curl</tt> to verify the attested TLS certificate of the BuilderNet node.</p>
+            <p>See also the full documentation at
+            <ul>
+                <li><a href="https://buildernet.org/docs/api">buildernet.org/docs/api</a></li>
+                <li><a href="https://buildernet.org/docs/send-orderflow">buildernet.org/docs/send-orderflow</a></li>
+            </ul>
+            </p>
+
+
+            <div class="note">
+                <strong>Note:</strong> Currently, requests are rate-limited to 3 requests / IP / second. This is expected to be raised soon.
+            </div>
+
+        </section>
+
+        <hr>
+
+        <section class="section">
+            <h2>TEE Proof Validation</h2>
+
+            <p>
+                You can retrieve the certificate over a TEE-attested channel, verifying the identity of the server, and
+                then use it to verify the TLS connection:
+            </p>
+
+            <pre># Install attested-get tool
+go install github.com/flashbots/cvm-reverse-proxy/cmd/attested-get
+
+# Get the builder certificate over an attested channel
+attested-get \
+    --addr=https://_BUILDERNET_INSTANCE_:7936/cert \
+    --expected-measurements=https://measurements.buildernet.org \
+    --out-response=builder-cert.pem</pre>
+            <p>See more details about <span class="code-tag">attested-get</span> in the <a href="https://github.com/flashbots/cvm-reverse-proxy/blob/main/cmd/attested-get/main.go">cvm-reverse-proxy repository</a>.</p>
+        </section>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,31 @@
+[Unit]
+Description=Operator API
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=exec
+User=operator-api
+SupplementaryGroups=rbuilder
+ConfigurationDirectory=operator-api::ro
+StateDirectory=persistent/operator-api
+RuntimeDirectory=operator-api
+ExecStart=/usr/bin/operator-api --config $CONFIGURATION_DIRECTORY/config.toml
+
+#CapabilityBoundingSet=
+#RestrictAddressFamilies=AF_INET AF_INET6
+#SystemCallArchitectures=native
+#LockPersonality=yes
+#MemoryDenyWriteExecute=yes
+#PrivateDevices=yes
+#PrivateUsers=yes
+#ProtectControlGroups=yes
+#ProtectHome=yes
+#ProtectHostname=yes
+#ProtectKernelLogs=yes
+#ProtectKernelModules=yes
+#ProtectKernelTunables=yes
+#RestrictNamespaces=yes
+#RestrictRealtime=yes
+#SystemCallFilter=~@privileged
+#SystemCallFilter=@system-service

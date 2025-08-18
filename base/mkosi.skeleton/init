@@ -14,4 +14,4 @@ exec unshare --mount sh -c '
     mkdir /@
     mount --rbind / /@
     cd /@ && mount --move . /
-    exec chroot . /lib/systemd/systemd systemd.unit=minimal.target'
+    exec chroot . /lib/systemd/systemd systemd.unit=default.target'

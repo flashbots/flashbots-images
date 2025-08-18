@@ -1,0 +1,84 @@
+global
+  # Maximum number of concurrent connections
+  maxconn 4096
+  # System limits configuration
+  ulimit-n 32768
+
+  stats socket /run/haproxy/admin.sock level admin mode 660
+
+defaults
+  mode http
+  timeout connect 5s
+  timeout client 30s
+  timeout server 30s
+  timeout http-request 2s
+  timeout http-keep-alive 10s
+  log global
+
+  compression algo gzip
+  compression type text/html text/plain application/json
+
+frontend default
+  bind *:80
+  bind *:443 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni
+
+  # Force HTTPS redirect
+  http-request redirect scheme https code 301 unless { ssl_fc }
+
+  # Define ACLs for privileged IPs
+  acl privileged_ip src {{haproxy.rate_limit_privileged_ips}}
+
+  # Stick table to track connections and bandwidth
+  stick-table type ip size 100k expire 5m store conn_rate(10s),bytes_in_rate(1m),conn_cur,http_req_rate(10s)
+
+  # Track client in stick table
+  http-request track-sc0 src
+
+  # Connection rate limits (connections per 10 seconds)
+  http-request deny deny_status 429 if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
+  http-request deny deny_status 429 if privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
+
+  # Concurrent connections per IP
+  http-request deny deny_status 429 if !privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_regular}} }
+  http-request deny deny_status 429 if privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_privileged}} }
+
+  # Bandwidth limits (bytes per minute)
+  http-request deny deny_status 429 if !privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_regular}} }
+  http-request deny deny_status 429 if privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_privileged}} }
+
+  # HTTP request rate limits (requests per 10 seconds)
+  http-request deny deny_status 429 if !privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_regular}} }
+  http-request deny deny_status 429 if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
+
+  http-request return status 200 content-type text/plain string "OK\n" if { path '/livez' }
+  http-request return status 200 content-type text/plain string "${ACCOUNT_URL}\n" if { path '/acme-account-url' }
+  http-request return status 200 content-type text/html file "/usr/lib/haproxy/index.html" hdr "cache-control" "max-age=604800" if { method GET } { path / }
+
+  default_backend user_of
+
+frontend system
+  bind *:5544 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni
+  default_backend system_of
+
+frontend prometheus
+  bind 127.0.0.1:8405
+  http-request use-service prometheus-exporter if { path /metrics }
+  no log
+
+frontend public_cert
+  bind 127.0.0.1:14727
+  http-request return status 200 content-type text/plain file "/var/lib/persistent/haproxy/static/le.cer"
+
+backend user_of
+  http-reuse always
+
+  option httpchk GET /livez
+  http-check expect status 200
+  server user_of1 127.0.0.1:5543 check inter 5s fall 3 rise 1
+
+backend system_of
+  http-reuse always
+
+  option httpchk GET /livez
+  http-check expect status 200
+  server system_of1 127.0.0.1:5542 check inter 5s fall 3 rise 1

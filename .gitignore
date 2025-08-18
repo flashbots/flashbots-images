@@ -8,3 +8,6 @@ mkosi.builddir/
 .claudesync/
 .claudeignore
 tmp/
+
+!/**/.gitkeep
+.vscode/
