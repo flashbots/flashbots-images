@@ -1,0 +1,22 @@
+[Unit]
+Description=ACME Let's Encrypt client
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=oneshot
+User=acme-le
+SupplementaryGroups=haproxy
+ConfigurationDirectory=acme-le::ro
+StateDirectory=persistent/acme.sh
+Environment=ACME_HOME=%S/persistent/acme.sh \
+            PRIV_KEY=%S/persistent/acme.sh/key.pem \
+            CERT_FILE=%S/persistent/acme.sh/cert.pem \
+            CSR_FILE=%S/persistent/acme.sh/csr.pem \
+            OPERATOR_API_FIFO=/run/operator-api/journal.fifo
+EnvironmentFile=%E/acme-le/acme-le.env
+ExecStartPre=ln -sf %E/acme-le/deploy %S/persistent/acme.sh \
+             ln -sf %E/acme-le/dnsapi %S/persistent/acme.sh
+ExecStart=/usr/bin/acme-le
+
+# TODO: start after persistent is mounted

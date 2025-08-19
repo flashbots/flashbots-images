@@ -1,0 +1,1 @@
+- Post messages to Operator API PIPE when services start/stop/restart. ExecStartPre/ExecStartPost

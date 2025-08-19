@@ -1,25 +1,4 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
-# Create groups/users
-mkosi-chroot groupadd -r eth
-mkosi-chroot useradd -r -s /bin/false -G eth reth
-mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
-mkosi-chroot useradd -r -s /bin/false -G eth rbuilder
-
-# Install scripts
-install -m 755 services/bin/reth-sync "$BUILDROOT/usr/bin/"
-install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
-install -m 755 services/bin/rbuilder-init "$BUILDROOT/usr/bin/"
-
-# Install systemd service units
-SERVICE_DIR="$BUILDROOT/etc/systemd/system"
-mkdir -p "$SERVICE_DIR"
-
-# Copy systemd service files for buildernet
-for service in \
-    persistence-setup # reth reth-sync \
-    # rbuilder-bidding rbuilder
-do
-    install -m 644 "services/systemd/$service.service" "$SERVICE_DIR/"
-done
+./buildernet/foreign-packages/acme-sh.sh

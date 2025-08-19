@@ -1,0 +1,12 @@
+[Unit]
+Description=ACME Let's Encrypt client (certificates renewal)
+Wants=network-online.target
+After=network.target network-online.target
+ConditionPathExists=%S/persistent/acme.sh/bootstrap-complete
+
+[Service]
+Type=oneshot
+User=acme-le
+SupplementaryGroups=haproxy
+StateDirectory=persistent/acme.sh
+ExecStart=/usr/bin/acme.sh --home %S/persistent/acme.sh --renew-all
