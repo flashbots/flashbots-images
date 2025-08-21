@@ -1,7 +1,7 @@
 [Unit]
 Description=ACME Let's Encrypt client (certificates renewal)
 Wants=network-online.target
-After=network.target network-online.target
+After=network.target network-online.target acme-le.service
 ConditionPathExists=%S/persistent/acme.sh/bootstrap-complete
 
 [Service]

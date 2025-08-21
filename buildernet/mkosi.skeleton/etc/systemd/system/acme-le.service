@@ -1,7 +1,7 @@
 [Unit]
 Description=ACME Let's Encrypt client
 Wants=network-online.target
-After=network.target network-online.target
+After=network.target network-online.target render-config.service
 
 [Service]
 Type=oneshot
@@ -18,5 +18,6 @@ EnvironmentFile=%E/acme-le/acme-le.env
 ExecStartPre=ln -sf %E/acme-le/deploy %S/persistent/acme.sh \
              ln -sf %E/acme-le/dnsapi %S/persistent/acme.sh
 ExecStart=/usr/bin/acme-le
+RemainAfterExit=yes
 
 # TODO: start after persistent is mounted

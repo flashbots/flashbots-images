@@ -1,0 +1,14 @@
+[Unit]
+Description=Pull and render configs from BuilderHub
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=oneshot
+User=render-config
+ExecStart=/usr/bin/fetch-config /usr/lib/mustache-templates /
+RemainAfterExit=yes
+AmbientCapabilities=CAP_DAC_OVERRIDE
+
+# TODO: start after persistent is mounted
+# TODO: check if enough capabilities

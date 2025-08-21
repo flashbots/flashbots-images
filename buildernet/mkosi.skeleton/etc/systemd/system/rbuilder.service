@@ -1,7 +1,7 @@
-# TODO
+# TODO: refactor
 [Unit]
 Description=rbuilder Execution Layer client
-After=network.target network-setup.service persistent-mount.service
+After=network.target network-setup.service persistent-mount.service render-config.service
 Requires=network-setup.service persistent-mount.service
 
 [Service]

@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Usage: fetch-config <template_root_dir> [destination_root_dir]
+# Example: fetch-config /usr/lib/mustache-templates /
+#
+# Traverses template_root_dir, finds files whose names match:
+#   <name>.mustache[_unsafe][_MODE]
+# Renders them (safe vs unsafe), strips the extension parts, writes to destination root
+# preserving relative paths, creating directories as needed.
+# If MODE (octal like 600) is present, applies chmod to the rendered file.
+#
+# Extension order (mandatory .mustache first):
+#   .mustache
+#   .mustache_600
+#   .mustache_unsafe
+#   .mustache_unsafe_600
+
+set -euo pipefail
+
+TEMPLATE_ROOT="${1:?Template root directory required}"
+DEST_ROOT="${2:-/}"
+INIT_CONFIG_FILE="/tmp/init-config.json"
+
+trap 'rm -f "$INIT_CONFIG_FILE"' EXIT INT TERM
+
+function log() {
+  local msg="$1"
+  echo "$msg" | tee | systemd-cat -t operator-api-pipe
+}
+
+# Normalize DEST_ROOT: remove trailing slash unless it is root
+if [ "$DEST_ROOT" != "/" ]; then
+  DEST_ROOT="${DEST_ROOT%/}"
+fi
+
+if [ ! -d "$TEMPLATE_ROOT" ]; then
+  log "Template root '$TEMPLATE_ROOT' does not exist or is not a directory."
+  exit 1
+fi
+
+log "Fetching configuration..."
+
+(umask 0177 && : > "${INIT_CONFIG_FILE}")
+curl -fsSL --retry 3 --retry-delay 60 --retry-connrefused \
+  -o "${INIT_CONFIG_FILE}" http://localhost:7937/api/l1-builder/v1/configuration || {
+    log "Failed to fetch configuration."
+    exit 1
+  }
+
+# Find all candidate template files
+while IFS= read -r -d '' template; do
+  rel="${template#$TEMPLATE_ROOT/}"          # path relative to template root
+  base="$(basename "$rel")"
+  dir="$(dirname "$rel")"
+
+  # Match: name.mustache[_unsafe][_MODE]
+  if [[ "$base" =~ ^(.*)\.mustache(_unsafe)?(_([0-7]{3,4}))?$ ]]; then
+    outname="${BASH_REMATCH[1]}"
+    unsafe_flag="${BASH_REMATCH[2]}"
+    mode="${BASH_REMATCH[4]:-}"
+
+    # Destination directory and file
+    if [ "$dir" = "." ]; then
+      outdir="$DEST_ROOT"
+    else
+      # Use %/ to avoid doubling slashes (root stays /, others trimmed)
+      outdir="${DEST_ROOT%/}/$dir"
+    fi
+    outfile="$outdir/$outname"
+
+    mkdir -p "$outdir"
+
+    if [ -n "$unsafe_flag" ]; then
+      render-config --unsafe "${INIT_CONFIG_FILE}" "$template" > "$outfile" || {
+        log "Failed to render (unsafe) template: $template"
+        exit 1
+      }
+    else
+      render-config "${INIT_CONFIG_FILE}" "$template" > "$outfile" || {
+        log "Failed to render template: $template"
+        exit 1
+      }
+    fi
+
+    # Apply mode if provided
+    if [ -n "$mode" ]; then
+      chmod "$mode" "$outfile" || {
+        log "Failed to chmod $mode $outfile"
+        exit 1
+      }
+    fi
+
+    log "Rendered $outfile"
+  fi
+done < <(find "$TEMPLATE_ROOT" -type f -name '*.mustache*' -print0)
+
+log "All templates rendered successfully."
