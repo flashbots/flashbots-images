@@ -23,6 +23,17 @@
         wrapProgram "$out/bin/reprepro" --prefix PATH : "${pkgs.gnupg}/bin"
       '';
     };
+    measured-boot = pkgs.buildGoModule {
+      pname = "measured-boot";
+      version = "main";
+      src = pkgs.fetchFromGitHub {
+        owner = "flashbots";
+        repo = "measured-boot";
+        rev = "338d27a9fc124e085e14dfdcff875f71fd61ff14";
+        sha256 = "sha256-Cr0pg/1IG7Zz4Kos9K3PRjG81EIefhk0sMKQM7p6x28=";
+      };
+      vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
+    };
     mkosi = pkgs.mkosi.override {
       extraDeps = with pkgs; [ 
         apt dpkg gnupg debootstrap
@@ -32,7 +43,7 @@
     };
   in {
     devShells.${system}.default = pkgs.mkShell {
-      nativeBuildInputs = [ pkgs.qemu mkosi ];
+      nativeBuildInputs = [ mkosi measured-boot ];
       shellHook = ''
         mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
       '';

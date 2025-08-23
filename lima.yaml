@@ -1,0 +1,35 @@
+images:
+- location: https://cloud.debian.org/images/cloud/bookworm/20250814-2204/debian-12-genericcloud-amd64-20250814-2204.qcow2
+  arch: x86_64
+cpus: 4
+memory: 8GiB
+disk: 50GiB
+user:
+  name: debian
+  uid: 1000
+  home: /home/debian
+rosetta:
+  enabled: true
+  binfmt: true
+mountTypesUnsupported: [9p]
+mounts:
+- location: "."
+  mountPoint: /home/debian/mnt
+  writable: true
+ssh:
+  forwardAgent: true
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -euo pipefail
+    apt-get update
+    apt-get install -y curl git sudo debian-archive-keyring build-essential
+    echo "debian ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/debian
+- mode: user
+  script: |
+    #!/bin/bash
+    set -euo pipefail
+    sh <(curl -L https://nixos.org/nix/install) --no-daemon
+    mkdir -p ~/.config/nix
+    echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf
