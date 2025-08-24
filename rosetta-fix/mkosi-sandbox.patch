@@ -1,0 +1,20 @@
+--- a/mkosi/sandbox.py
++++ b/mkosi/sandbox.py
+@@ -319,6 +319,17 @@
+
+
++import subprocess
++
+ def mount_rbind(src: str, dst: str, attrs: int = 0) -> None:
++    bin = "/tmp/mount-rbind"
++    if os.path.exists("/oldroot"):
++        bin = "/oldroot" + bin
++    if not os.path.exists(bin):
++        open(bin, "wb").write(bytes.fromhex("PLACEHOLDER_HEX_CONTENT"))
++        os.chmod(bin, 0o755)
++    subprocess.run([bin, src, dst, str(attrs)], check=True)
++    return
++
+     """
+     When using the old mount syscall to do a recursive bind mount, mount options are not
+     applied recursively. Because we want to do recursive read-only bind mounts in some cases, we

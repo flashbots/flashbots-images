@@ -4,7 +4,18 @@
   outputs = { self, nixpkgs }:
   let
     system = "x86_64-linux";
-    pkgs = import nixpkgs { inherit system; };
+
+    pkgs = import nixpkgs {
+      inherit system;
+    };
+
+    pkgsCross = import nixpkgs {
+      inherit system;
+      crossSystem = {
+        config = "aarch64-unknown-linux-gnu";
+      };
+    };
+
     reprepro = pkgs.stdenv.mkDerivation rec {
       name = "reprepro-${version}";
       version = "4.16.0";
@@ -23,6 +34,7 @@
         wrapProgram "$out/bin/reprepro" --prefix PATH : "${pkgs.gnupg}/bin"
       '';
     };
+
     measured-boot = pkgs.buildGoModule {
       pname = "measured-boot";
       version = "main";
@@ -34,13 +46,44 @@
       };
       vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
     };
-    mkosi = pkgs.mkosi.override {
-      extraDeps = with pkgs; [ 
+
+    mkosi-sandbox-rosetta-mount-rbind = pkgsCross.stdenv.mkDerivation {
+      name = "mkosi-sandbox-rosetta-mount-rbind";
+
+      src = ./rosetta-fix;
+
+      buildInputs = [ pkgsCross.glibc.static ];
+
+      buildPhase = ''
+        $CC -static -Os -o bin mkosi-sandbox-mount-rbind.c
+      '';
+
+      installPhase = ''
+        mkdir -p $out/bin
+        cp bin $out/bin/mkosi-sandbox-rosetta-mount-rbind
+      '';
+    };
+
+    mkosi = (pkgs.mkosi.override {
+      extraDeps = with pkgs; [
         apt dpkg gnupg debootstrap
         squashfsTools dosfstools e2fsprogs mtools mustache-go
         cryptsetup util-linux zstd which qemu-utils parted
-      ] ++ [ reprepro ];
-    };
+      ] ++ [ reprepro mkosi-sandbox-rosetta-mount-rbind ];
+    }).overrideAttrs (oldAttrs: {
+      # check out rosetta-fix/README.md for more details
+      patches = (oldAttrs.patches or []) ++ [
+        "${self}/rosetta-fix/mkosi-sandbox.patch"
+      ];
+
+      postPatch = (oldAttrs.postPatch or "") + ''
+        MOUNT_RBIND_HEX=$(${pkgs.util-linux}/bin/hexdump -v -e '/1 "%02x"' \
+          ${mkosi-sandbox-rosetta-mount-rbind}/bin/mkosi-sandbox-rosetta-mount-rbind)
+
+        substituteInPlace mkosi/sandbox.py \
+          --replace "PLACEHOLDER_HEX_CONTENT" "$MOUNT_RBIND_HEX"
+      '';
+    });
   in {
     devShells.${system}.default = pkgs.mkShell {
       nativeBuildInputs = [ mkosi measured-boot ];

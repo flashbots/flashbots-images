@@ -17,13 +17,13 @@ setup_lima() {
         echo -e "Visit: https://lima-vm.io/docs/installation/"
         exit 1
     fi
-    
+
     # Create VM if it doesn't exist
     if ! limactl list 2>/dev/null | grep -q "$LIMA_VM"; then
         echo -e "Creating $LIMA_VM VM..."
         limactl create -y --name "$LIMA_VM" lima.yaml
     fi
-    
+
     # Start VM if not running
     if ! limactl list 2>/dev/null | grep "$LIMA_VM" | grep -q "Running"; then
         echo -e "Starting $LIMA_VM VM..."
@@ -45,12 +45,25 @@ fi
 cmd=("$@")
 if should_use_lima; then
     setup_lima
-    cache_dir="/home/debian/mkosi-cache"
-    cache_cmd="mkdir -p \"$cache_dir\" || true"
+
+    mkosi_cache="/home/debian/mkosi-cache"
+    limactl shell "$LIMA_VM" mkdir -p "$mkosi_cache"
+
     if [[ "${cmd[0]}" == "mkosi" ]]; then
-        cmd+=("--cache-directory=$cache_dir")
+        # Within some levels of linux namespaces and/or rosetta translations,
+        # we get weird errors, like we can't change group within unprivileged
+        # mount namespace. Running mkosi as root fixes this.
+        #
+        # Also, as we use sudo, we need to pass the full path to binary
+        #
+        # TODO: this seems to break some permissions yielding not
+        # reproducible builds with wrong gid on some files.
+        cmd=("sudo" '$(which mkosi)' "${cmd[@]:1}" "--cache-directory=$mkosi_cache")
     fi
-    limactl shell --workdir "/home/debian/mnt" "$LIMA_VM" bash -c "$cache_cmd; nix develop -c ${cmd[*]@Q}"
+
+    limactl shell "$LIMA_VM" bash -c \
+        "cd /home/debian/mnt && nix develop --system x86_64-linux -c bash -c '${cmd[*]@Q}'"
+
     echo "Note: Lima VM is still running. To stop it, run: limactl stop $LIMA_VM"
 else
     if in_nix_env; then
