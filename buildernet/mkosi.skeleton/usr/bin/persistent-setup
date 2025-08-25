@@ -1,0 +1,44 @@
+#!/bin/bash
+set -eu -o pipefail
+
+source /usr/bin/helper-functions.sh
+
+# Parse LUN from first argument
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $(basename "$0") <LUN>" >&2
+  exit 1
+fi
+
+LUN="$1"
+
+function find_target_device {
+  local lun="$1"
+  # it is a SCSI device
+  if readlink -fe /dev/disk/by-path/*scsi-0:0:0:${lun} > /dev/null 2>&1; then
+    echo "/dev/disk/by-path/*scsi-0:0:0:${lun}"
+    return 0
+  # maybe it is a NVME device then
+  elif readlink -fe /dev/disk/by-path/*-nvme-$((lun+2)) > /dev/null 2>&1; then
+    # NVMe Namespace IDs (NSID)
+    # NSID 1 -> OS disk
+    # NSID 2 -> reserved
+    # data disk -> NSID + 2
+    echo "/dev/disk/by-path/*-nvme-$((lun+2))"
+    return 0
+  fi
+
+  return 1
+}
+
+TARGET_DEVICE=$(find_target_device "$LUN") || {
+  log "persistent-setup: No device found for LUN ${LUN}"
+  exit 1
+}
+
+systemd-repart --dry-run=no --empty=require --generate-fstab=/etc/fstab \
+  --generate-crypttab=/etc/crypttab "$TARGET_DEVICE"
+systemctl daemon-reload
+systemctl start systemd-cryptsetup@persistent.service
+systemctl start var-lib-persistent.automount
+
+log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"

@@ -23,10 +23,7 @@ INIT_CONFIG_FILE="/tmp/init-config.json"
 
 trap 'rm -f "$INIT_CONFIG_FILE"' EXIT INT TERM
 
-function log() {
-  local msg="$1"
-  echo "$msg" | tee | systemd-cat -t operator-api-pipe
-}
+source /usr/bin/helper-functions.sh
 
 # Normalize DEST_ROOT: remove trailing slash unless it is root
 if [ "$DEST_ROOT" != "/" ]; then

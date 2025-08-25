@@ -1,4 +1,32 @@
 #!/bin/bash
 set -euo pipefail
 
+function replace_underscore_template {
+  local filename=$1
+  local value=$2
+
+  sed -i -E "s|__BUILDERNET_([^ ]*)|${value}|g" "$filename"
+  return 0
+}
+
+# Install dependencies
 ./buildernet/foreign-packages/acme-sh.sh
+./buildernet/foreign-packages/mustache.sh
+
+# Populate environment variables
+for var in "${!BUILDERNET_@}"; do
+  case $var in
+    BUILDERNET_TARGET_LUN)
+      replace_underscore_template "$BUILDROOT/etc/systemd/system/systemd-repart.service.d/90-persistent.conf" "${!var}"
+      ;;
+    BUILDERNET_BUILDERHUB_URL)
+      #replace_underscore_template "$BUILDROOT/etc/systemd/system/systemd-repart.service.d/90-persistent.conf" "${!var}"
+      ;;
+    BUILDERNET_SSH_PUBLIC_KEY)
+      replace_underscore_template "$BUILDROOT/home/bnet/.ssh/authorized_keys" "${!var}"
+      ;;
+    *)
+      echo "Unknown BUILDERNET_* variable: $var"
+      ;;
+  esac
+done

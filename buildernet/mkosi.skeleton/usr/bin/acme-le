@@ -2,6 +2,8 @@
 
 set -eu -o pipefail
 
+source /usr/bin/helper-functions.sh
+
 HAPROXY_ENV_FILE=/etc/haproxy/haproxy.env
 
 # Builds `subj` and `subjectAltName` strings for openssl command
@@ -60,7 +62,7 @@ acme.sh --home $ACME_HOME \
 find $ACME_HOME -name ca.conf -exec grep ACCOUNT_URL {} \; > $HAPROXY_ENV_FILE
 
 if [ -f "${ACME_HOME}/bootstrap-complete" ]; then
-  echo "ACME bootstrap already completed, skipping." | tee | systemd-cat -t operator-api-pipe
+  log "ACME bootstrap already completed, skipping."
   exit 0
 fi
 
@@ -88,6 +90,6 @@ DEPLOY_HAPROXY_PEM_PATH=/var/lib/persistent/haproxy/certs \
   acme.sh --home $ACME_HOME --deploy $(acme_sh_deploy_string_builder "$DNS_NAMES") \
   --deploy-hook haproxy
 
-echo "Issued and deployed TLS certificate for domains: $DNS_NAMES" | tee | systemd-cat -t operator-api-pipe
+log "Issued and deployed TLS certificate for domains: $DNS_NAMES"
 
 touch ${ACME_HOME}/bootstrap-complete

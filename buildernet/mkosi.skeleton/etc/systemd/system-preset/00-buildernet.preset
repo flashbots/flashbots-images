@@ -2,8 +2,8 @@
 enable acme-le.service
 enable acme-le-renewal.timer
 enable haproxy.service
-enable lighthouse.service
+# enable lighthouse.service
 enable operator-api.service
-enable rbuilder.service
-enable reth.service
+# enable rbuilder.service
+# enable reth.service
 enable ssh.service
