@@ -34,6 +34,7 @@ for service in \
     searcher-log-writer.service \
     wait-for-key.service \
     searcher-firewall.service \
+    apparmor.service \
     dropbear.service \
     lighthouse.service \
     searcher-container.service \

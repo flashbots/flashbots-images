@@ -9,9 +9,13 @@ ENGINE_API_PORT=8551
 EL_P2P_PORT=30303
 SEARCHER_INPUT_CHANNEL=27017
 
+# Enabling apparmor profile
+/usr/sbin/apparmor_parser -r /etc/apparmor.d/searcher-container
+
 echo "Starting $NAME..."
 su -s /bin/sh searcher -c "cd ~ && podman run -d \
     --name $NAME --replace \
+    --security-opt apparmor=searcher-container \
     -p ${SEARCHER_SSH_PORT}:22 \
     -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT} \

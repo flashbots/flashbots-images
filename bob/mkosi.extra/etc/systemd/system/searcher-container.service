@@ -1,7 +1,7 @@
 [Unit]
 Description=Searcher SSH Container
-After=dropbear.service searcher-firewall.service persistent-mount.service
-Requires=dropbear.service searcher-firewall.service persistent-mount.service
+After=dropbear.service searcher-firewall.service persistent-mount.service apparmor.service
+Requires=dropbear.service searcher-firewall.service persistent-mount.service apparmor.service
 
 [Service]
 Type=oneshot
