@@ -22,16 +22,21 @@ su -s /bin/sh searcher -c "cd ~ && podman run -d \
     -v /persistent/searcher_logs:/var/log/searcher:rw \
     -v /persistent/lighthouse_logs:/var/log/lighthouse:ro \
     -v /tmp/jwt.hex:/secrets/jwt.hex:ro \
+    -v /etc/searcher-logrotate.conf:/tmp/searcher.conf:ro \
     docker.io/library/ubuntu:24.04 \
     /bin/sh -c ' \
         DEBIAN_FRONTEND=noninteractive apt-get update && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server logrotate cron && \
+        cp /tmp/searcher.conf /etc/logrotate.d/searcher.conf && \
+        chown root:root /etc/logrotate.d/searcher.conf && \
         mkdir -p /run/sshd && \
         mkdir -p /root/.ssh && \
         echo \"ssh-ed25519 $(cat /etc/searcher_key)\" > /root/.ssh/authorized_keys && \
         chmod 700 /root/.ssh && \
         chmod 600 /root/.ssh/authorized_keys && \
         cp /etc/ssh/ssh_host_ed25519_key.pub /etc/searcher/ssh_hostkey/host_key.pub && \
+        echo \"0 * * * * root /usr/sbin/logrotate /etc/logrotate.d/searcher.conf\" > /etc/cron.d/searcher-logrotate && \
+        service cron start && \
         /usr/sbin/sshd -D -e'"
 
 # Attempt a quick check that the container is running
