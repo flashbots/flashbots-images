@@ -1,6 +1,33 @@
 #!/bin/sh
 set -eu -o pipefail
 
+# =============================================================================
+# Host Firewall Overview
+#
+# [Inbound Packet]
+#    │
+#    ▼
+#  (INPUT Chain)
+#    ├─(ESTABLISHED/RELATED?)─> ACCEPT
+#    ├─> ALWAYS_ON_IN ──> Return
+#    └─> MODE_SELECTOR_IN 
+#          ├─> jumps MAINTENANCE_IN or PRODUCTION_IN ─> Return
+#          └─> end => default DROP
+#
+# [Outbound Packet]
+#    │
+#    ▼
+#  (OUTPUT Chain)
+#    ├─(ESTABLISHED/RELATED?)─> ACCEPT
+#    ├─> ALWAYS_ON_OUT ──> Return
+#    └─> MODE_SELECTOR_OUT
+#          ├─> jumps MAINTENANCE_OUT or PRODUCTION_OUT ─> Return
+#          └─> end => default DROP
+#
+# - NEW connections are terminated and enabled by MODE_SELECTOR jumps to MAINTENANCE and PRODUCTION rule sets
+# - ESTABLISHED/RELATED for mode specific connections are killed by `conntrack -D <port>` upon each mode switch.
+# =============================================================================
+
 echo "Initializing firewall with separate inbound/outbound chains..."
 
 TITAN_BUILDER_IP="52.207.17.217"

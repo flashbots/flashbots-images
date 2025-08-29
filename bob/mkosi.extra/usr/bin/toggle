@@ -91,7 +91,7 @@ check_delay() {
     last_stop=$(cat "$TIMESTAMP_FILE")
     # SECURITY: time can be manipulated by the host
     current_time=$(date +%s)
-    delay_seconds=120  # 2 minutes
+    delay_seconds=300  # 5 minutes
     
     if [ $((current_time - last_stop)) -lt $delay_seconds ]; then
         remaining=$((delay_seconds - (current_time - last_stop)))
