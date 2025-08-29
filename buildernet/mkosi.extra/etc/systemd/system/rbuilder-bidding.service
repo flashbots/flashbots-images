@@ -1,0 +1,20 @@
+[Unit]
+Description=rbuilder bidding service
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=exec
+User=rbuilder-bidding
+SupplementaryGroups=rbuilder
+ConfigurationDirectory=rbuilder-bidding::ro
+Environment=RBUILDER_BIDDING_SHA256SUM=83312a0de6941e788e09e6e37ec07e129188f2ed33c7b7d8e997f580d0842857 \
+            RBUILDER_BIDDING_TAG=v1.2.8
+EnvironmentFile=%E/rbuilder-bidding/gh_token.env
+ExecStartPre=[[ -f /usr/bin/rbuilder-bidding ]] || /usr/bin/fetch-gh-release-artifact fetch \
+             --repo rbuilder-bidding-service --tag $RBUILDER_BIDDING_TAG \
+             --artifact-name bidding-service --output-file /usr/bin/rbuilder-bidding && \
+             sha256sum /usr/bin/rbuilder-bidding | grep -q $RBUILDER_BIDDING_SHA256SUM && \
+             chmod +x /usr/bin/rbuilder-bidding
+ExecStart=/usr/bin/rbuilder-bidding %E/rbuilder-bidding/config.toml
+ExecReload=kill -HUP $MAINPID

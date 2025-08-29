@@ -4,6 +4,8 @@ env.json
 mkosi.packages/
 mkosi.cache/
 mkosi.builddir/
+mkosi.tools/
+mkosi.tools.manifest
 *.qcow2
 .claudesync/
 .claudeignore
@@ -11,3 +13,4 @@ tmp/
 
 !/**/.gitkeep
 .vscode/
+linux-source-6.12

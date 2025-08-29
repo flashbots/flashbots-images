@@ -1,0 +1,28 @@
+## Kernel
+### Disable debug symbols
+```
+scripts/config --undefine GDB_SCRIPTS
+scripts/config --undefine DEBUG_INFO
+scripts/config --undefine DEBUG_INFO_SPLIT
+scripts/config --undefine DEBUG_INFO_REDUCED
+scripts/config --undefine DEBUG_INFO_COMPRESSED
+scripts/config --set-val  DEBUG_INFO_NONE       y
+scripts/config --set-val  DEBUG_INFO_DWARF5     n
+scripts/config --disable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
+```
+
+### Generate a fragment
+```
+./scripts/diffconfig -m .config_old .config_new
+```
+
+### Convert raw to vhd
+```
+rawdisk="buildernet.raw"
+vhddisk="buildernet.vhd"
+MB=$((1024*1024))
+size=$(qemu-img info -f raw --output json "$rawdisk" | jq -r '."virtual-size"')
+rounded_size=$(((($size+$MB-1)/$MB)*$MB))
+qemu-img resize -f raw $rawdisk $rounded_size
+qemu-img convert -f raw -o subformat=fixed,force_size -O vpc $rawdisk $vhddisk
+```

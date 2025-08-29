@@ -1,0 +1,158 @@
+#!/bin/bash
+
+set -eu -o pipefail
+
+source /usr/bin/helper-functions.sh
+
+function usage() {
+  echo "Usage:"
+  echo "  $0 fetch --repo <repo> --tag <tag> --artifact-name <artifact_name> --output-file <output_file> [--owner <owner>]"
+  echo "  $0 verify --sha256file <sha256file>"
+  echo ""
+  echo "Options:"
+  echo "  --owner          GitHub repository owner (defaults to 'flashbots')"
+  echo "  --repo           GitHub repository name"
+  echo "  --tag            Release tag"
+  echo "  --artifact-name  Name of the artifact to download"
+  echo "  --output-file    Output file path"
+  echo "  --sha256file     Path to SHA256 sums file for verification"
+  echo ""
+  echo "Environment Variables:"
+  echo "  GH_TOKEN         Optional GitHub token for authentication (for private repos or higher rate limits)"
+}
+
+# fetch binary artifact given tag using Github API
+function fetch_github_release_artifact {
+  local owner=$1
+  local repo=$2
+  local tag=$3
+  local artifact_name=$4
+  local output_file=$5
+  local common_headers=(
+    -H "X-GitHub-Api-Version: 2022-11-28"
+  )
+
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    common_headers+=(-H "Authorization: Bearer $GH_TOKEN")
+  fi
+
+  log "Fetching GitHub release artifact for tag ${tag}..."
+
+  release_url=$(
+    curl -fsSL -H 'Accept: application/vnd.github+json' \
+      "${common_headers[@]}" \
+      "https://api.github.com/repos/${owner}/${repo}/releases" | \
+    jq -r --arg tag "${tag}" '.[] | select(.tag_name==$tag) | .url')
+
+  assets_response=$(
+    curl -fsSL -H 'Accept: application/vnd.github+json' \
+      "${common_headers[@]}" "${release_url}/assets")
+
+  asset_url=$(echo "${assets_response}" | \
+    jq -r --arg artifact_name "${artifact_name}" '.[] | select(.name==$artifact_name) | .url')
+  asset_content_type=$(echo "${assets_response}" | \
+    jq -r --arg artifact_name "${artifact_name}" '.[] | select(.name==$artifact_name) | .content_type')
+
+  curl -fsSL -H "Accept: ${asset_content_type}" \
+       "${common_headers[@]}" \
+       -o "${output_file}" "${asset_url}"
+
+  log "Downloaded GitHub release artifact (${artifact_name}) to ${output_file}"
+  return 0
+}
+
+# Verify the SHA256 checksum of a file
+function sha256_verify {
+  local sha256sums_file=$1
+
+  sha256sum -c "${sha256sums_file}" --ignore-missing
+  return 0
+}
+
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 1
+fi
+
+local command=$1
+shift
+
+case $command in
+  fetch)
+    local owner="flashbots"
+    local repo=""
+    local tag=""
+    local artifact_name=""
+    local output_file=""
+
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --owner)
+          owner="$2"
+          shift 2
+          ;;
+        --repo)
+          repo="$2"
+          shift 2
+          ;;
+        --tag)
+          tag="$2"
+          shift 2
+          ;;
+        --artifact-name)
+          artifact_name="$2"
+          shift 2
+          ;;
+        --output-file)
+          output_file="$2"
+          shift 2
+          ;;
+        *)
+          echo "Unknown option: $1"
+          usage
+          exit 1
+          ;;
+      esac
+    done
+
+    if [[ -z "$repo" || -z "$tag" || -z "$artifact_name" || -z "$output_file" ]]; then
+      echo "Error: Missing required parameters for fetch command"
+      usage
+      exit 1
+    fi
+
+    fetch_github_release_artifact "$owner" "$repo" "$tag" "$artifact_name" "$output_file"
+    ;;
+
+  verify)
+    local sha256file=""
+
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --sha256file)
+          sha256file="$2"
+          shift 2
+          ;;
+        *)
+          echo "Unknown option: $1"
+          usage
+          exit 1
+          ;;
+      esac
+    done
+
+    if [[ -z "$sha256file" ]]; then
+      echo "Error: Missing required --sha256file parameter for verify command"
+      usage
+      exit 1
+    fi
+
+    sha256_verify "$sha256file"
+    ;;
+
+  *)
+    echo "Unknown command: $command"
+    usage
+    exit 1
+    ;;
+esac

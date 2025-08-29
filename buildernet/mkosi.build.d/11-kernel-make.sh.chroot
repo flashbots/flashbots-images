@@ -1,0 +1,24 @@
+#!/bin/bash
+set -eu -o pipefail
+
+BUILDDIR="$BUILDDIR/kernel"
+mkdir -p $BUILDDIR
+tar xaf /usr/src/linux-source-*
+LINUX_SOURCE=$(echo linux-source-*)
+cd $LINUX_SOURCE
+./scripts/kconfig/merge_config.sh -O $BUILDDIR $SRCDIR/buildernet/kernel/configs/*
+
+export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.mintools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo'
+export MAKEFLAGS=-j$(nproc)
+export KBUILD_BUILD_TIMESTAMP="Fri Jun  5 15:58:00 CEST 1971"
+export KBUILD_BUILD_HOST="mkosi"
+export KBUILD_BUILD_USER="mkosi"
+LOCALVERSION=${LOCALVERSION:-"-local"}
+export LOCALVERSION
+
+# make O=$BUILDDIR clean
+make O=$BUILDDIR olddefconfig
+make O=$BUILDDIR bindeb-pkg
+
+mv $BUILDDIR/../*.deb $PACKAGEDIR/
+#KDEB_PKGVERSION=someversion
