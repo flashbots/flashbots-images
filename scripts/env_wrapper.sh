@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-LIMA_VM="tee-builder"
+LIMA_VM="${LIMA_VM:-tee-builder}"
 
 # Check if Lima should be used
 should_use_lima() {
@@ -17,19 +17,42 @@ setup_lima() {
         echo -e "Visit: https://lima-vm.io/docs/installation/"
         exit 1
     fi
-    
+
     # Create VM if it doesn't exist
-    if ! limactl list 2>/dev/null | grep -q "$LIMA_VM"; then
+    if ! limactl list "$LIMA_VM" > /dev/null 2>&1; then
+        declare -a args=()
+        if [ -n "${LIMA_CPUS:-}" ]; then
+            args+=("--cpus" "$LIMA_CPUS")
+        fi
+        if [ -n "${LIMA_MEMORY:-}" ]; then
+            args+=("--memory" "$LIMA_MEMORY")
+        fi
+        if [ -n "${LIMA_DISK:-}" ]; then
+            args+=("--disk" "$LIMA_DISK")
+        fi
+
         echo -e "Creating $LIMA_VM VM..."
-        limactl create -y --name "$LIMA_VM" lima.yaml
+        # Portable way to expand array on bash 3 & 4
+        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} lima.yaml
     fi
-    
+
     # Start VM if not running
-    if ! limactl list 2>/dev/null | grep "$LIMA_VM" | grep -q "Running"; then
+    status=$(limactl list "$LIMA_VM" --format "{{.Status}}")
+    if [ "$status" != "Running" ]; then
         echo -e "Starting $LIMA_VM VM..."
         limactl start -y "$LIMA_VM"
-        rm NvVars 2>/dev/null || true # Remove stray file created by QEMU
+
+        rm -f NvVars # Remove stray file created by QEMU
     fi
+}
+
+# Execute command in Lima VM
+lima_exec() {
+    # Allocate TTY (-t) for pretty output in nix commands
+    # Add -o LogLevel=QUIET to suppress SSH "Shared connection closed" messages
+    ssh -F "$HOME/.lima/$LIMA_VM/ssh.config" "lima-$LIMA_VM" \
+        -t -o LogLevel=QUIET \
+        -- "$@"
 }
 
 # Check if in nix environment
@@ -43,14 +66,47 @@ if [ $# -eq 0 ]; then
 fi
 
 cmd=("$@")
+
+is_mkosi_cmd() {
+    [[ "${cmd[0]}" == "./scripts/mkosi_wrapper.sh" ]]
+}
+
+if is_mkosi_cmd && [ -n "${MKOSI_EXTRA_ARGS:-}" ]; then
+    # TODO: these args will be overriden by default cache/out dir in Lima
+    # Not a big deal, but might worth fixing
+    cmd+=($MKOSI_EXTRA_ARGS)
+fi
+
 if should_use_lima; then
     setup_lima
-    cache_dir="/home/debian/mkosi-cache"
-    cache_cmd="mkdir -p \"$cache_dir\" || true"
-    if [[ "${cmd[0]}" == "mkosi" ]]; then
-        cmd+=("--cache-directory=$cache_dir")
+
+    mkosi_cache=/home/debian/mkosi-cache
+    mkosi_output=/home/debian/mkosi-output
+
+    if is_mkosi_cmd; then
+        lima_exec mkdir -p "$mkosi_cache" "$mkosi_output"
+
+        cmd+=(
+            # We can't use default cache dir from mnt/, because it is mounted
+            # from host, and mkosi will try to preserve root/other permissions
+            # without success.
+            "--cache-directory=$mkosi_cache"
+            # For the same reason, we need to use separate output dir.
+            # mkosi tries to preserve ownership of output files, which fails,
+            # as it is running from root in a user namespace.
+            "--output-dir=$mkosi_output"
+        )
     fi
-    limactl shell --workdir "/home/debian/mnt" "$LIMA_VM" bash -c "$cache_cmd; nix develop -c ${cmd[*]@Q}"
+
+    lima_exec "cd ~/mnt && /home/debian/.nix-profile/bin/nix develop -c ${cmd[*]@Q}"
+
+    if is_mkosi_cmd; then
+        lima_exec "mkdir -p ~/mnt/build; mv '$mkosi_output'/* ~/mnt/build/ || true"
+
+        echo "Check ./build/ directory for output files"
+        echo
+        fi
+
     echo "Note: Lima VM is still running. To stop it, run: limactl stop $LIMA_VM"
 else
     if in_nix_env; then

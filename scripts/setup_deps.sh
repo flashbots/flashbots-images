@@ -2,6 +2,7 @@
 set -euo pipefail
 
 [[ "$OSTYPE" == "linux-gnu"* ]] || exit 0
+[[ "${FORCE_LIMA:-}" == "1" ]] && exit 0
 
 LIMA_MSG="Alternatively, you can install Lima from lima-vm.io and run make with FORCE_LIMA=1"
 

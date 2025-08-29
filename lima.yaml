@@ -1,10 +1,8 @@
 images:
-  - location: https://cloud.debian.org/images/cloud/bookworm/20250814-2204/debian-12-genericcloud-amd64-20250814-2204.qcow2
+  - location: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2
     arch: x86_64
-    digest: sha512:d6cc09dc531ce88a37f222698ee67e41ac9a2325e6207c192c9e1e0cfb547fe33ec091c64e8588e40df7f20bd99f53bcdbebb418b24d6a022a64d04d9b96c798
-  - location: https://cloud.debian.org/images/cloud/bookworm/20250814-2204/debian-12-genericcloud-arm64-20250814-2204.qcow2
+  - location: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2
     arch: aarch64
-    digest: sha512:ed0502e7b03fb42bf7f9c7fa2283d0db60927301cf868fdc67ed3361d4fe528115ecc5f5197484b577ebc96e30235af2def5eef3d7099be400e236d9eff48f75
 cpus: 6
 memory: 12GiB
 disk: 100GiB
@@ -16,10 +14,12 @@ rosetta:
   enabled: true
   binfmt: true
 containerd:
+   # Otherwise lima will install couple of hundreds of MB of containerd stuff,
+   # which we don't need.
   user: false
 mountTypesUnsupported: [9p]
 mounts:
-  - location: "."
+  - location: "." # cwd of `limactl start` command
     mountPoint: /home/debian/mnt
     writable: true
 ssh:
@@ -30,13 +30,18 @@ provision:
       #!/bin/bash
       set -euo pipefail
       apt-get update
-      apt-get install -y curl git sudo debian-archive-keyring build-essential
+      apt-get install -y curl git sudo debian-archive-keyring build-essential uidmap
       echo "debian ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/debian
   - mode: user
     script: |
       #!/bin/bash
       set -euo pipefail
+
       mkdir -p ~/.config/nix
       echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf
       echo 'extra-platforms = x86_64-linux' >> ~/.config/nix/nix.conf
       sh <(curl -L https://nixos.org/nix/install) --no-daemon --nix-extra-conf-file ~/.config/nix/nix.conf
+
+      # nix adds its env to .profile, but not to .bashrc
+      # .profile is not sourced when connecting through ssh, so copy to .bashrc
+      grep nix .profile >> .bashrc
