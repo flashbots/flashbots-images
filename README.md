@@ -40,28 +40,44 @@ For more information about this repository, see [the Flashbots collective post](
 
 ### Building Images
 
-1. **Enter the development environment**:
-   ```bash
-   nix develop -c $SHELL
-   ```
+**Using Make (Recommended)**:
+```bash
+# Build the BOB (searcher sandbox) image
+make build IMAGE=bob
 
-2. **Build a specific image**:
-   ```bash
-   # Build the BOB (searcher sandbox) image
-   mkosi --force -I bob.conf
-   
-   # Build the Buildernet image  
-   mkosi --force -I buildernet.conf
-   
-   # Build with development tools
-   mkosi --force -I bob.conf --profile=devtools
-   
-   # Build with Azure compatibility
-   mkosi --force -I bob.conf --profile=azure
+# Build the Buildernet image  
+make build IMAGE=buildernet
 
-   # Build with both
-   mkosi --force -I bob.conf --profile=azure,devtools
-   ```
+# Build with development tools
+make build-dev IMAGE=bob
+
+# View all available targets
+make help
+```
+
+**Manual Build**:
+```bash
+# Enter the development environment
+nix develop -c $SHELL
+
+# Build a specific image
+mkosi --force -I bob.conf
+mkosi --force -I buildernet.conf
+
+# Build with profiles
+mkosi --force -I bob.conf --profile=devtools
+mkosi --force -I bob.conf --profile=azure
+mkosi --force -I bob.conf --profile=azure,devtools
+```
+
+### Measuring TDX Boot Process
+
+**Export TDX measurements** for the built image:
+```bash
+make measure
+```
+
+This generates measurement files in the `build/` directory for attestation and verification.
 
 ### Running Images
 
