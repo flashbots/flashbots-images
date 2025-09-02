@@ -9,6 +9,15 @@ mkdir -p "$DESTDIR/usr/bin"
 mkosi-chroot gcc -o "$DESTDIR/usr/bin/searchersh" "$SRCDIR/bob/searchersh.c"
 chmod 755 "$DESTDIR/usr/bin/searchersh"
 
+# Compile cryptsetup
+make_git_package \
+    "cryptsetup" \
+    "v2.8.1" \
+    "https://gitlab.com/cryptsetup/cryptsetup" \
+    './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
+    ".libs/cryptsetup:/usr/sbin/cryptsetup" \
+    ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
+
 # Compile lighthouse
 build_rust_package \
     "lighthouse" \

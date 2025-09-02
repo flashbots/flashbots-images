@@ -1,0 +1,47 @@
+images:
+  - location: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2
+    arch: x86_64
+  - location: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2
+    arch: aarch64
+cpus: 6
+memory: 12GiB
+disk: 100GiB
+user:
+  name: debian
+  uid: 1000
+  home: /home/debian
+rosetta:
+  enabled: true
+  binfmt: true
+containerd:
+   # Otherwise lima will install couple of hundreds of MB of containerd stuff,
+   # which we don't need.
+  user: false
+mountTypesUnsupported: [9p]
+mounts:
+  - location: "." # cwd of `limactl start` command
+    mountPoint: /home/debian/mnt
+    writable: true
+ssh:
+  forwardAgent: true
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+      apt-get update
+      apt-get install -y curl git sudo debian-archive-keyring build-essential uidmap
+      echo "debian ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/debian
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+
+      mkdir -p ~/.config/nix
+      echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf
+      echo 'extra-platforms = x86_64-linux' >> ~/.config/nix/nix.conf
+      sh <(curl -L https://nixos.org/nix/install) --no-daemon --nix-extra-conf-file ~/.config/nix/nix.conf
+
+      # nix adds its env to .profile, but not to .bashrc
+      # .profile is not sourced when connecting through ssh, so copy to .bashrc
+      grep nix .profile >> .bashrc
