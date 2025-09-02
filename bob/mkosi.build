@@ -36,7 +36,7 @@ make_git_package \
 
 make_git_package \
     "cvm-reverse-proxy" \
-    "v0.1.7" \
+    "v0.1.8" \
     "https://github.com/flashbots/cvm-reverse-proxy" \
     "make build-proxy-server" \
     "build/proxy-server:/usr/bin/cvm-reverse-proxy"
