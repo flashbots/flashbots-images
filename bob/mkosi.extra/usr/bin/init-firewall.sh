@@ -32,6 +32,12 @@ echo "Initializing firewall with separate inbound/outbound chains..."
 
 TITAN_BUILDER_IP="52.207.17.217"
 
+# TEE Searcher IPs
+FLASHBOTS_TX_IP1="3.136.107.142"
+FLASHBOTS_TX_IP2="3.149.14.12"
+FLASHBOTS_BUNDLE_IP1="18.221.59.61"
+FLASHBOTS_BUNDLE_IP2="3.15.88.156"
+
 ###############################################################################
 # Ports
 ###############################################################################
@@ -162,6 +168,15 @@ iptables -A $CHAIN_ALWAYS_ON_OUT -p udp --dport $NTP_PORT \
 iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $TITAN_BUILDER_IP --dport $TITAN_BUNDLE_PORT_HTTPS \
     -m conntrack --ctstate NEW -j ACCEPT
 
+# Flashbots bundle endpoints (always on)
+# Security note: This is a side channel.
+# While the operator will not be able to see the content of the packets, 
+# they can observe the presence or absence of packets.
+iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $FLASHBOTS_BUNDLE_IP1 --dport $HTTPS_PORT \
+    -m conntrack --ctstate NEW -j ACCEPT
+iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $FLASHBOTS_BUNDLE_IP2 --dport $HTTPS_PORT \
+    -m conntrack --ctstate NEW -j ACCEPT
+
 # Return from ALWAYS_ON_OUT back to caller (OUTPUT chain -> MODE_SELECTOR_OUT) 
 iptables -A $CHAIN_ALWAYS_ON_OUT -j RETURN
 
@@ -188,6 +203,10 @@ iptables -A $CHAIN_MAINTENANCE_IN -j RETURN
 ###########################################################################
 # (9) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
+# Block Flashbots protect tx endpoints during maintenance
+iptables -A $CHAIN_MAINTENANCE_OUT -p tcp -d $FLASHBOTS_TX_IP1 -j DROP
+iptables -A $CHAIN_MAINTENANCE_OUT -p tcp -d $FLASHBOTS_TX_IP2 -j DROP
+
 # DNS (UDP/TCP 53)
 # Note: Searchers will only have DNS in maintenance mode! 
 iptables -A $CHAIN_MAINTENANCE_OUT -p udp --dport $DNS_PORT \
@@ -226,6 +245,12 @@ iptables -A $CHAIN_PRODUCTION_IN -j RETURN
 ###########################################################################
 # Titan state diff WSS
 iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $TITAN_BUILDER_IP --dport $TITAN_STATE_DIFF_PORT_WSS \
+    -m conntrack --ctstate NEW -j ACCEPT
+
+# Flashbots protect tx endpoints (production only)
+iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $FLASHBOTS_TX_IP1 --dport $HTTPS_PORT \
+    -m conntrack --ctstate NEW -j ACCEPT
+iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $FLASHBOTS_TX_IP2 --dport $HTTPS_PORT \
     -m conntrack --ctstate NEW -j ACCEPT
 
 # Return from PRODUCTION_OUT back to caller (OUTPUT chain -> END) 
