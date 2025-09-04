@@ -1,4 +1,4 @@
-BOB
+TEE Searcher
 ===
 
 Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun transactions with full information, without exposing frontrunning risks. This product is currently live on Ethereum mainnet for searching on Flashbots Protect and Titan Builder's bottom of block.
@@ -146,11 +146,8 @@ Searchers will need to build the image locally in order to produce the measureme
 git clone https://github.com/flashbots/flashbots-images.git
 cd flashbots-images
 
-# enter the development environment
-nix develop -c $SHELL
-
-# build with Azure compatibility
-mkosi --force -I bob.conf --profile=azure
+# build the BOB (TEE searcher sandbox) image
+make build IMAGE=bob
 ```
 
 ### 2. audit the VM image
@@ -350,22 +347,22 @@ For more information, please visit the [Flashbots Protect and MEV-Share Order Fl
 
 To subscribe to transactions, connect to the server:
 ```
-https://mevshare.bob.flashbots.net:443
+https://tx.tee-searcher.flashbots.net
 ```
 
 To submit bundles, connect to the server:
 ```
-https://ofa.bob.flashbots.net:443
+https://backruns.tee-searcher.flashbots.net
 ```
 
 
 Please run the following command to **cache DNS resolution** (remember: DNS is not available during production mode!)
 
 ```bash
-echo "3.149.14.12 mevshare.bob.flashbots.net" >> /etc/hosts
-echo "3.136.107.142 mevshare.bob.flashbots.net" >> /etc/hosts
-echo "18.221.59.61 ofa.bob.flashbots.net" >> /etc/hosts
-echo "3.15.88.156 ofa.bob.flashbots.net" >> /etc/hosts
+echo "3.149.14.12 tx.tee-searcher.flashbots.net" >> /etc/hosts
+echo "3.136.107.142 tx.tee-searcher.flashbots.net" >> /etc/hosts
+echo "18.221.59.61 backruns.tee-searcher.flashbots.net" >> /etc/hosts
+echo "3.15.88.156 backruns.tee-searcher.flashbots.net" >> /etc/hosts
 ```
 
 ### Searching on Titan Builder's Bottom of Block
