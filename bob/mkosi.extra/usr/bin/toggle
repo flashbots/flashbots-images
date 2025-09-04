@@ -107,8 +107,11 @@ check_delay() {
 kill_established_connections() {
     local old_mode="$1"
     if [ "$old_mode" = "production" ]; then
-        echo "Killing leftover production flows (port $TITAN_STATE_DIFF_PORT_WSS)..."
+        echo "Killing leftover production flows:"
+        echo " - Titan state diff port $TITAN_STATE_DIFF_PORT_WSS"
+        echo " - HTTPS port $HTTPS_PORT (Flashbots protect tx)"
         $CONNTRACK -D -p tcp --dport $TITAN_STATE_DIFF_PORT_WSS 2>/dev/null
+        $CONNTRACK -D -p tcp --dport $HTTPS_PORT 2>/dev/null
 
     elif [ "$old_mode" = "maintenance" ]; then
         echo "Killing leftover maintenance flows:"
