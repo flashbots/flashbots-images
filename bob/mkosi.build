@@ -27,6 +27,22 @@ build_rust_package \
     "" \
     "-l z -l zstd -l snappy"
 
+# Build fluent-bit
+BUILD_CMD="
+    export SOURCE_DATE_EPOCH=0
+    export CFLAGS='-fno-ident -Wno-date-time'
+    export CXXFLAGS='-fno-ident -Wno-date-time'
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DFLB_DEBUG=Off -DFLB_TRACE=Off -DFLB_CONFIG_YAML=Off .
+    make -C build -j$(nproc)
+"
+make_git_package \
+    "fluent-bit" \
+    "v4.0.9" \
+    "https://github.com/fluent/fluent-bit.git" \
+    "$BUILD_CMD" \
+    "build/bin/fluent-bit:/usr/bin/fluent-bit" \
+    "init/fluent-bit.service:/etc/systemd/system/fluent-bit.service"
+
 # Build tdx-init
 make_git_package \
     "tdx-init" \
