@@ -172,9 +172,7 @@ iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $TITAN_BUILDER_IP --dport $TITAN_BUND
 # Security note: This is a side channel.
 # While the operator will not be able to see the content of the packets, 
 # they can observe the presence or absence of packets.
-iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $FLASHBOTS_BUNDLE_IP1 --dport $HTTPS_PORT \
-    -m conntrack --ctstate NEW -j ACCEPT
-iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $FLASHBOTS_BUNDLE_IP2 --dport $HTTPS_PORT \
+iptables -A $CHAIN_ALWAYS_ON_OUT -p tcp -d $FLASHBOTS_BUNDLE_IP1,$FLASHBOTS_BUNDLE_IP2 --dport $HTTPS_PORT \
     -m conntrack --ctstate NEW -j ACCEPT
 
 # Return from ALWAYS_ON_OUT back to caller (OUTPUT chain -> MODE_SELECTOR_OUT) 
