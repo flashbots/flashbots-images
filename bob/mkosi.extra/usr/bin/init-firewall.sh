@@ -204,8 +204,7 @@ iptables -A $CHAIN_MAINTENANCE_IN -j RETURN
 # (9) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
 # Block Flashbots protect tx endpoints during maintenance
-iptables -A $CHAIN_MAINTENANCE_OUT -p tcp -d $FLASHBOTS_TX_IP1 -j DROP
-iptables -A $CHAIN_MAINTENANCE_OUT -p tcp -d $FLASHBOTS_TX_IP2 -j DROP
+iptables -A $CHAIN_MAINTENANCE_OUT -d $FLASHBOTS_TX_IP1,$FLASHBOTS_TX_IP2 -j DROP
 
 # DNS (UDP/TCP 53)
 # Note: Searchers will only have DNS in maintenance mode! 
