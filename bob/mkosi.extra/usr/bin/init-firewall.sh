@@ -247,9 +247,7 @@ iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $TITAN_BUILDER_IP --dport $TITAN_STA
     -m conntrack --ctstate NEW -j ACCEPT
 
 # Flashbots protect tx endpoints (production only)
-iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $FLASHBOTS_TX_IP1 --dport $HTTPS_PORT \
-    -m conntrack --ctstate NEW -j ACCEPT
-iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $FLASHBOTS_TX_IP2 --dport $HTTPS_PORT \
+iptables -A $CHAIN_PRODUCTION_OUT -p tcp -d $FLASHBOTS_TX_IP1,$FLASHBOTS_TX_IP2 --dport $HTTPS_PORT \
     -m conntrack --ctstate NEW -j ACCEPT
 
 # Return from PRODUCTION_OUT back to caller (OUTPUT chain -> END) 
