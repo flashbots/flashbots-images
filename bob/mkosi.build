@@ -40,8 +40,7 @@ make_git_package \
     "v4.0.9" \
     "https://github.com/fluent/fluent-bit.git" \
     "$BUILD_CMD" \
-    "build/bin/fluent-bit:/usr/bin/fluent-bit" \
-    "init/fluent-bit.service:/etc/systemd/system/fluent-bit.service"
+    "build/bin/fluent-bit:/usr/bin/fluent-bit"
 
 # Build tdx-init
 make_git_package \

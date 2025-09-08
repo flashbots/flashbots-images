@@ -1,12 +1,15 @@
 [Unit]
-After=
-Requires=
+Description=Fluent Bit
 After=persistent-mount.service
 Requires=persistent-mount.service
 
 [Service]
-ExecStart=
+Type=simple
 ExecStart=/usr/bin/fluent-bit -c /etc/fluent-bit/fluent-bit.conf
+Restart=always
+RestartSec=5
+# ProtectSystem=strict
+# ReadWritePaths=/persistent/delayed_logs
 
 [Install]
 WantedBy=minimal.target
