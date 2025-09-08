@@ -17,6 +17,7 @@ scripts/config --disable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 ```
 
 ### Convert raw to vhd
+From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/create-upload-generic#general-linux-installation-notes
 ```
 rawdisk="buildernet.raw"
 vhddisk="buildernet.vhd"
@@ -25,4 +26,11 @@ size=$(qemu-img info -f raw --output json "$rawdisk" | jq -r '."virtual-size"')
 rounded_size=$(((($size+$MB-1)/$MB)*$MB))
 qemu-img resize -f raw $rawdisk $rounded_size
 qemu-img convert -f raw -o subformat=fixed,force_size -O vpc $rawdisk $vhddisk
+```
+
+# Run a VM with SWTPM and persistent disk at LUN 10
+```
+mkdir /tmp/emulated_tpm
+swtpm socket --tpmstate dir=/tmp/emulated_tpm --ctrl type=unixio,path=/tmp/emulated_tpm/swtpm-sock --log level=20 --tpm2
+qemu-system-x86_64 -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive file=/usr/share/OVMF/OVMF_VARS_4M.fd,if=pflash,format=raw,readonly=on -drive format=raw,file=./buildernet.raw -enable-kvm -cpu host -m 4G -netdev user,id=nic0_td -device virtio-net-pci,netdev=nic0_td -nographic -device virtio-scsi-pci,id=scsi0 -drive file=./persistent.qcow2,format=qcow2,if=none,id=disk0 -device scsi-hd,drive=disk0,bus=scsi0.0,channel=0,scsi-id=0,lun=10 -chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0
 ```
