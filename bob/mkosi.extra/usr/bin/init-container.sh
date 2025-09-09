@@ -73,3 +73,13 @@ nsenter --target "$pid" --net iptables -A OUTPUT -p udp --dport 123 -j DROP
 # Drop outbound traffic from SEARCHER_INPUT_CHANNEL
 nsenter --target "$pid" --net iptables -A OUTPUT -p udp --sport $SEARCHER_INPUT_CHANNEL -j DROP
 nsenter --target "$pid" --net iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_CHANNEL -j DROP
+
+echo "Injecting static hosts into $NAME..."
+
+su -s /bin/sh searcher -c "podman exec $NAME /bin/sh -c '
+    echo \"3.149.14.12 tx.tee-searcher.flashbots.net\" >> /etc/hosts &&
+    echo \"3.136.107.142 tx.tee-searcher.flashbots.net\" >> /etc/hosts &&
+    echo \"18.221.59.61 backruns.tee-searcher.flashbots.net\" >> /etc/hosts &&
+    echo \"3.15.88.156 backruns.tee-searcher.flashbots.net\" >> /etc/hosts &&
+    echo \"52.207.17.217 fbtee.titanbuilder.xyz\" >> /etc/hosts
+'"
