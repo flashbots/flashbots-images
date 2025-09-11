@@ -16,6 +16,11 @@ scripts/config --disable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 ./scripts/diffconfig -m .config_old .config_new
 ```
 
+### Merge kernel fragments
+```
+./scripts/kconfig/merge_config.sh -O . ./buildernet/kernel/configs/*
+```
+
 ### Convert raw to vhd
 From https://learn.microsoft.com/en-us/azure/virtual-machines/linux/create-upload-generic#general-linux-installation-notes
 ```
@@ -28,9 +33,29 @@ qemu-img resize -f raw $rawdisk $rounded_size
 qemu-img convert -f raw -o subformat=fixed,force_size -O vpc $rawdisk $vhddisk
 ```
 
-# Run a VM with SWTPM and persistent disk at LUN 10
+# Run a VM with Autologin=yes console and SW TPM
 ```
 mkdir /tmp/emulated_tpm
-swtpm socket --tpmstate dir=/tmp/emulated_tpm --ctrl type=unixio,path=/tmp/emulated_tpm/swtpm-sock --log level=20 --tpm2
-qemu-system-x86_64 -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive file=/usr/share/OVMF/OVMF_VARS_4M.fd,if=pflash,format=raw,readonly=on -drive format=raw,file=./buildernet.raw -enable-kvm -cpu host -m 4G -netdev user,id=nic0_td -device virtio-net-pci,netdev=nic0_td -nographic -device virtio-scsi-pci,id=scsi0 -drive file=./persistent.qcow2,format=qcow2,if=none,id=disk0 -device scsi-hd,drive=disk0,bus=scsi0.0,channel=0,scsi-id=0,lun=10 -chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0
+swtpm socket --tpmstate dir=/tmp/emulated_tpm --ctrl type=unixio,path=/tmp/emulated_tpm/swtpm-sock --log level=20 --tpm2 -d
+qemu-system-x86_64 \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_VARS_4M.fd \
+  -drive format=raw,if=none,cache=none,id=osdisk,file=./buildernet.raw \
+  -device nvme,drive=osdisk,serial=nvme-os,bootindex=0 \
+  -enable-kvm -cpu host -m 4G -smp 8 -nographic \
+  -device virtio-scsi-pci,id=scsi0 \
+  -drive file=./persistent.raw,format=raw,if=none,id=datadisk \
+  -device nvme,id=nvme0,serial=nvme-data \
+  -device nvme-ns,drive=datadisk,bus=nvme0,nsid=12 \
+  -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2223-:22 \
+  -chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock \
+  -tpmdev emulator,id=tpm0,chardev=chrtpm \
+  -device tpm-tis,tpmdev=tpm0 -chardev socket,id=hvc0,path=/tmp/hvc0.sock,server,nowait \
+  -device virtio-serial-pci \
+  -device virtconsole,chardev=hvc0,name=org.qemu.console
+```
+
+then connect with
+```
+socat -,raw,echo=0 UNIX-CONNECT:/tmp/hvc0.sock
 ```

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu -x -o pipefail
+set -eu -o pipefail
 
 mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
 cp ${OUTPUTDIR}/${IMAGE_ID}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI

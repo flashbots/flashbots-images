@@ -17,10 +17,10 @@ function replace_underscore_template {
 for var in "${!BUILDERNET_@}"; do
   case $var in
     BUILDERNET_TARGET_LUN)
-      replace_underscore_template "$BUILDROOT/etc/systemd/system/systemd-repart.service.d/90-persistent.conf" "${!var}"
+      replace_underscore_template "$BUILDROOT/etc/systemd/system/persistent-setup.service" "${!var}"
       ;;
     BUILDERNET_BUILDERHUB_URL)
-      #replace_underscore_template "$BUILDROOT/etc/systemd/system/systemd-repart.service.d/90-persistent.conf" "${!var}"
+      #replace_underscore_template "$BUILDROOT/etc/systemd/system/persistent-setup.service" "${!var}"
       ;;
     BUILDERNET_SSH_PUBLIC_KEY)
       replace_underscore_template "$BUILDROOT/home/bnet/.ssh/authorized_keys" "${!var}"

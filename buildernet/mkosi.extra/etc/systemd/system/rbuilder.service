@@ -13,5 +13,5 @@ ExecStart=/usr/bin/rbuilder run /etc/rbuilder/rbuilder.config
 Restart=on-failure
 RestartSec=10
 
-[Install]
-WantedBy=minimal.target
+#[Install]
+#WantedBy=minimal.target

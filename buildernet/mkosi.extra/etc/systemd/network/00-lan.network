@@ -1,0 +1,6 @@
+[Match]
+Name=e*
+Type=ether
+
+[Network]
+DHCP=yes

@@ -7,6 +7,7 @@ mkosi.builddir/
 mkosi.tools/
 mkosi.tools.manifest
 *.qcow2
+*.raw
 .claudesync/
 .claudeignore
 tmp/

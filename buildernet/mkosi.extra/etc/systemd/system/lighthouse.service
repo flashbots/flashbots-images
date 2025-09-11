@@ -30,5 +30,5 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-[Install]
-WantedBy=minimal.target
+#[Install]
+#WantedBy=minimal.target
