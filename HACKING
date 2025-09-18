@@ -59,3 +59,9 @@ then connect with
 ```
 socat -,raw,echo=0 UNIX-CONNECT:/tmp/hvc0.sock
 ```
+
+# Vector Prometheus labels relabeling
+Check out:
+- https://github.com/search?q=%22type%3A+prometheus_scrape%22+AND+%22transforms%22&type=code
+- https://github.com/medic/helm-charts/blob/688c448b51cd8a31204b24561a09d13f206c6e2a/charts/observability/values.yaml#L219
+- https://github.com/deepflowio/deepflow/blob/bb6ee75bc7b9ad2f737cd0e6118059c5326abf8c/server/agent_config/README.md?plain=1#L6335

@@ -1,0 +1,72 @@
+# Switch to erb style tags to avoid conflict with vectors's use of curly braces
+{{=<% %>=}}
+sources:
+  logs_journald:
+    type: journald
+
+  metrics_prometheus:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9090/metrics
+  metrics_node_exporter:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9100/metrics
+  metrics_lighthouse:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:5054/metrics
+  metrics_reth:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9001/metrics
+  metrics_rbuilder:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:6060/debug/metrics/prometheus
+  metrics_orderflow_proxy:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:8090/metrics
+  metrics_haproxy:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:8405/metrics
+
+transforms:
+  metrics_relabel:
+    type: remap
+    inputs:
+      - metrics_*
+    source: |-
+      .tags.instance_name = del(.tags.__address__)
+      .tags.instance = .tags.instance_name
+      <%#prometheus.static_configs_default_labels%>
+      .tags.<%label_key%> = "<%label_value%>"
+      <%/prometheus.static_configs_default_labels%>
+
+sinks:
+  cloudwatch:
+    type: aws_cloudwatch_logs
+    inputs:
+      - logs_journald
+    group_name: "<%fluentbit.output_cw_log_group_name%>"
+    stream_name: "{{ host }}-{{ .log._SYSTEMD_UNIT }}"
+    create_missing_group: true
+    create_missing_stream: true
+    compression: gzip
+    region: us-east-2
+
+<%#prometheus.remote_write%>
+  <%name%>:
+    type: prometheus_remote_write
+    inputs:
+      - metrics_relabel
+    endpoint: "<%url%>"
+    <%#sigv4%>
+    auth:
+      strategy: aws
+    aws:
+      region: "<%region%>"
+    <%/sigv4%>
+<%/prometheus.remote_write%>

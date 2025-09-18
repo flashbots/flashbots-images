@@ -9,4 +9,16 @@ Type=oneshot
 User=acme-le
 SupplementaryGroups=haproxy
 StateDirectory=persistent/acme.sh
+ConfigurationDirectory=acme-le::ro
+RuntimeDirectory=acme-le
+RuntimeDirectoryPreserve=yes
+Environment=ACME_HOME=%S/persistent/acme.sh \
+            PRIV_KEY=%S/persistent/acme.sh/key.pem \
+            CERT_FILE=%S/persistent/acme.sh/cert.pem \
+            CSR_FILE=%S/persistent/acme.sh/csr.pem \
+            OPERATOR_API_FIFO=/run/operator-api/journal.fifo
+EnvironmentFile=%E/acme-le/acme-le.env
 ExecStart=/usr/bin/acme.sh --home %S/persistent/acme.sh --renew-all
+
+[Install]
+WantedBy=multi-user.target

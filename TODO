@@ -5,3 +5,4 @@
 
 [    3.830067] systemd[1]: systemd-pcrextend.socket - TPM PCR Measurements was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
 [    3.831565] systemd[1]: systemd-pcrlock.socket - Make TPM PCR Policy was skipped because of an unmet condition check (ConditionSecurity=measured-uki)
+- Change After=render-config.service to Requisite=render-config.service

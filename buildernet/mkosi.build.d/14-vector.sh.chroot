@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# v0.49.0 is not building with rust 1.89.0
+REF=dc7e79278323d1323bcafe3741d7e258b0c37fb4 #v0.49.0
+CARGO_HOME="$BUILDDIR/.cargo"
+PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
+BUILDDIR="$BUILDDIR/vector"
+
+echo "Installing vector..."
+
+mkdir -p $BUILDDIR
+
+curl -sSfL https://api.github.com/repos/vectordotdev/vector/tarball/${REF} | \
+  tar xzf - -C $BUILDDIR --strip-components=1
+
+cd $BUILDDIR
+
+RUSTFLAGS="-C target-cpu=x86-64-v4 \
+           -C link-arg=-Wl,--build-id=none \
+           -C symbol-mangling-version=v0 \
+           -L /usr/lib/x86_64-linux-gnu"
+CARGO_PROFILE_RELEASE_LTO='thin'
+CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1'
+CARGO_PROFILE_RELEASE_PANIC='abort'
+CARGO_PROFILE_RELEASE_INCREMENTAL='false'
+CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
+CARGO_TARGET_DIR="$BUILDDIR/target"
+
+cargo build --release --locked --no-default-features \
+  --features unix,aws-core,sources-file,sources-journald,sinks-prometheus,sinks-aws_cloudwatch_logs,transforms-filter,transforms-throttle,transforms-remap
+
+cp $CARGO_TARGET_DIR/release/vector $DESTDIR/usr/bin/vector

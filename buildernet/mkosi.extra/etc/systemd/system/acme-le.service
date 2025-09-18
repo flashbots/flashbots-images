@@ -9,6 +9,7 @@ User=acme-le
 SupplementaryGroups=haproxy
 ConfigurationDirectory=acme-le::ro
 StateDirectory=persistent/acme.sh
+RuntimeDirectory=acme-le
 Environment=ACME_HOME=%S/persistent/acme.sh \
             PRIV_KEY=%S/persistent/acme.sh/key.pem \
             CERT_FILE=%S/persistent/acme.sh/cert.pem \
@@ -19,5 +20,3 @@ ExecStartPre=ln -sf %E/acme-le/deploy %S/persistent/acme.sh \
              ln -sf %E/acme-le/dnsapi %S/persistent/acme.sh
 ExecStart=/usr/bin/acme-le
 RemainAfterExit=yes
-
-# TODO: start after persistent is mounted

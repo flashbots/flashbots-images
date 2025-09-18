@@ -1,0 +1,13 @@
+[Unit]
+Description=rbuilder and rbuilder-bidding configs watchdog/reloader
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=oneshot
+User=config-watchdog
+SupplementaryGroups=rbuilder rbuilder-bidding
+ExecStart=/usr/bin/config-watchdog
+
+[Install]
+WantedBy=multi-user.target

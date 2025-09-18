@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for new rbuilder and rbuilder-bidding configs
+
+[Timer]
+OnCalendar=minutely
+Persistent=true
+
+[Install]
+WantedBy=timers.target

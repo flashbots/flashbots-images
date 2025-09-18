@@ -9,10 +9,6 @@ function replace_underscore_template {
   return 0
 }
 
-# Install dependencies
-./buildernet/foreign-packages/acme-sh.sh
-./buildernet/foreign-packages/mustache.sh
-
 # Populate environment variables
 for var in "${!BUILDERNET_@}"; do
   case $var in

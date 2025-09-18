@@ -1,0 +1,14 @@
+[Unit]
+Description=Sync reth snapshot
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=oneshot
+User=reth
+ConfigurationDirectory=reth-sync::ro
+StateDirectory=persistent/reth
+ExecStart=/usr/bin/reth-sync
+
+[Install]
+WantedBy=multi-user.target

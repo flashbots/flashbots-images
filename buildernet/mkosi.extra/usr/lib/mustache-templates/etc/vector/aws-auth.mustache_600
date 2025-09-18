@@ -1,0 +1,2 @@
+AWS_ACCESS_KEY_ID={{prometheus.aws_access_key_id}}
+AWS_SECRET_ACCESS_KEY={{prometheus.aws_secret_access_key}}

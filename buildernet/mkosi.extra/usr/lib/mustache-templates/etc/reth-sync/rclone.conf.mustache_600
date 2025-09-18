@@ -1,0 +1,9 @@
+[r2]
+type = s3
+provider = Cloudflare
+endpoint = {{rclone.bucket_endpoint}}
+region = auto
+acl = private
+no_check_bucket = true
+access_key_id = {{rclone.access_key_id}}
+secret_access_key = {{rclone.secret_access_key}}

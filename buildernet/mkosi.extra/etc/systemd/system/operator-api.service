@@ -12,8 +12,6 @@ StateDirectory=persistent/operator-api
 RuntimeDirectory=operator-api
 ExecStart=/usr/bin/operator-api --config %S/persistent/operator-api/config.toml
 
-# TODO: start after persistent is mounted
-
 #CapabilityBoundingSet=
 #RestrictAddressFamilies=AF_INET AF_INET6
 #SystemCallArchitectures=native

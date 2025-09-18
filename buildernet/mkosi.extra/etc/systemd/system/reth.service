@@ -1,0 +1,11 @@
+# TODO: refactor
+[Unit]
+Description=rbuilder Execution Layer client
+After=network.target network-setup.service render-config.service reth-sync.service
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/true
+
+[Install]
+WantedBy=multi-user.target

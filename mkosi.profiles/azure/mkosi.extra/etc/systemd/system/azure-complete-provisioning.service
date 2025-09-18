@@ -1,0 +1,13 @@
+[Unit]
+Description=Complete the provisioning of Azure VM and report it is ready in the absence of the Azure VM Agent \
+            Adapted from https://learn.microsoft.com/en-us/azure/virtual-machines/linux/no-agent#bash-script
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+ExecStart=/usr/bin/azure-complete-provisioning
+
+[Install]
+WantedBy=multi-user.target

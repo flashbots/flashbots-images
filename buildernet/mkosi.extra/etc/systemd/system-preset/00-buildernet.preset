@@ -1,7 +1,3 @@
 # Sorted alphabetically
-enable acme-le.service
-enable acme-le-renewal.timer
-enable haproxy.service
-enable operator-api.service
-enable persistent-setup.service
+enable prometheus-node-exporter.service
 enable ssh.service

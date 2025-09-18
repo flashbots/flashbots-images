@@ -1,0 +1,19 @@
+[Unit]
+Description=Vector is a high-performance, end-to-end (agent & aggregator) observability data pipeline.
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=exec
+User=vector
+SupplementaryGroups=systemd-journal
+ConfigurationDirectory=vector::ro
+EnvironmentFile=%E/vector/aws-auth
+ExecStartPre=/usr/bin/vector validate
+ExecStart=/usr/bin/vector
+ExecReload=/usr/bin/vector validate --no-environment
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
