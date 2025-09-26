@@ -28,6 +28,6 @@ check_perms "base/mkosi.skeleton/etc/resolv.conf" "644" || err=1
 
 if [ $err -eq 1 ]; then
     echo "Permission check failed!"
-    echo "Ensure you have cloned the repo with umask 0022"
+    echo "Please run umask 0022 and re-clone the repository."
     exit 1
 fi

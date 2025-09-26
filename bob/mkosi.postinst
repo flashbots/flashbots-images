@@ -30,8 +30,7 @@ for service in \
     network-setup.service \
     openntpd.service \
     logrotate.service \
-    searcher-log-reader.service \
-    searcher-log-writer.service \
+    fluent-bit.service \
     wait-for-key.service \
     searcher-firewall.service \
     apparmor.service \

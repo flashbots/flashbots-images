@@ -44,16 +44,21 @@ CHAIN_MAINTENANCE_OUT="MAINTENANCE_OUT"
 CHAIN_PRODUCTION_IN="PRODUCTION_IN"
 CHAIN_PRODUCTION_OUT="PRODUCTION_OUT"
 
+# Titan builder IP
+TITAN_BUILDER_IP="52.207.17.217"
+
+# Flashbots IPs
+FLASHBOTS_TX_IP1="3.136.107.142"
+FLASHBOTS_TX_IP2="3.149.14.12"
+FLASHBOTS_BUNDLE_IP1="18.221.59.61"
+FLASHBOTS_BUNDLE_IP2="3.15.88.156"
+
 # Maintenance ports
 SSH_DATA_PORT=10022
 DNS_PORT=53
 HTTP_PORT=80
 HTTPS_PORT=443
 EL_P2P_PORT=30303
-
-# Production ports
-FB_STATE_DIFF_PORT=8547
-TITAN_STATE_DIFF_PORT_WSS=42203
 
 ###############################################################################
 # Delay between stopping and starting maintenance
@@ -91,7 +96,7 @@ check_delay() {
     last_stop=$(cat "$TIMESTAMP_FILE")
     # SECURITY: time can be manipulated by the host
     current_time=$(date +%s)
-    delay_seconds=120  # 2 minutes
+    delay_seconds=300  # 5 minutes
     
     if [ $((current_time - last_stop)) -lt $delay_seconds ]; then
         remaining=$((delay_seconds - (current_time - last_stop)))
@@ -107,8 +112,12 @@ check_delay() {
 kill_established_connections() {
     local old_mode="$1"
     if [ "$old_mode" = "production" ]; then
-        echo "Killing leftover production flows (port $TITAN_STATE_DIFF_PORT_WSS)..."
-        $CONNTRACK -D -p tcp --dport $TITAN_STATE_DIFF_PORT_WSS 2>/dev/null
+        echo "Killing leftover production flows:"
+        echo " - Titan state diff ($TITAN_BUILDER_IP)"
+        echo " - Flashbots protect tx ($FLASHBOTS_TX_IP1, $FLASHBOTS_TX_IP2)"
+        $CONNTRACK -D -d $TITAN_BUILDER_IP 2>/dev/null
+        $CONNTRACK -D -d $FLASHBOTS_TX_IP1 2>/dev/null
+        $CONNTRACK -D -d $FLASHBOTS_TX_IP2 2>/dev/null
 
     elif [ "$old_mode" = "maintenance" ]; then
         echo "Killing leftover maintenance flows:"

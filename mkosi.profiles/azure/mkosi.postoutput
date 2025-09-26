@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-OUTPUT="tdx-debian-azure"
+OUTPUT="tdx-debian"
 EFI_FILE="${OUTPUTDIR}/${OUTPUT}.efi"
 VHD_FILE="${OUTPUTDIR}/${OUTPUT}.vhd"
 WORK_DIR="${OUTPUTDIR}/azure-tmp"

@@ -4,6 +4,11 @@
 
 set -e
 
+if ! dmidecode -s system-manufacturer 2>/dev/null | grep -q "Microsoft Corporation"; then
+    echo "Not running on Azure, skipping provisioning"
+    exit 0
+fi
+
 attempts=1
 retrieved_goal_state=false
 until [ "$attempts" -gt 5 ]
@@ -12,6 +17,8 @@ do
     goalstate=$(curl --fail -v -X 'GET' -H "x-ms-agent-name: azure-vm-register" \
                                         -H "Content-Type: text/xml;charset=utf-8" \
                                         -H "x-ms-version: 2012-11-30" \
+                                        --connect-timeout 10 \
+                                        --max-time 30 \
                                           "http://168.63.129.16/machine/?comp=goalstate")
     if [ $? -eq 0 ]
     then
