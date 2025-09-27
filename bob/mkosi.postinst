@@ -44,6 +44,10 @@ do
     ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
 done
 
+# Monkey-patch runc to add apparmorProfile to config.json on "create"
+mv "$BUILDROOT/usr/bin/runc" "$BUILDROOT/usr/bin/runc.real"
+install -m 755 $SRCDIR/bob/runc-apparmor.sh "$BUILDROOT/usr/bin/runc"
+
 # Don't reserve port 22
 mkosi-chroot systemctl disable ssh.service ssh.socket
 mkosi-chroot systemctl mask ssh.service ssh.socket
