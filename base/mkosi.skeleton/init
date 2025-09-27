@@ -7,6 +7,7 @@ mount -t sysfs none /sys
 mount -t devtmpfs none /dev
 mount -t tmpfs none /run
 mount -t configfs none /sys/kernel/config
+mount -t securityfs none /sys/kernel/security
 
 # Workaround to make pivot_root work
 # https://aconz2.github.io/2024/07/29/container-from-initramfs.html
