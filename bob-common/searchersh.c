@@ -10,15 +10,15 @@
 // Check if initialization is complete (persistent is mounted)
 int is_initialized() {
     struct stat st_mount, st_parent;
-    
+
     if (stat("/persistent", &st_mount) != 0) {
         return 0;
     }
-    
+
     if (stat("/persistent/..", &st_parent) != 0) {
         return 0;
     }
-    
+
     // Different device IDs mean it's a mount point
     return (st_mount.st_dev != st_parent.st_dev);
 }
@@ -27,7 +27,7 @@ int is_initialized() {
 // argv is an array of C-strings (character pointers)
 int main(int argc, char *argv[]) {
 
-    // We expect exactly 3 arguments: 
+    // We expect exactly 3 arguments:
     // Example: ssh -i ~/.ssh/yocto-searcher -p 8084 searcher@localhost hello 5
     // argv[0] = 'searchersh'
     // argv[1] = '-c'
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     // We must free() this memory later.
     char *arg_copy = strdup(argv[2]);
     if (!arg_copy) {
-        perror("strdup failed"); 
+        perror("strdup failed");
         return 1; // return error code 1
     }
 
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     if (command == NULL) {
         // If there's no token at all (e.g., empty or whitespace-only string),
         // we print an error and quit.
-        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, initialize\n");
+        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, restart-op-node, initialize\n");
         free(arg_copy); // free the memory
         return 1;       // return error code 1
     }
@@ -81,12 +81,12 @@ int main(int argc, char *argv[]) {
     // If command == "initialize", run the tdx-init program with set-passphrase command
     if (strcmp(command, "initialize") == 0) {
         execl("/usr/bin/sudo", "sudo", "/usr/bin/tdx-init", "set-passphrase", NULL);
-        
+
         perror("execl failed (initialize)");
         free(arg_copy);
         return 1;
     }
-    
+
     // Check if system is initialized before allowing other commands
     if (!is_initialized()) {
         fprintf(stderr, "System not initialized. Please run 'initialize' command first.\n");
@@ -99,8 +99,9 @@ int main(int argc, char *argv[]) {
     // 2) "status"
     // 3) "logs"
     // 4) "restart-lighthouse"
+    // 5) "restart-op-node"
     // Anything else -> invalid.
-    
+
     // If command == "toggle", call /usr/bin/toggle via sudo
     if (strcmp(command, "toggle") == 0) {
         // execl() replaces the current process with the new program
@@ -112,10 +113,10 @@ int main(int argc, char *argv[]) {
         //   5) NULL terminator for argument list
         // execl("/usr/bin/sudo", "sudo", "-S", "/usr/bin/toggle", NULL);
         execl("/usr/bin/sudo", "sudo", "/usr/bin/toggle", NULL);
-        
+
         // If execl fails, we reach here. perror prints error details.
         perror("execl failed (toggle)");
-        
+
         // We must free the copied string before exiting
         free(arg_copy);
         return 1;
@@ -125,7 +126,7 @@ int main(int argc, char *argv[]) {
     else if (strcmp(command, "status") == 0) {
         // runs: cat /etc/searcher-network.state
         execl("/bin/cat", "cat", "/etc/searcher-network.state", NULL);
-        
+
         perror("execl failed (status)");
         free(arg_copy);
         return 1;
@@ -171,7 +172,7 @@ int main(int argc, char *argv[]) {
         // tail -n <arg> /persistent/delayed_logs/output.log
         // If arg = "3", that's tail -n 3 /persistent/delayed_logs/output.log
         execl("/usr/bin/tail", "tail", "-n", arg, "/persistent/delayed_logs/output.log", (char *)NULL);
-        
+
         perror("execl failed (logs)");
         free(arg_copy);
         return 1; // return error code 1
@@ -180,8 +181,17 @@ int main(int argc, char *argv[]) {
     // If command == "restart-lighthouse", restart the lighthouse systemd service
     else if (strcmp(command, "restart-lighthouse") == 0) {
         execl("/usr/bin/sudo", "sudo", "/usr/bin/systemctl", "restart", "lighthouse", NULL);
-        
+
         perror("execl failed (restart-lighthouse)");
+        free(arg_copy);
+        return 1;
+    }
+
+    // If command == "restart-op-node", restart the op-node systemd service
+    else if (strcmp(command, "restart-op-node") == 0) {
+        execl("/usr/bin/sudo", "sudo", "/usr/bin/systemctl", "restart", "op-node", NULL);
+
+        perror("execl failed (restart-op-node)");
         free(arg_copy);
         return 1;
     }
