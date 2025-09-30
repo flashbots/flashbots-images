@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euxo pipefail
 
-source scripts/build_rust_package.sh
 source scripts/make_git_package.sh
 
 # Compile searchersh
@@ -17,32 +16,6 @@ make_git_package \
     './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
     ".libs/cryptsetup:/usr/sbin/cryptsetup" \
     ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
-
-# Compile lighthouse
-LIGHTHOUSE_BUILD_CMD="
-    # Switch from jemalloc to the system allocator to fix reproducibility issues
-    sed -i 's/malloc_utils = { workspace = true, features = \[\"jemalloc\"\] }/malloc_utils = { workspace = true }/' lighthouse/Cargo.toml
-    sed -i 's/#\[cfg(target_os = \"windows\")\]/#[cfg(not(feature = \"jemalloc\"))]/' lighthouse/src/main.rs
-    sed -i 's/#\[cfg(not(target_os = \"windows\"))\]/#[cfg(feature = \"jemalloc\")]/' lighthouse/src/main.rs
-
-    # Reproducibility flags
-    export RUSTFLAGS='-C target-cpu=generic -C link-arg=-Wl,--build-id=none -C symbol-mangling-version=v0 -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
-    export CARGO_PROFILE_RELEASE_LTO='thin'
-    export CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1'
-    export CARGO_PROFILE_RELEASE_PANIC='unwind'
-    export CARGO_PROFILE_RELEASE_STRIP='none'
-    export CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
-    export CARGO_TERM_COLOR='never'
-
-    cargo fetch
-    DESTDIR=$BUILDROOT cargo build --release --frozen --bin lighthouse --no-default-features --features portable
-"
-make_git_package \
-    "lighthouse" \
-    "v7.1.0" \
-    "https://github.com/sigp/lighthouse.git" \
-	"$LIGHTHOUSE_BUILD_CMD" \
-    "target/release/lighthouse:/usr/bin/lighthouse"
 
 # Build fluent-bit
 BUILD_CMD="

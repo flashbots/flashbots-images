@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Create user and group
+# NOTE: Due to a limitation in mkosi, all folders are owned by root by default
+# https://github.com/systemd/mkosi/issues/3065
+mkosi-chroot groupadd -r eth
+mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
+
+# Install lighthouse
+install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
+
+# Enable lighthouse service
+mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
+mkosi-chroot systemctl enable lighthouse.service
+ln -sf /etc/systemd/system/lighthouse.service "$BUILDROOT/etc/systemd/system/minimal.target.wants/"

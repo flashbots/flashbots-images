@@ -5,18 +5,12 @@ set -euxo pipefail
 # NOTE: Due to a limitation in mkosi, all folders are owned by root by default
 # https://github.com/systemd/mkosi/issues/3065
 mkosi-chroot useradd -m -d /home/searcher -s /usr/bin/searchersh -u 1000 searcher
-mkosi-chroot groupadd -r eth
-mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
-
 
 # Set up sudo permissions for searcher
 chmod 440 "$BUILDROOT/etc/sudoers.d/99-searcher"
 
 # Make sure searchersh is in the list of valid shells
 echo "/usr/bin/searchersh" >> "$BUILDROOT/etc/shells"
-
-# Install lighthouse
-install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
 
 mkdir -p "$BUILDROOT/etc/searcher/ssh_hostkey"
 
@@ -25,7 +19,7 @@ rm -r "$BUILDROOT/etc/dropbear"
 mkdir "$BUILDROOT/etc/dropbear"
 
 # Enable services
-mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants"
+mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
     network-setup.service \
     openntpd.service \
@@ -34,7 +28,6 @@ for service in \
     wait-for-key.service \
     searcher-firewall.service \
     dropbear.service \
-    lighthouse.service \
     searcher-container.service \
     ssh-pubkey-server.service \
     cvm-reverse-proxy.service
