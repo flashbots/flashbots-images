@@ -1,0 +1,41 @@
+[Unit]
+Description=op-node
+After=network.target network-setup.service persistent-mount.service
+Requires=network-setup.service persistent-mount.service
+
+[Service]
+Type=simple
+
+User=op-node
+Group=eth
+
+Environment=HOME=/persistent/op-node
+
+ExecStartPre=+/usr/bin/op-node-init
+ExecStart=/usr/bin/op-node \
+    --log.format json \
+    --network op-mainnet \
+    --syncmode execution-layer \
+    \
+    --p2p.listen.tcp 9222 \
+    --p2p.listen.udp 9222 \
+    \
+    --l1 http://FIXME:8545 \
+    --l1.beacon http://FIXME:3500 \
+    --l1.rpckind basic \
+    \
+    --l2 http://127.0.0.1:8551 \
+    --l2.enginekind geth \
+    --l2.jwt-secret /tmp/jwt.hex
+
+StandardOutput=/persistent/cl_logs/op-node.log
+StandardError=/persistent/cl_logs/op-node.err
+
+KillMode=control-group
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=10
+
+[Install]
+WantedBy=minimal.target

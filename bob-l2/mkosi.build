@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euxo pipefail
+
+source scripts/make_git_package.sh
+
+OP_NODE_VERSION="v1.13.7"
+
+# single quotes, evaluate subshell within make_git_package
+OP_NODE_BUILD_CMD='
+    cd op-node
+    git config --global --add safe.directory "$PWD"
+
+    # Check justfiles/{go,git}.just and op-node/justfile for up-to date build commands
+    # We do not want to add just to build process, it is tricky to install latest version
+
+    GITCOMMIT=$(git rev-parse HEAD)
+    GITDATE=$(git show -s --format='%ct')
+    VERSION="$OP_NODE_VERSION"
+    VERSION_META=""
+
+    env GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+        go build -v \
+        -ldflags "
+            -X main.GitCommit=$GITCOMMIT
+            -X main.GitDate=$GITDATE
+            -X github.com/ethereum-optimism/optimism/op-node/version.Version=$VERSION
+            -X github.com/ethereum-optimism/optimism/op-node/version.Meta=$VERSION_META
+        " \
+        -o ./bin/op-node ./cmd
+'
+make_git_package \
+    "op-node" \
+    "op-node/$OP_NODE_VERSION" \
+    "https://github.com/ethereum-optimism/optimism" \
+    "$OP_NODE_BUILD_CMD" \
+    "op-node/bin/op-node:/usr/bin/op-node"
