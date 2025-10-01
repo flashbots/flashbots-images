@@ -17,6 +17,7 @@ missing=()
 # Check for missing dependencies
 
 cmd_exists curl || missing+=("curl")
+cmd_exists qemu-img || missing+=("qemu-utils")
 
 ls /usr/share/keyrings/debian-archive* &>/dev/null 2>&1 || missing+=("debian-archive-keyring")
 
@@ -49,7 +50,7 @@ fi
 
 apt_pkgs=()
 for dep in "${missing[@]}"; do
-    [[ "$dep" == "curl" || "$dep" == "debian-archive-keyring" ]] && apt_pkgs+=("$dep")
+    [[ "$dep" == "curl" || "$dep" == "debian-archive-keyring" || "$dep" == "qemu-utils" ]] && apt_pkgs+=("$dep")
 done
 
 if [ ${#apt_pkgs[@]} -gt 0 ]; then
