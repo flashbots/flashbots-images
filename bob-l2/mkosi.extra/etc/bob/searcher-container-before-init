@@ -1,0 +1,9 @@
+# This script is sourced from init-container.sh and contains image-specific stuff
+# See also: bob-common/mkosi.extra/usr/bin/init-container.sh
+
+ENGINE_API_PORT=8651
+
+BOB_SEARCHER_EXTRA_PODMAN_FLAGS="\
+    -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
+    -v /etc/metadata.env:/etc/metadata.env:ro \
+"

@@ -1,0 +1,8 @@
+# This script is sourced from init-container.sh and contains image-specific stuff
+# See also: bob-common/mkosi.extra/usr/bin/init-container.sh
+
+exec_in_container "
+    cat <<EOF >> /etc/hosts
+$METADATA_BOB_L2_TX_STREAM_IP tx-stream.internal
+$METADATA_BOB_L2_BACKRUNS_IP  backruns.internal
+EOF"
