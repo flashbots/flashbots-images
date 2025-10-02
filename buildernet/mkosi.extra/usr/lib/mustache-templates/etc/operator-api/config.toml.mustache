@@ -15,13 +15,11 @@ basic_auth_secret_salt = "bb36ef0b6643"
 
 # TLS configuration
 tls_enabled = true
-tls_create_if_missing = true
-# TODO: Can we serve lets encrypt certs instead of generating?
-tls_cert_hosts = ["127.0.0.1","localhost","{{dns_name}}"]
+tls_create_if_missing = false
 tls_cert_path = "/var/lib/persistent/operator-api/cert.pem"
 tls_key_path = "/var/lib/persistent/operator-api/key.pem"
 
-# Make sure to update buildernet/mkosi.skeleton/etc/sudoers.d/operator-api
+# Make sure to update buildernet/mkosi.extra/etc/sudoers.d/operator-api
 # when adding a new action
 [actions]
 reboot = "reboot"
@@ -29,8 +27,8 @@ rbuilder_restart = "systemctl restart rbuilder"
 rbuilder_stop = "systemctl stop rbuilder"
 fetch_config = "systemctl start fetch-config"
 rbuilder_bidding_restart = ""systemctl restart rbuilder-bidding"
-ssh_stop = "systemctl stop ssh"
-ssh_start = "systemctl start ssh"
+ssh_stop = "systemctl stop ssh.service ssh.socket"
+ssh_start = "systemctl start ssh.service ssh.socket"
 haproxy_restart = "systemctl restart haproxy"
 
 [file_uploads]

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REF=e1794622f086864c5f69c6f1867138647669fa1d #v0.5.4
+BUILDDIR="$BUILDDIR/orderflow-proxy"
+
+echo "Installing orderflow-proxy..."
+
+mkdir -p $BUILDDIR
+
+curl -sSfL https://api.github.com/repos/flashbots/buildernet-orderflow-proxy/tarball/${REF} | \
+  tar xzf - -C $BUILDDIR --strip-components=1
+
+cd $BUILDDIR
+VERSION=$(git describe --tags --always --dirty="-dev")
+mkdir -p build
+
+go build -trimpath -ldflags \
+  "-s -w -buildid= -X github.com/flashbots/buildernet-orderflow-proxy/common.Version=${VERSION}" \
+  -v -o ./build/orderflow-proxy cmd/receiver-proxy/main.go
+
+cp $BUILDDIR/build/orderflow-proxy $DESTDIR/usr/bin/orderflow-proxy

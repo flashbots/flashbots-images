@@ -1,0 +1,14 @@
+[Unit]
+Description=CVM Reverse Proxy server
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/cvm-reverse-proxy-server \
+  --listen-addr=0.0.0.0:7936 \
+  --target-addr=http://localhost:14727
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

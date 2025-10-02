@@ -1,0 +1,16 @@
+[Unit]
+Description=Orderflow Proxy
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+ConfigurationDirectory=orderflow-proxy::ro
+EnvironmentFile=%E/orderflow-proxy/orderflow-proxy.env
+ExecStart=/usr/bin/orderflow-proxy
+Restart=on-failure
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
