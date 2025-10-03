@@ -39,11 +39,13 @@ setup: ## Install dependencies (Linux only)
 
 # Build module
 build: check-perms setup ## Build the specified module
-	@$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@$(WRAPPER) mkosi --force --include=$(IMAGE).conf
 
 # Build module with devtools profile
+# dev images have less reproducibility requirements, enable incremental builds
+# to speed up development.
 build-dev: check-perms setup ## Build module with development tools
-	@$(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	@$(WRAPPER) mkosi --force --incremental=yes --profile=devtools --include=$(IMAGE).conf
 
 ##@ Utilities
 

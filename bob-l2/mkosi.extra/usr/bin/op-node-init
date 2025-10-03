@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+# Generate JWT token if it doesn't exist
+if [ ! -f /tmp/jwt.hex ]; then
+    openssl rand -hex 32 | tr -d "\n" | tee /tmp/jwt.hex
+    chown op-node:eth /tmp/jwt.hex
+    chmod 644 /tmp/jwt.hex
+fi
+
+# op-node does not need any data directory, it's stateless
+# however, it needs HOME for .op-deployer/cache (which appears unused)
+for dir in /persistent/op-node /persistent/cl_logs; do
+    mkdir -p $dir
+    chown op-node:eth $dir
+    chmod 755 $dir
+done
