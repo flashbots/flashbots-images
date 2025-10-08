@@ -6,7 +6,9 @@ After=network.target network-online.target render-config.service reth-sync.servi
 [Service]
 Type=exec
 User=reth
+Group=eth
 StateDirectory=persistent/reth
+RuntimeDirectory=reth
 ExecStart=/usr/bin/reth node \
     --full \
     --datadir $S/persistent/reth \
@@ -25,8 +27,10 @@ ExecStart=/usr/bin/reth node \
     --log.file.max-files 0 \
     --metrics "127.0.0.1:9001" \
     --engine.persistence-threshold=0 \
-    --engine.memory-block-buffer-target=0
+    --engine.memory-block-buffer-target=0 \
+    --ipcpath=%t/reth.ipc
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
+# TODO: ulimit?

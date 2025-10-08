@@ -8,6 +8,7 @@ Type=exec
 User=rbuilder-bidding
 SupplementaryGroups=rbuilder
 ConfigurationDirectory=rbuilder-bidding::ro
+RuntimeDirectory=rbuilder-bidding
 Environment=RBUILDER_BIDDING_SHA256SUM=83312a0de6941e788e09e6e37ec07e129188f2ed33c7b7d8e997f580d0842857 \
             RBUILDER_BIDDING_TAG=v1.2.8
 EnvironmentFile=%E/rbuilder-bidding/gh_token.env

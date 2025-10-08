@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 source /usr/bin/helper-functions.sh
 
-RBUILDER_PERSISTENT_DIR="/var/lib/persistent/rbuilder"
+RBUILDER_PERSISTENT_DIR="/var/lib/persistent/rbuilder-operator"
 RBUILDER_STATUS_FLAG_FILE="${RBUILDER_PERSISTENT_DIR}/rbuilder.enabled"
 # locally exposed BuilderHub API proxied through CVM proxy
 RBUILDER_BIDDING_CONFIG_DIR="/etc/rbuilder-bidding"
@@ -30,13 +30,13 @@ function check_rbuilder_enabled() {
     if [[ ! -f "$RBUILDER_STATUS_FLAG_FILE" ]]; then
       : > "$RBUILDER_STATUS_FLAG_FILE"
       log "rbuilder-status-watchdog: rbuilder is enabled in BuilderHub"
-      systemctl restart rbuilder
+      systemctl restart rbuilder-operator
     fi
   else
     if [[ -f "$RBUILDER_STATUS_FLAG_FILE" ]]; then
       rm -f "$RBUILDER_STATUS_FLAG_FILE"
       log "rbuilder-status-watchdog: rbuilder is disabled in BuilderHub"
-      systemctl stop rbuilder
+      systemctl stop rbuilder-operator
     fi
   fi
 }

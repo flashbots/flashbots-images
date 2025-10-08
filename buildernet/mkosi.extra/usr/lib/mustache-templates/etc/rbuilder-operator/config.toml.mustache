@@ -1,0 +1,42 @@
+bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
+blocklist = "{{rbuilder.blocklist}}"
+blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
+chain = "mainnet"
+cl_node_url = ["http://127.0.0.1:3500"]
+coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
+el_node_ipc_path = "/run/reth/reth.ipc"
+error_storage_path = "/run/rbuilder-operator/rbuilder_errors.sqlite"
+evm_caching_enable = {{rbuilder.evm_caching_enable}}
+extra_data = "{{rbuilder.extra_data}}"
+faster_finalize = true
+full_telemetry_server_ip = "127.0.0.1"
+full_telemetry_server_port = 6060
+ignore_blobs = {{rbuilder.ignore_blobs}}
+ignore_cancellable_orders = false
+jsonrpc_server_ip = "127.0.0.1"
+jsonrpc_server_port = 8645
+key_registration_url = "http://127.0.0.1:7937"
+live_builders = {{{rbuilder.live_builders}}}
+log_color = false
+log_json = true
+log_level = "info,rbuilder=debug"
+optimistic_enabled = true
+optimistic_max_bid_value_eth = "10"
+optimistic_relay_secret_key = "{{rbuilder.optimistic_relay_secret_key}}"
+relay_secret_key = "{{rbuilder.relay_secret_key}}"
+require_non_empty_blocklist = {{rbuilder.require_non_empty_blocklist}}
+reth_db_path = "/var/lib/persistent/reth/db"
+reth_static_files_path = "/var/lib/persistent/reth/static_files"
+root_hash_sparse_trie_version = "v2"
+root_hash_threads = {{rbuilder.root_hash_threads}}
+root_hash_use_sparse_trie = true
+sbundle_mergeable_signers = ["0xFC171C46A32DC7fF09fBDDD4884a65b2aD596517"]
+scraped_bids_publisher_url = "{{rbuilder.scraped_bids_publisher_url}}"
+simulation_threads = 4
+system_recipient_allowlist = {{{rbuilder.system_recipient_allowlist}}}
+time_to_keep_mempool_txs_secs = {{rbuilder.time_to_keep_mempool_txs_secs}}
+watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
+
+{{{rbuilder.builders}}}
+
+{{{rbuilder.relays}}}
