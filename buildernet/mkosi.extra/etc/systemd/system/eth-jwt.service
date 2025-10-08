@@ -1,0 +1,11 @@
+[Unit]
+Description=Shared JWT token generator for Reth and Lighthouse
+ConditionPathExists=!/run/eth-jwt/jwt
+
+[Service]
+Type=oneshot
+Group=eth
+RuntimeDirectory=eth-jwt
+RuntimeDirectoryPreserve=yes
+ExecStart=/bin/bash -c 'openssl rand -hex 32 | tr -d "\n" > $RUNTIME_DIRECTORY/jwt && \
+          chmod 640 $RUNTIME_DIRECTORY/jwt'

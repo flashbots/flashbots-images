@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REF=4f11b2c0a5b503a9bc7544ee71c4ee82d7286a59 #v0.1.9
+REF=7453ce73d0027548bd0b64224c3198345905f159 #v0.1.9
 BUILDDIR="$BUILDDIR/cvm-reverse-proxy"
+PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
 
 echo "Installing cvm-reverse-proxy..."
 
@@ -12,8 +13,9 @@ curl -sSfL https://api.github.com/repos/flashbots/cvm-reverse-proxy/tarball/${RE
   tar xzf - -C $BUILDDIR --strip-components=1
 
 cd $BUILDDIR
-
+VERSION=${REF:0:7}
 make build
 
+mkdir -p $DESTDIR/usr/bin
 cp $BUILDDIR/build/proxy-client $DESTDIR/usr/bin/cvm-reverse-proxy-client
 cp $BUILDDIR/build/proxy-server $DESTDIR/usr/bin/cvm-reverse-proxy-server

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+#REF=TODO
+echo "Installing lighthouse..."
+
+mkdir -p $DESTDIR/usr/bin
+curl -sSfL https://github.com/sigp/lighthouse/releases/download/v7.1.0/lighthouse-v7.1.0-x86_64-unknown-linux-gnu.tar.gz | \
+  tar xzf - -C $DESTDIR/usr/bin --no-same-owner

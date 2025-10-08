@@ -1,0 +1,15 @@
+[Unit]
+Description=Scrape bids from relays and pass to rbuilder
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=exec
+User=bid-scraper
+ConfigurationDirectory=bid-scraper::ro
+EnvironmentFile=%E/bid-scraper/bid-scraper.env
+ExecStart=/usr/bin/bid-scraper %E/bid-scraper/config.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

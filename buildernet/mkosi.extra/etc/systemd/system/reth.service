@@ -1,11 +1,32 @@
-# TODO: refactor
 [Unit]
-Description=rbuilder Execution Layer client
-After=network.target network-setup.service render-config.service reth-sync.service
+Description=Reth Execution Client
+Wants=network-online.target eth-jwt.service
+After=network.target network-online.target render-config.service reth-sync.service eth-jwt.service
 
 [Service]
 Type=exec
-ExecStart=/usr/bin/true
+User=reth
+StateDirectory=persistent/reth
+ExecStart=/usr/bin/reth node \
+    --full \
+    --datadir $S/persistent/reth \
+    --authrpc.addr 127.0.0.1 \
+    --authrpc.jwtsecret /run/eth-jwt/jwt \
+    --authrpc.port 8551 \
+    --http \
+    --http.addr 127.0.0.1 \
+    --http.port 8545 \
+    --http.api "eth,net,web3,trace,rpc,debug,txpool" \
+    --ws \
+    --ws.addr 127.0.0.1 \
+    --ws.port 8546 \
+    --ws.api "eth,net,trace,web3,rpc,debug,txpool" \
+    --log.stdout.format json \
+    --log.file.max-files 0 \
+    --metrics "127.0.0.1:9001" \
+    --engine.persistence-threshold=0 \
+    --engine.memory-block-buffer-target=0
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target

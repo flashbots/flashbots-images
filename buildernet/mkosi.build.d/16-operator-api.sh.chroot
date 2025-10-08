@@ -3,6 +3,7 @@ set -euo pipefail
 
 REF=a8296e4ccd355f5fac805828ad8e474381a6c5a2 #v0.7.0
 BUILDDIR="$BUILDDIR/operator-api"
+PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
 
 echo "Installing operator-api..."
 
@@ -12,10 +13,11 @@ curl -sSfL https://api.github.com/repos/flashbots/system-api/tarball/${REF} | \
   tar xzf - -C $BUILDDIR --strip-components=1
 
 cd $BUILDDIR
-VERSION=$(git describe --tags --always --dirty="-dev")
+VERSION=${REF:0:7}
 mkdir -p build
 
 go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/system-api/common.Version=${VERSION}" \
   -v -o ./build/operator-api cmd/system-api/*.go
 
+mkdir -p $DESTDIR/usr/bin
 cp $BUILDDIR/build/operator-api $DESTDIR/usr/bin/operator-api

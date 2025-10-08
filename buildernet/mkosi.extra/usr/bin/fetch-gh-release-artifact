@@ -2,17 +2,19 @@
 
 set -eu -o pipefail
 
-source /usr/bin/helper-functions.sh
+# source /usr/bin/helper-functions.sh
 
 function usage() {
   echo "Usage:"
   echo "  $0 fetch --repo <repo> --tag <tag> --artifact-name <artifact_name> --output-file <output_file> [--owner <owner>]"
+  echo "  $0 fetch-actions --repo <repo> --run-id <run_id> --artifact-name <artifact_name> --output-file <output_file> [--owner <owner>]"
   echo "  $0 verify --sha256file <sha256file>"
   echo ""
   echo "Options:"
   echo "  --owner          GitHub repository owner (defaults to 'flashbots')"
   echo "  --repo           GitHub repository name"
-  echo "  --tag            Release tag"
+  echo "  --tag            Release tag (for fetch command)"
+  echo "  --run-id         Workflow run ID (for fetch-actions command)"
   echo "  --artifact-name  Name of the artifact to download"
   echo "  --output-file    Output file path"
   echo "  --sha256file     Path to SHA256 sums file for verification"
@@ -36,7 +38,7 @@ function fetch_github_release_artifact {
     common_headers+=(-H "Authorization: Bearer $GH_TOKEN")
   fi
 
-  log "Fetching GitHub release artifact for tag ${tag}..."
+  # log "Fetching GitHub release artifact for tag ${tag}..."
 
   release_url=$(
     curl -fsSL -H 'Accept: application/vnd.github+json' \
@@ -57,9 +59,54 @@ function fetch_github_release_artifact {
        "${common_headers[@]}" \
        -o "${output_file}" "${asset_url}"
 
-  log "Downloaded GitHub release artifact (${artifact_name}) to ${output_file}"
+  # log "Downloaded GitHub release artifact (${artifact_name}) to ${output_file}"
   return 0
 }
+
+# fetch artifact from GitHub Actions workflow run
+function fetch_github_actions_artifact {
+  local owner=$1
+  local repo=$2
+  local run_id=$3
+  local artifact_name=$4
+  local output_file=$5
+  local common_headers=(
+    -H "X-GitHub-Api-Version: 2022-11-28"
+  )
+
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    common_headers+=(-H "Authorization: Bearer $GH_TOKEN")
+  fi
+
+  # log "Fetching GitHub Actions artifact for run ${run_id}..."
+
+  # List artifacts for the workflow run
+  artifacts_response=$(
+    curl -fsSL -H 'Accept: application/vnd.github+json' \
+      "${common_headers[@]}" \
+      "https://api.github.com/repos/${owner}/${repo}/actions/runs/${run_id}/artifacts")
+
+  # Find the artifact by name
+  artifact_id=$(echo "${artifacts_response}" | \
+    jq -r --arg artifact_name "${artifact_name}" '.artifacts[] | select(.name==$artifact_name) | .id')
+
+  if [[ -z "${artifact_id}" || "${artifact_id}" == "null" ]]; then
+    # log "Error: Artifact '${artifact_name}' not found in workflow run ${run_id}"
+    return 1
+  fi
+
+  # log "Found artifact ID: ${artifact_id}"
+
+  # Download the artifact (it returns a redirect)
+  curl -fsSL -H 'Accept: application/vnd.github+json' \
+       "${common_headers[@]}" \
+       -o "${output_file}" \
+       "https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifact_id}/zip"
+
+  # log "Downloaded GitHub Actions artifact (${artifact_name}) to ${output_file}"
+  return 0
+}
+
 
 # Verify the SHA256 checksum of a file
 function sha256_verify {
@@ -74,16 +121,16 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-local command=$1
+command=$1
 shift
 
 case $command in
   fetch)
-    local owner="flashbots"
-    local repo=""
-    local tag=""
-    local artifact_name=""
-    local output_file=""
+    owner="flashbots"
+    repo=""
+    tag=""
+    artifact_name=""
+    output_file=""
 
     while [[ $# -gt 0 ]]; do
       case $1 in
@@ -124,8 +171,54 @@ case $command in
     fetch_github_release_artifact "$owner" "$repo" "$tag" "$artifact_name" "$output_file"
     ;;
 
+  fetch-actions)
+    owner="flashbots"
+    repo=""
+    run_id=""
+    artifact_name=""
+    output_file=""
+
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        --owner)
+          owner="$2"
+          shift 2
+          ;;
+        --repo)
+          repo="$2"
+          shift 2
+          ;;
+        --run-id)
+          run_id="$2"
+          shift 2
+          ;;
+        --artifact-name)
+          artifact_name="$2"
+          shift 2
+          ;;
+        --output-file)
+          output_file="$2"
+          shift 2
+          ;;
+        *)
+          echo "Unknown option: $1"
+          usage
+          exit 1
+          ;;
+      esac
+    done
+
+    if [[ -z "$repo" || -z "$run_id" || -z "$artifact_name" || -z "$output_file" ]]; then
+      echo "Error: Missing required parameters for fetch-actions command"
+      usage
+      exit 1
+    fi
+
+    fetch_github_actions_artifact "$owner" "$repo" "$run_id" "$artifact_name" "$output_file"
+    ;;
+
   verify)
-    local sha256file=""
+    sha256file=""
 
     while [[ $# -gt 0 ]]; do
       case $1 in

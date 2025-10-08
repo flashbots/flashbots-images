@@ -2,6 +2,7 @@
 Description=Sync reth snapshot
 Wants=network-online.target
 After=network.target network-online.target render-config.service
+ConditionPathIsDirectory=!/var/lib/persistent/reth
 
 [Service]
 Type=oneshot

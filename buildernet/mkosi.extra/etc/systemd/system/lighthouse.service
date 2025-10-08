@@ -1,20 +1,17 @@
 [Unit]
 Description=Lighthouse Consensus Client
-Wants=network-online.target
-After=network.target network-online.target render-config.service
+Wants=network-online.target eth-jwt.service
+After=network.target network-online.target render-config.service eth-jwt.service
 
 [Service]
 Type=exec
 User=lighthouse
-Group=eth
-ExecStartPre=+/usr/bin/lighthouse-init
+StateDirectory=persistent/lighthouse
 ExecStart=/usr/bin/lighthouse bn \
-    --eth1 \
-    --checkpoint-sync-url https://mainnet.checkpoint.sigp.io \
+    --checkpoint-sync-url https://sync-mainnet.beaconcha.in \
     --execution-endpoint http://localhost:8551 \
-    --execution-jwt /tmp/jwt.hex \
+    --execution-jwt /run/eth-jwt/jwt \
     --suggested-fee-recipient 0x000000000000000000000000000000000000dead \
-    --http-allow-sync-stalled \
     --always-prepare-payload \
     --prepare-payload-lookahead 8000 \
     --disable-deposit-contract-sync \
@@ -24,11 +21,8 @@ ExecStart=/usr/bin/lighthouse bn \
     --metrics \
     --metrics-address 127.0.0.1 \
     --metrics-port 5054 \
-    --datadir /persistent/lighthouse
+    --datadir $S/persistent/lighthouse
 Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
 
-#[Install]
-#WantedBy=minimal.target
+[Install]
+WantedBy=multi-user.target
