@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu -o pipefail
+set -eux -o pipefail
 
 source /usr/bin/helper-functions.sh
 
@@ -32,10 +32,25 @@ function find_target_device {
   return 1
 }
 
-TARGET_DEVICE=$(find_target_device "$LUN") || {
-  log "persistent-setup: No device found for LUN ${LUN}"
+TIMEOUT=120
+INTERVAL=2
+
+log "persistent-setup: Waiting for device with LUN ${LUN} to appear..."
+
+while [[ $TIMEOUT -gt 0 ]]; do
+  if TARGET_DEVICE=$(find_target_device "$LUN"); then
+    log "persistent-setup: Found device ${TARGET_DEVICE} for LUN ${LUN}"
+    break
+  fi
+
+  sleep $INTERVAL
+  TIMEOUT=$((TIMEOUT - INTERVAL))
+done
+
+if [[ -z "${TARGET_DEVICE:-}" ]]; then
+  log "persistent-setup: No device found for LUN ${LUN} after timeout"
   exit 1
-}
+fi
 
 # Ensure we got a real block device, not a glob or missing path
 if [[ ! -b "$TARGET_DEVICE" ]]; then
@@ -43,23 +58,39 @@ if [[ ! -b "$TARGET_DEVICE" ]]; then
   exit 1
 fi
 
+LUKS_UUID=""
+BLOCK_UUID=""
+
 if cryptsetup isLuks "$TARGET_DEVICE"; then
-  log "persistent-setup: Device ${TARGET_DEVICE} for LUN ${LUN} is already set up as LUKS, skipping setup"
-  exit 0
+  log "persistent-setup: Device ${TARGET_DEVICE} for LUN ${LUN} is already LUKS encrypted, attempting to unlock"
+
+  LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
+
+  # Try to open the device (TPM should unlock it automatically)
+  if cryptsetup open "$TARGET_DEVICE" persistent; then
+    log "persistent-setup: Successfully unlocked encrypted device"
+    BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
+  else
+    log "persistent-setup: Failed to unlock device ${TARGET_DEVICE}"
+    exit 1
+  fi
+else
+  log "persistent-setup: Device ${TARGET_DEVICE} for LUN ${LUN} is not encrypted, performing initial setup"
+
+  TEMP_ENC_PASS=$(openssl rand -hex 64)
+  echo -n "$TEMP_ENC_PASS" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
+  systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file=<(echo -n "$TEMP_ENC_PASS")
+  # Allow only unlocking with TPM
+  systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
+  unset TEMP_ENC_PASS
+  cryptsetup open "$TARGET_DEVICE" persistent
+  mkfs.ext4 /dev/mapper/persistent
+
+  LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
+  BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
 fi
 
-TEMP_ENC_PASS=$(openssl rand -hex 64)
-echo -n "$TEMP_ENC_PASS" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
-systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file=<(echo -n "$TEMP_ENC_PASS")
-# Allow only unlocking with TPM
-systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
-unset TEMP_ENC_PASS
-cryptsetup open "$TARGET_DEVICE" persistent
-mkfs.ext4 /dev/mapper/persistent
-
-LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
-BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
-
+# Ensure crypttab and fstab are configured
 echo "persistent UUID=${LUKS_UUID} - tpm2-device=auto,tpm2-pcrs=11" > /etc/crypttab
 echo "UUID=${BLOCK_UUID} /var/lib/persistent ext4 defaults,nosuid,noexec,noatime,x-systemd.mkdir,x-systemd.automount 0 2" > /etc/fstab
 
@@ -67,4 +98,5 @@ systemctl daemon-reload
 systemctl start systemd-cryptsetup@persistent.service
 systemctl start var-lib-persistent.automount
 
+log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"
 log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"

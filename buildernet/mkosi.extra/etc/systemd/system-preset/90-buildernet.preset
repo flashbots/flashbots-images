@@ -1,4 +1,3 @@
 # Sorted alphabetically
+disable ssh.*
 enable prometheus-node-exporter.service
-disable ssh.socket
-disable ssh.service

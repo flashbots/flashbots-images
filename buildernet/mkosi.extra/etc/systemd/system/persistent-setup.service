@@ -1,17 +1,16 @@
 [Unit]
 DefaultDependencies=no
-Wants=systemd-udev-trigger.service
-After=initrd-usr-fs.target systemd-tpm2-setup-early.service systemd-udev-trigger.service systemd-udevd.service
-Before=initrd-root-fs.target multi-user.target
-Conflicts=shutdown.target initrd-switch-root.target
-Before=shutdown.target initrd-switch-root.target
+Wants=systemd-udev-settle.service
+After=systemd-udev-settle.service
+Before=local-fs-pre.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 Environment=BUILDERNET_TARGET_LUN=__BUILDERNET_TARGET_LUN
-ExecStartPre=/usr/bin/udevadm settle -t 30
 ExecStart=/usr/bin/persistent-setup $BUILDERNET_TARGET_LUN
+# TODO remove once confirmed
+TimeoutStartSec=120
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cryptsetup.target

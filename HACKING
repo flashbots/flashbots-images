@@ -65,3 +65,18 @@ Check out:
 - https://github.com/search?q=%22type%3A+prometheus_scrape%22+AND+%22transforms%22&type=code
 - https://github.com/medic/helm-charts/blob/688c448b51cd8a31204b24561a09d13f206c6e2a/charts/observability/values.yaml#L219
 - https://github.com/deepflowio/deepflow/blob/bb6ee75bc7b9ad2f737cd0e6118059c5326abf8c/server/agent_config/README.md?plain=1#L6335
+
+# apt inside debug image
+If you're getting an error like this
+```
+apt install cryptsetup
+Error: Could not open lock file /var/lib/dpkg/lock-frontend - open (2: No such file or directory)
+Error: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?
+```
+then run
+```
+rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock*
+dpkg --configure -a
+```
+
+DO NOT RUN `apt update`!
