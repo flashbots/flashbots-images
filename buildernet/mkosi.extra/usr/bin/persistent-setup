@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux -o pipefail
+set -eu -o pipefail
 
 source /usr/bin/helper-functions.sh
 
@@ -98,5 +98,4 @@ systemctl daemon-reload
 systemctl start systemd-cryptsetup@persistent.service
 systemctl start var-lib-persistent.automount
 
-log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"
 log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"

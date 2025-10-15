@@ -4,7 +4,6 @@ Description=Complete the provisioning of Azure VM and report it is ready in the 
 DefaultDependencies=no
 Wants=network-online.target
 After=network.target network-online.target
-Before=persistent-setup.service
 
 [Service]
 Type=oneshot

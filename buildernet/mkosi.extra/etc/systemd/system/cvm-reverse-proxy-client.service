@@ -6,10 +6,11 @@ After=network.target network-online.target
 [Service]
 Type=exec
 DynamicUser=yes
+SupplementaryGroups=tss
 Environment=BUILDERNET_BUILDERHUB_URL=__BUILDERNET_BUILDERHUB_URL
 ExecStart=/usr/bin/cvm-reverse-proxy-client \
   --listen-addr=localhost:7937 \
-  --target-addr=${BUILDERNET_BUILDERHUB_URL:-http://localhost:8080} \
+  --target-addr=${BUILDERNET_BUILDERHUB_URL} \
   --server-attestation-type none
 Restart=on-failure
 
