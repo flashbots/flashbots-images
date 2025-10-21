@@ -22,7 +22,7 @@ This comprehensive guide covers everything you need to know about developing wit
 ```
 flashboxes/
 ├── base/                   # Core minimal Linux system
-│   ├── base.conf           # Base mkosi configuration
+│   ├── mkosi.conf          # Base mkosi configuration
 │   ├── mkosi.skeleton/     # Base filesystem overlay
 │   └── debloat*.sh         # System cleanup scripts
 ├── bob/                    # BoB Searcher sandbox 
@@ -58,7 +58,7 @@ chmod +x mkosi.build mkosi.postinst
 
 ### Step 2: Create Module Configuration
 
-**`mymodule/mymodule.conf`**:
+**`mymodule/mkosi.conf`**:
 ```ini
 [Build]
 # Environment variables available in scripts
@@ -89,8 +89,8 @@ BuildPackages=build-essential
 **`mymodule.conf`** (in project root):
 ```ini
 [Include]
-Include=base/base.conf
-Include=mymodule/mymodule.conf
+Include=base/mkosi.conf
+Include=mymodule/mkosi.conf
 ```
 
 ### Step 4: Build Your Module
