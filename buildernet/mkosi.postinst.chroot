@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+
+systemctl mask systemd-pcrphase.service systemd-pcrphase-initrd.service systemd-pcrphase-sysinit.service

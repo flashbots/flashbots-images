@@ -6,11 +6,12 @@ ConditionPathExists=/var/lib/persistent/rbuilder/rbuilder.enabled
 [Service]
 Type=exec
 User=rbuilder-operator
-ConfigurationDirectory=rbuilder-operator::ro
+ConfigurationDirectory=rbuilder-operator
 StateDirectory=persistent/rbuilder-operator
 RuntimeDirectory=rbuilder-operator
 # ReadWritePaths=-/run/rbuilder-bidding/
 EnvironmentFile=%E/rbuilder-operator/rbuilder-operator.env
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStartPre=/bin/bash -c '[[ ! -f $STATE_DIRECTORY/rbuilder.blocklist.json ]] \
              && echo "[]" > $STATE_DIRECTORY/rbuilder.blocklist.json'
 ExecStart=/usr/bin/rbuilder-operator run %E/rbuilder-operator/config.toml

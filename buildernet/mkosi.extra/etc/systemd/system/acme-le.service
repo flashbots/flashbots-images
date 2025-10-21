@@ -1,13 +1,13 @@
 [Unit]
 Description=ACME Let's Encrypt client
 Wants=network-online.target
-After=network.target network-online.target render-config.service
+After=network.target network-online.target render-config.service haproxy.service
 
 [Service]
 Type=oneshot
 User=acme-le
 SupplementaryGroups=haproxy
-ConfigurationDirectory=acme-le::ro
+ConfigurationDirectory=acme-le
 StateDirectory=persistent/acme.sh
 RuntimeDirectory=acme-le
 Environment=ACME_HOME=%S/persistent/acme.sh \
@@ -16,7 +16,10 @@ Environment=ACME_HOME=%S/persistent/acme.sh \
             CSR_FILE=%S/persistent/acme.sh/csr.pem \
             OPERATOR_API_FIFO=/run/operator-api/journal.fifo
 EnvironmentFile=%E/acme-le/acme-le.env
-ExecStartPre=ln -sf %E/acme-le/deploy %S/persistent/acme.sh \
-             ln -sf %E/acme-le/dnsapi %S/persistent/acme.sh
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
+ExecStartPre=/bin/bash -c "ln -sf ${CONFIGURATION_DIRECTORY}/{deploy,dnsapi} ${STATE_DIRECTORY}"
 ExecStart=/usr/bin/acme-le
 RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

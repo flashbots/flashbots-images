@@ -1,3 +1,5 @@
 # Sorted alphabetically
 disable ssh.*
-enable prometheus-node-exporter.service
+disable systemd-pcrphase.service
+disable systemd-pcrphase-initrd.service
+disable systemd-pcrphase-sysinit.service

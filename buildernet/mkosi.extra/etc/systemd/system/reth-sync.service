@@ -7,8 +7,9 @@ ConditionPathIsDirectory=!/var/lib/persistent/reth
 [Service]
 Type=oneshot
 User=reth
-ConfigurationDirectory=reth-sync::ro
+ConfigurationDirectory=reth-sync
 StateDirectory=persistent/reth
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStart=/usr/bin/reth-sync
 
 [Install]

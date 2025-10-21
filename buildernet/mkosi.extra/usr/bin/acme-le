@@ -25,14 +25,12 @@ function subj_altnames_string_builder() {
 
   if [ $# -ge 2 ]; then
     local altnames_text="-addext subjectAltName="
-
     for name in "$@"; do
       altnames_text="${altnames_text}DNS:${name},"
     done
+    altnames_text="${altnames_text%?}"
+    subj_altnames_text="${subj_altnames_text} ${altnames_text}"
   fi
-
-  altnames_text="${altnames_text%?}"
-  subj_altnames_text="${subj_altnames_text} ${altnames_text}"
 
   echo "$subj_altnames_text"
 }
@@ -81,7 +79,7 @@ openssl x509 -x509toreq -signkey $PRIV_KEY -in $CERT_FILE -out $CSR_FILE \
 # Sign the CSR with acme.sh using DNS challenge
 acme.sh --home $ACME_HOME --sign-csr --csr $CSR_FILE --dns dns_cf \
   --challenge-alias buildernet-org-acme-validation.org \
-  --post-hook /etc/acme.sh/hooks/post-hook.sh
+  --post-hook /etc/acme-le/hooks/post-hook.sh
 
 # Deploy the signed certificate using a deploy hook for HAProxy
 DEPLOY_HAPROXY_HOT_UPDATE=yes \

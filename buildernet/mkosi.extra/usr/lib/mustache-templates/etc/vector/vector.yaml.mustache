@@ -1,13 +1,11 @@
 # Switch to erb style tags to avoid conflict with vectors's use of curly braces
 {{=<% %>=}}
+data_dir: /var/lib/persistent/vector
+
 sources:
   logs_journald:
     type: journald
 
-  metrics_prometheus:
-    type: prometheus_scrape
-    endpoints:
-      - http://localhost:9090/metrics
   metrics_node_exporter:
     type: prometheus_scrape
     endpoints:
@@ -34,39 +32,96 @@ sources:
       - http://localhost:8405/metrics
 
 transforms:
+  metrics_job_node_exporter:
+    type: remap
+    inputs:
+      - metrics_node_exporter
+    source: |-
+      .tags.job = "node-exporter"
+  metrics_job_lighthouse:
+    type: remap
+    inputs:
+      - metrics_lighthouse
+    source: |-
+      .tags.job = "lighthouse"
+  metrics_job_reth:
+    type: remap
+    inputs:
+      - metrics_reth
+    source: |-
+      .tags.job = "reth"
+  metrics_job_rbuilder:
+    type: remap
+    inputs:
+      - metrics_rbuilder
+    source: |-
+      .tags.job = "rbuilder"
+  metrics_job_orderflow_proxy:
+    type: remap
+    inputs:
+      - metrics_orderflow_proxy
+    source: |-
+      .tags.job = "orderflow-proxy"
+  metrics_job_haproxy:
+    type: remap
+    inputs:
+      - metrics_haproxy
+    source: |-
+      .tags.job = "haproxy"
+
   metrics_relabel:
     type: remap
     inputs:
-      - metrics_*
+      - metrics_job_*
     source: |-
-      .tags.instance_name = del(.tags.__address__)
+      .tags.instance_name = "<%instance_name%>"
       .tags.instance = .tags.instance_name
-      <%#prometheus.static_configs_default_labels%>
+      <%#vector.prometheus_metrics.static_configs_default_labels%>
       .tags.<%label_key%> = "<%label_value%>"
-      <%/prometheus.static_configs_default_labels%>
+      <%/vector.prometheus_metrics.static_configs_default_labels%>
+
+  logs_journald_message_only:
+      type: remap
+      inputs:
+        - logs_journald
+      source: |-
+        . = {"message": .message, "host": .host, "UNIT": .UNIT}
 
 sinks:
-  cloudwatch:
+<%#vector.cloudwatch_logs.sinks%>
+  cloudwatch_<%name%>:
     type: aws_cloudwatch_logs
+    healthcheck:
+      enabled: false
+    encoding:
+      codec: json
     inputs:
-      - logs_journald
-    group_name: "<%fluentbit.output_cw_log_group_name%>"
-    stream_name: "{{ host }}-{{ .log._SYSTEMD_UNIT }}"
+      - logs_journald_message_only
+    group_name: "<%log_group_name%>"
+    stream_name: "{{ host }}-{{ UNIT }}"
     create_missing_group: true
     create_missing_stream: true
     compression: gzip
-    region: us-east-2
+    region: <%aws_credentials.region%>
+    auth:
+      credentials_file: /etc/vector/aws-config
+      profile: <%aws_credentials.profile_name%>
+<%/vector.cloudwatch_logs.sinks%>
 
-<%#prometheus.remote_write%>
-  <%name%>:
+<%#vector.prometheus_metrics.sinks%>
+  prometheus_<%name%>:
     type: prometheus_remote_write
+    healthcheck:
+      enabled: false
     inputs:
       - metrics_relabel
     endpoint: "<%url%>"
     <%#sigv4%>
     auth:
+      credentials_file: /etc/vector/aws-config
+      profile: <%aws_credentials.profile_name%>
       strategy: aws
     aws:
-      region: "<%region%>"
+      region: <%aws_credentials.region%>
     <%/sigv4%>
-<%/prometheus.remote_write%>
+<%/vector.prometheus_metrics.sinks%>

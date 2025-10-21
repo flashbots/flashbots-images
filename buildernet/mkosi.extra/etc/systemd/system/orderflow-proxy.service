@@ -6,8 +6,9 @@ After=network.target network-online.target render-config.service
 [Service]
 Type=exec
 DynamicUser=yes
-ConfigurationDirectory=orderflow-proxy::ro
+ConfigurationDirectory=orderflow-proxy
 EnvironmentFile=%E/orderflow-proxy/orderflow-proxy.env
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStart=/usr/bin/orderflow-proxy
 Restart=on-failure
 LimitNOFILE=65535

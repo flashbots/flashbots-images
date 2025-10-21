@@ -5,11 +5,8 @@ After=network.target network-online.target
 
 [Service]
 Type=oneshot
-User=render-config
 ExecStart=/usr/bin/fetch-config /usr/lib/mustache-templates /
 RemainAfterExit=yes
-AmbientCapabilities=CAP_DAC_OVERRIDE
 
 [Install]
 WantedBy=multi-user.target
-# TODO: check if enough capabilities

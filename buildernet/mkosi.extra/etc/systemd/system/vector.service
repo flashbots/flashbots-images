@@ -7,13 +7,14 @@ After=network.target network-online.target render-config.service
 Type=exec
 User=vector
 SupplementaryGroups=systemd-journal
-ConfigurationDirectory=vector::ro
-EnvironmentFile=%E/vector/aws-auth
+ConfigurationDirectory=vector
+StateDirectory=persistent/vector
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStartPre=/usr/bin/vector validate
 ExecStart=/usr/bin/vector
 ExecReload=/usr/bin/vector validate --no-environment
 ExecReload=/bin/kill -HUP $MAINPID
-Restart=always
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target

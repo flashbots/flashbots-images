@@ -6,10 +6,11 @@ After=network.target network-online.target render-config.service
 [Service]
 Type=exec
 User=operator-api
-SupplementaryGroups=rbuilder
-ConfigurationDirectory=operator-api::ro
+SupplementaryGroups=rbuilder-operator
+ConfigurationDirectory=operator-api
 StateDirectory=persistent/operator-api
 RuntimeDirectory=operator-api
+ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStart=/usr/bin/operator-api --config %S/persistent/operator-api/config.toml
 
 #CapabilityBoundingSet=

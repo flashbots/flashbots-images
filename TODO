@@ -7,4 +7,8 @@
 [    3.831565] systemd[1]: systemd-pcrlock.socket - Make TPM PCR Policy was skipped because of an unmet condition check (ConditionSecurity=measured-uki)
 - Change After=render-config.service to Requisite=render-config.service
 - More aggressive journal rotation
-- Timesync for azure
+- Timesync for Azure
+- journalctl aggressive rotation
+- bump cvm proxies to latest tag
+- sysctl -w net.core.default_qdisc=fq, sysctl -w net.ipv4.tcp_congestion_control=bbr
+- secure NTP (NTS)

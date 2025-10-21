@@ -11,7 +11,7 @@ StateDirectory=persistent/reth
 RuntimeDirectory=reth
 ExecStart=/usr/bin/reth node \
     --full \
-    --datadir $S/persistent/reth \
+    --datadir %S/persistent/reth \
     --authrpc.addr 127.0.0.1 \
     --authrpc.jwtsecret /run/eth-jwt/jwt \
     --authrpc.port 8551 \
@@ -28,7 +28,7 @@ ExecStart=/usr/bin/reth node \
     --metrics "127.0.0.1:9001" \
     --engine.persistence-threshold=0 \
     --engine.memory-block-buffer-target=0 \
-    --ipcpath=%t/reth.ipc
+    --ipcpath=%t/reth/reth.ipc
 Restart=on-failure
 
 [Install]

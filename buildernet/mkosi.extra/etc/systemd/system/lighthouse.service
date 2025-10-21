@@ -21,7 +21,7 @@ ExecStart=/usr/bin/lighthouse bn \
     --metrics \
     --metrics-address 127.0.0.1 \
     --metrics-port 5054 \
-    --datadir $S/persistent/lighthouse
+    --datadir %S/persistent/lighthouse
 Restart=on-failure
 
 [Install]
