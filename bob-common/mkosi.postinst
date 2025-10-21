@@ -22,7 +22,6 @@ mkdir "$BUILDROOT/etc/dropbear"
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
     network-setup.service \
-    openntpd.service \
     logrotate.service \
     fluent-bit.service \
     wait-for-key.service \
