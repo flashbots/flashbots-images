@@ -38,6 +38,17 @@
       };
       vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
     };
+    measured-boot-gcp = pkgs.buildGoModule {
+      pname = "measured-boot-gcp";
+      version = "main";
+      src = pkgs.fetchFromGitHub {
+        owner = "flashbots";
+        repo = "dstack-mr-gcp";
+        rev = "3d718ab28599ea0c05e65d0f742fdee9fc17a5c7";
+        sha256 = "sha256-KFo9wcQuG98Hi4mlMr5VS6D6/STW7jzZ9y1DyqsI820=";
+      };
+      vendorHash = "sha256-MxOQSXLAbWC1SOCPzPrNcU20WElbe7eUVdCLTutSYM8=";
+    };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
       mkosi-unwrapped = pkgsForSystem.mkosi.override {
@@ -53,11 +64,14 @@
             mtools
             mustache-go
             cryptsetup
+            gptfdisk
+            mtools
             util-linux
             zstd
             which
             qemu-utils
             parted
+            unzip
           ]
           ++ [reprepro];
       };
@@ -76,7 +90,7 @@
     devShells = builtins.listToAttrs (map (system: {
       name = system;
       value.default = pkgs.mkShell {
-        nativeBuildInputs = [(mkosi system) measured-boot];
+        nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
         '';
