@@ -25,7 +25,8 @@ flashboxes/
 │   ├── mkosi.conf          # Base mkosi configuration
 │   ├── mkosi.skeleton/     # Base filesystem overlay
 │   └── debloat*.sh         # System cleanup scripts
-├── bob/                    # BoB Searcher sandbox 
+├── bob-common/             # TEE Searcher common image
+├── bob-l1/                 # L1 TEE Searcher sandbox image
 ├── buildernet/             # BuilderNet
 ├── tdx-dummy/              # TDX test environment
 ├── kernel/                 # Kernel configuration
@@ -469,7 +470,7 @@ Reproducible builds are essential for security and trust. Here's how to verify y
 mkosi --force -I mymodule.conf
 cp build/mymodule-image.efi build/first-build.efi
 
-mkosi --force -I mymodule.conf  
+mkosi --force -I mymodule.conf
 cp build/mymodule-image.efi build/second-build.efi
 
 # Compare hashes
@@ -536,7 +537,7 @@ set -e
 # Create system user
 useradd -r -s /bin/false myapp || true
 
-# Set permissions  
+# Set permissions
 chown myapp:myapp /etc/myapp/config.conf
 chmod 600 /etc/myapp/config.conf
 
@@ -547,7 +548,7 @@ systemctl start myapp.service || true
 exit 0
 ```
 
-### Pre-removal Script  
+### Pre-removal Script
 
 **`DEBIAN/prerm`**:
 ```bash
@@ -598,7 +599,7 @@ sudo dpkg -i mypackage-1.0.deb
 ### Package Scripts Execution Order
 
 1. **Installation**: `preinst` → files copied → `postinst`
-2. **Upgrade**: `preinst upgrade` → files copied → `postinst configure` 
+2. **Upgrade**: `preinst upgrade` → files copied → `postinst configure`
 3. **Removal**: `prerm remove` → files removed → `postrm remove`
 4. **Purge**: `prerm remove` → files removed → `postrm purge`
 
@@ -606,7 +607,7 @@ For comprehensive .deb creation, see: [Debian New Maintainers' Guide](https://ww
 
 ## Building with Podman (Not Recommended)
 For systems without systemd v250+ or where Nix installation isn't feasible, you can use the experimental Podman containerization support. This approach is not recommended due to slower build times and a complex setup process.
-1. Configure the Podman daemon to use a storage driver other than OverlayFS  
+1. Configure the Podman daemon to use a storage driver other than OverlayFS
    - The btrfs driver is fastest, but requires that you have a btrfs filesystem
    - The storage driver can be configuring by editing `/etc/containers/storage.conf`
 2. Build the development container:
@@ -615,7 +616,7 @@ For systems without systemd v250+ or where Nix installation isn't feasible, you 
    ```
 3. Create required directories
    ```
-   mkdir mkosi.packages mkosi.cache mkosi.builddir build 
+   mkdir mkosi.packages mkosi.cache mkosi.builddir build
    ```
 4. Run the container with proper mounts and privilages
    ```
