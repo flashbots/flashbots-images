@@ -45,7 +45,7 @@ For more information about this repository, see [the Flashbots collective post](
 # Build the BOB (searcher sandbox) image
 make build IMAGE=bob
 
-# Build the Buildernet image  
+# Build the Buildernet image
 make build IMAGE=buildernet
 
 # Build with development tools
@@ -121,4 +121,4 @@ This generates measurement files in the `build/` directory for attestation and v
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
-- [BOB Module Guide](bob/readme.md) - Detailed documentation for the MEV searcher environment
+- [BOB Module Guide](bob-common/readme.md) - Detailed documentation for the MEV searcher environment

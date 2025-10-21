@@ -6,7 +6,7 @@ source scripts/make_git_package.sh
 
 # Compile searchersh
 mkdir -p "$DESTDIR/usr/bin"
-mkosi-chroot gcc -o "$DESTDIR/usr/bin/searchersh" "$SRCDIR/bob/searchersh.c"
+mkosi-chroot gcc -o "$DESTDIR/usr/bin/searchersh" "$SRCDIR/bob-common/searchersh.c"
 chmod 755 "$DESTDIR/usr/bin/searchersh"
 
 # Compile cryptsetup
