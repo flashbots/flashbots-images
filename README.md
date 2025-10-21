@@ -178,4 +178,4 @@ try to disable apparmor's restriction:
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
-- [BOB Module Guide](bob/readme.md) - Detailed documentation for the MEV searcher environment
+- [BOB Module Guide](bob-common/readme.md) - Detailed documentation for the MEV searcher environment

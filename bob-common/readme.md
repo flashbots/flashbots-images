@@ -23,7 +23,7 @@ First, searchers verify that the TDX operator, in this case Flashbots, cannot ac
 - Searchers audit the TDX image that only their public SSH key can access the machine, and then build and measure (hash) the image locally.
 - Then, searchers request and verify the measurement from the cloud provider (in our case Azure) is the same to confirm the exact image they audited is running on the TDX machine they will upload their code to.
 
-But, in the TDX image, the searcher is also restricted to its own user group without root privileges. This allows us to implement sandboxing and log delays on the host safely, without the searcher being able to override or interfere with these restrictions. So, even though the searcher is given SSH access to the machine, the searcher is sufficiently restricted to guarantee they would not be able to expose any sensitive data submitted by the order flow provider. 
+But, in the TDX image, the searcher is also restricted to its own user group without root privileges. This allows us to implement sandboxing and log delays on the host safely, without the searcher being able to override or interfere with these restrictions. So, even though the searcher is given SSH access to the machine, the searcher is sufficiently restricted to guarantee they would not be able to expose any sensitive data submitted by the order flow provider.
 
 **Importantly, implementing searcher sandboxing, log delays, and mode toggling inside the TDX VM also allows order flow providers and their users to verify their orders cannot be frontrun using TDX attestation.**
 
@@ -32,8 +32,8 @@ Image Overview
 There are three key features of the image:
 
 1. **Network namespaces and firewall rules** that enforce a searcher cannot SSH into the container while transactions are being streamed in, and the only way information can leave is through the order flow provider's endpoints.
-2. A **log delay** script that enforces a 5 minute (~25 block) delay until the searcher can view their machine logs. 
-3. **Mode switching** which allows a searcher to toggle between production and maintenance modes, where the SSH connection is cut and restored respectively. 
+2. A **log delay** script that enforces a 5 minute (~25 block) delay until the searcher can view their machine logs.
+3. **Mode switching** which allows a searcher to toggle between production and maintenance modes, where the SSH connection is cut and restored respectively.
 
 Together, they provide the “no-frontrunning” guarantee to order flow providers while balancing searcher bot visibility and maintenance.
 
@@ -46,7 +46,7 @@ Together, they provide the “no-frontrunning” guarantee to order flow provide
     2. Toggle between production and maintenance modes
     2. Check which mode the machine is in
     3. Print delayed logs during production mode without triggering maintenance mode
-- Searchers write logs to a file from their container which is also mounted on the host. The host runs ncat to forward and delay logs from this file to another file on the host, which can be accessed externally by the searcher via the dropbear SSH command above. The delay is currently configured to be five minutes. 
+- Searchers write logs to a file from their container which is also mounted on the host. The host runs ncat to forward and delay logs from this file to another file on the host, which can be accessed externally by the searcher via the dropbear SSH command above. The delay is currently configured to be five minutes.
     - The host will also run logrotate to maintain storage usage, compressing .log files daily and deleting .log files older than five days.
 - The searcher’s proprietary EL node communicates with a Lighthouse CL node run on the host over a shared JWT secret file mount and the engine API on port 8551.
 
@@ -58,7 +58,7 @@ Firewall Rules
 ------------------------
 <img alt="tee-searcher-networking" src="https://github.com/user-attachments/assets/8dd72ece-44de-4907-9d2d-1dd32b7c1468" />
 
-**IMPORTANT: Searchers, you will not have DNS access during production mode!** 
+**IMPORTANT: Searchers, you will not have DNS access during production mode!**
 
 **<u>Host Network Namespace iptables</u>**
 
@@ -82,7 +82,7 @@ Firewall Rules
 
 **<u>Searcher Network Namespace iptables</u>**
 
-In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and port 123, which is necessary to maintain time synchronization. 
+In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and port 123, which is necessary to maintain time synchronization.
 
 But, we don’t want the searcher container to be able to send state diff information out through the open ports on the host, so we block this at the searcher network namespace with iptables.
 
@@ -99,11 +99,11 @@ iptables only covers ipv4. For security purposes, we block ipv6 with a kernel fl
 Machine Specs and Cost
 ------------------------
 
-Currently, we deploy Azure’s [DCesv5-series Confidential VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dcesv5-series?tabs=sizebasic). Unfortunately, these are expensive. For reference, Flashbots production TDX builders run in [Standard_EC32es_v5](https://buildernet.org/docs/operating-a-node#microsoft-azure-cloud) with 32 vCPUs and 2TB Disk, which is $2600/month. [Egress](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) (data transferred out of Azure data centers) costs ~$0.087/GB, and historically this costs TEE searchers $150/month. 
+Currently, we deploy Azure’s [DCesv5-series Confidential VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dcesv5-series?tabs=sizebasic). Unfortunately, these are expensive. For reference, Flashbots production TDX builders run in [Standard_EC32es_v5](https://buildernet.org/docs/operating-a-node#microsoft-azure-cloud) with 32 vCPUs and 2TB Disk, which is $2600/month. [Egress](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) (data transferred out of Azure data centers) costs ~$0.087/GB, and historically this costs TEE searchers $150/month.
 
-In the future, we hope to add bare metal support, which will lower this cost dramatically. 
+In the future, we hope to add bare metal support, which will lower this cost dramatically.
 
-We place searcher machines in Azure US East 2 to colocate with builders. 
+We place searcher machines in Azure US East 2 to colocate with builders.
 
 **To begin integration, please message @astarinmymind on Telegram with your desired machine and disk size from the table below. Searchers who integrate will be expected to pay their monthly machine costs up front!**
 
@@ -133,13 +133,13 @@ We place searcher machines in Azure US East 2 to colocate with builders.
 Attestation Walkthrough
 ------------------------
 
-Once searchers receive the IP for their TDX Machine deployed by Flashbots, they should first perform the process of attestation. 
+Once searchers receive the IP for their TDX Machine deployed by Flashbots, they should first perform the process of attestation.
 
 *At a high level, searchers will audit the minimal VM image prepared by Flashbots does not introduce malicious code and contains the right SSH configuration. Builders will audit the firewall rules and log delay. Then they will confirm that exact image is running on the TDX VM Flashbots deployed by “measuring” the image (by hashing its files) and comparing their local measurement to that measured by Azure.*
 
 ### 1. build the VM image
 
-Searchers will need to build the image locally in order to produce the measurement in step 3, which will take around 30 minutes depending on hardware. Searchers will need Nix and a few other [prerequisites](https://github.com/flashbots/flashbots-images/tree/main?tab=readme-ov-file#prerequisites). 
+Searchers will need to build the image locally in order to produce the measurement in step 3, which will take around 30 minutes depending on hardware. Searchers will need Nix and a few other [prerequisites](https://github.com/flashbots/flashbots-images/tree/main?tab=readme-ov-file#prerequisites).
 
 ```bash
 umask 0022
@@ -152,7 +152,7 @@ make build IMAGE=bob
 
 ### 2. audit the VM image
 
-There are two key components for searchers to verify: the privacy of their code on the machine (through understanding SSH access) and the privacy of their data on the attached disk (through understanding disk encryption). 
+There are two key components for searchers to verify: the privacy of their code on the machine (through understanding SSH access) and the privacy of their data on the attached disk (through understanding disk encryption).
 
 **<u>Searcher SSH Key Storage and Authorization Process</u>**
 
@@ -168,24 +168,24 @@ Critically, `tdx-init` enforces that the SSH key can only be provided once, and 
 
 2. **Dropbear SSH Configuration** (Host SSH Access)
 
-Dropbear is installed as a [base system package](https://github.com/flashbots/flashbots-images/blob/b5b3354c6cdde113ebc40ca8209508877b5f1656/bob/bob.conf#L12) during the image build process. 
+Dropbear is installed as a [base system package](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.conf#L12) during the image build process.
 
-The standard default location for Dropbear to look for `authorized_keys` is in the user's home directory under the .ssh subdirectory ([~/.ssh/authorized_keys](https://linux.die.net/man/8/dropbear)). The `authorized_keys` file and its containing ~/.ssh directory must only be writable by the user, otherwise Dropbear will not allow a login using public key authentication. 
+The standard default location for Dropbear to look for `authorized_keys` is in the user's home directory under the .ssh subdirectory ([~/.ssh/authorized_keys](https://linux.die.net/man/8/dropbear)). The `authorized_keys` file and its containing ~/.ssh directory must only be writable by the user, otherwise Dropbear will not allow a login using public key authentication.
 
-On each startup, `tdx-init` retrieves the SSH key from the LUKS header, writes it to [`/home/searcher/.ssh/authorized_keys`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L85), and ensures the directory is owned by the searcher user. 
+On each startup, `tdx-init` retrieves the SSH key from the LUKS header, writes it to [`/home/searcher/.ssh/authorized_keys`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L85), and ensures the directory is owned by the searcher user.
 
-Note: The image overrides the default configuration with [extra security flags](https://github.com/flashbots/flashbots-images/blob/main/bob/mkosi.extra/etc/default/dropbear). Systemd's [drop-in configuration mechanism](https://github.com/flashbots/flashbots-images/blob/main/bob/mkosi.extra/etc/systemd/system/dropbear.service.d/dropbear-prereq.conf) is also used to ensure dropbear runs after `wait-for-key.service`, sets proper ownership of the .ssh files, and generates the dropbear host key if it doesn't exist. 
+Note: The image overrides the default configuration with [extra security flags](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/etc/default/dropbear). Systemd's [drop-in configuration mechanism](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/etc/systemd/system/dropbear.service.d/dropbear-prereq.conf) is also used to ensure dropbear runs after `wait-for-key.service`, sets proper ownership of the .ssh files, and generates the dropbear host key if it doesn't exist.
 
 3. **OpenSSH Authorization** (Container SSH Access)
 
-On each startup, `tdx-init` retrieves the SSH key from the LUKS header, and writes it to 
-[`/etc/searcher_key`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L103). 
+On each startup, `tdx-init` retrieves the SSH key from the LUKS header, and writes it to
+[`/etc/searcher_key`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L103).
 
-During container startup, OpenSSH is installed and the SSH key is copied from `etc/searcher_key` to [`/root/.ssh/authorized_keys`](https://github.com/flashbots/flashbots-images/blob/b5b3354c6cdde113ebc40ca8209508877b5f1656/bob/mkosi.extra/usr/bin/init-container.sh#L30) with the correct permissions. 
+During container startup, OpenSSH is installed and the SSH key is copied from `etc/searcher_key` to [`/root/.ssh/authorized_keys`](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/usr/bin/init-container.sh#L30) with the correct permissions.
 
 **<u>Searcher Disk Encryption</u>**
 
-On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk. 
+On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk.
 
 `Tdx-init` prompts the searcher for a passphrase via stdin, [formats]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L43)) the disk with LUKS2 encryption using this passphrase, and [embeds]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L77)) the searcher's SSH key as metadata in the LUKS header.
 
@@ -193,15 +193,15 @@ On the first startup, after the searcher's SSH key is received and stored, the s
 
 ### 2. audit and run the local measurement software
 
-Under the hood, Intel TDX attestation relies on a process called measured-boot. 
-    
+Under the hood, Intel TDX attestation relies on a process called measured-boot.
+
 [Measured boot]((https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot)) uses a Trusted Platform Module (TPM) to measure every part of the boot process:
 
 <img alt="edgeless-measured-boot" src="https://github.com/user-attachments/assets/ac1e4568-47a4-4eb5-8b57-eefe91141a24" />
 
 *[https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot](https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot)*
 
-Azure’s vTPM “hash-chains” each stage of the boot process, ensuring the integrity of the entire boot chain up to the root file system. 
+Azure’s vTPM “hash-chains” each stage of the boot process, ensuring the integrity of the entire boot chain up to the root file system.
 
 <img alt="azure-measured-boot" src="https://github.com/user-attachments/assets/1faabc57-3dd8-4630-9932-f6c5441a722c" />
 
@@ -211,9 +211,9 @@ In order to leverage attestation, Flashbots:
 1. uses MKOSI to ensure reproducible builds, such that each time anyone builds the image, the measurement will be the same, even on different hardware
 2. packages the entire image inside the initramfs, such that any change to the image will result in a different measurement
 
-Flashbots has adapted Edgeless Constellation’s [measured-boot](https://github.com/edgelesssys/constellation/tree/ffde0ef7b7d3277c63f3c67ee666237f5863c744/image/measured-boot) library to simulate the measurements locally, which dissects the .efi image and measures the initramfs and unified kernel PE sections. 
+Flashbots has adapted Edgeless Constellation’s [measured-boot](https://github.com/edgelesssys/constellation/tree/ffde0ef7b7d3277c63f3c67ee666237f5863c744/image/measured-boot) library to simulate the measurements locally, which dissects the .efi image and measures the initramfs and unified kernel PE sections.
 
-Only [PCR 4, 9, and 11](https://constellation-docs.netlify.app/constellation/2.2/architecture/attestation#runtime-measurements) are meaningful, since the other PCR’s in Azure’s vTPM are not reproducible due to their proprietary closed-source implementations. But, these 3 measurements are enough to ensure Flashbots does not have access to the searcher VM, as any change in the image will generate different PCR 4, 9, and 11 measurements! You can test and verify this claim yourself by changing a line of code, building the new image, and running the measurement software again. 
+Only [PCR 4, 9, and 11](https://constellation-docs.netlify.app/constellation/2.2/architecture/attestation#runtime-measurements) are meaningful, since the other PCR’s in Azure’s vTPM are not reproducible due to their proprietary closed-source implementations. But, these 3 measurements are enough to ensure Flashbots does not have access to the searcher VM, as any change in the image will generate different PCR 4, 9, and 11 measurements! You can test and verify this claim yourself by changing a line of code, building the new image, and running the measurement software again.
 
 ```bash
 # clone and build
@@ -227,7 +227,7 @@ go build
 
 <details>
 <summary>Expected Output</summary>
-    
+
     ```
     ubuntu@schmangelina-bob-mkosi-builder:~/measured-boot$ ./measured-boot /home/ubuntu/flashbots-images/build/tdx-debian.efi output.json --direct-uki
         EFI Boot Stages:
@@ -281,7 +281,7 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
 ```
 
 ### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
-    
+
 Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. CVM-reverse-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
 
 ```bash
@@ -291,14 +291,14 @@ cd cvm-reverse-proxy
 make build-proxy-client
 
 # This will run the client proxy that is listening on port 8080
-# and use the server reverse proxy on the deployed image as a target, 
+# and use the server reverse proxy on the deployed image as a target,
 # marshalling the measurements.json for validation of the attestation.
 ./cvm-reverse-proxy/build/proxy-client \
 --server-measurements ./measurements.json \
 --target-addr=https://<VM IP>:8745 \
 --log-debug=false
 
-# To trigger remote attestation, open a new terminal and run this command: 
+# To trigger remote attestation, open a new terminal and run this command:
 curl http://127.0.0.1:8080
 
 # Bind the expected openssh server pubkey to the attested machine IP
@@ -324,11 +324,11 @@ git clone https://github.com/flashbots/ssh-pubkey-server
     time=2025-07-23T14:00:41.224Z level=INFO msg="Validating attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
     time=2025-07-23T14:00:41.956Z level=INFO msg="Successfully validated attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
     time=2025-07-23T14:00:42.051Z level=INFO msg="[proxy-request] proxying complete" service=proxy-client version=v0.1.7-1-g4e175a4 duration=1.275184102s
-    
+
     # fetch openssh server pubkey
     ubuntu@schmangeLina-bob-mkosi-builder::~$ curl --insecure https://20.57.71.148:8745/pubkey
     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYZkgqUokLPpIENJPhJAdpNTecgp/1R1RE6XMsIp6Rt
-    
+
     ```
   </details>
 
@@ -339,13 +339,13 @@ Order Flow APIs
 
 ### Searching on Flashbots Protect Transactions
 
-All Flashbots Protect transactions with [fast mode](https://docs.flashbots.net/flashbots-protect/settings-guide#fast) enabled will be shared with TEE searchers. 
+All Flashbots Protect transactions with [fast mode](https://docs.flashbots.net/flashbots-protect/settings-guide#fast) enabled will be shared with TEE searchers.
 
-Flashbots Protect transactions will be shared using the [`full` hint](https://docs.flashbots.net/flashbots-protect/settings-guide#hints), which shares all fields of individual pending transactions except for the signature (missing `v`, `r`, and `s` fields). 
+Flashbots Protect transactions will be shared using the [`full` hint](https://docs.flashbots.net/flashbots-protect/settings-guide#hints), which shares all fields of individual pending transactions except for the signature (missing `v`, `r`, and `s` fields).
 
-The MEV-Share Order Flow Auction uses the [`mev_sendBundle` format](https://docs.flashbots.net/flashbots-auction/advanced/rpc-endpoint#mev_sendbundle) for bundle submission. 
+The MEV-Share Order Flow Auction uses the [`mev_sendBundle` format](https://docs.flashbots.net/flashbots-auction/advanced/rpc-endpoint#mev_sendbundle) for bundle submission.
 
-For more information, please visit the [Flashbots Protect and MEV-Share Order Flow Auction documentation](https://docs.flashbots.net/flashbots-mev-share/introduction), which has instructions and libraries for subscribing to Flashbots Protect Transactions and submitting backrun bundles. 
+For more information, please visit the [Flashbots Protect and MEV-Share Order Flow Auction documentation](https://docs.flashbots.net/flashbots-mev-share/introduction), which has instructions and libraries for subscribing to Flashbots Protect Transactions and submitting backrun bundles.
 
 To subscribe to transactions, connect to the server:
 ```
@@ -412,7 +412,7 @@ You'll start receiving state diffs:
 ```
 <details>
 <summary>Example Output</summary>
-    
+
     ```json
     2024-12-03 23:46:27,370 - __main__ - INFO - Initializing WebSocket connection to ws://127.0.0.1:8547
     2024-12-03 23:46:27,375 - __main__ - INFO - Subscribed to state diffs
@@ -475,11 +475,11 @@ Use the `eth_sendBobBundle` method to submit bundles:
   "jsonrpc": "2.0",
   "id": 1,
   "method": "eth_sendBobBundle",
-  "params": [ 
+  "params": [
     { // regular eth_sendBundle fields
       txs,
       blockNumber,
-    }, 
+    },
     targetUuid, // String, block UUID that this bundle is targeting eg 123e4567-e89b-12d3-a456-426614174000
     targetPools // Array[String], A list of pool addresses that this bundle is targeting
   ]
@@ -510,12 +510,12 @@ ssh -i /path/to/.ssh/id_ed25519 searcher@<machine IP> initialize
 
 Searcher Commands and Services
 ---
-On the first login after deployment or image upgrade, remember to initialize and decrypt the persistent disk. 
+On the first login after deployment or image upgrade, remember to initialize and decrypt the persistent disk.
 ```
 ssh -i /path/to/.ssh/id_ed25519 searcher@<machine IP> initialize
 ```
 
-The control plane is served on port 22, where searchers can switch modes, check status, and print logs during production mode. 
+The control plane is served on port 22, where searchers can switch modes, check status, and print logs during production mode.
 
 ```bash
 # switch mode
@@ -566,7 +566,7 @@ tail -f /var/log/lighthouse/beacon.log
 
 ### **lighthouse**
 
-Lighthouse is run on the host with the following configuration: 
+Lighthouse is run on the host with the following configuration:
 
 ```bash
 --network mainnet \
@@ -584,12 +584,12 @@ Lighthouse is run on the host with the following configuration:
 The image is configured to automatically delete logs that are more than 5 days old to limit resource usage. How it works:
 
 - Any file ending in `.log` in `/var/log/searcher/` (which maps to `/persistent/searcher_logs/` on the host) will be rotated daily. Log files are truncated and compressed copies are kept for 5 days.
-    
+
     ```bash
     root@6d9ced6e8a16:~# ls /var/log/searcher
-    bob.log  bob.log-20250127.gz  
+    bob.log  bob.log-20250127.gz
     ```
-    
+
 - The delayed log file (`/persistent/delayed_logs/output.log`) that searchers read via SSH commands is also rotated daily, meaning you can only see logs from the current day when accessing them externally.
 
 Developer Notes
