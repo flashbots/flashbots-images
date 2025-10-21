@@ -2,11 +2,18 @@
 
 **Reproducible hardened Linux images for confidential computing and safe MEV**
 
-This repository provides a toolkit for building minimal, hardened Linux images designed for confidential computing environments and MEV (Maximum Extractable Value) applications. Built on mkosi and Nix, it provides reproducible, security-focused Linux distributions with strong network isolation, attestation capabilities, and blockchain infrastructure support.
+This repository provides a toolkit for building minimal, hardened Linux images
+designed for confidential computing environments and MEV (Maximum Extractable
+Value) applications. Built on mkosi and Nix, it provides reproducible,
+security-focused Linux distributions with strong network isolation, attestation
+capabilities, and blockchain infrastructure support.
 
-It contains our [bottom-of-block searcher sandbox](https://collective.flashbots.net/t/searching-in-tdx/3902) infrastructure and will soon contain our [BuilderNet](https://buildernet.org/blog/introducing-buildernet) infrastructure as well, along with any future TDX projects we implement.
+It contains our [bottom-of-block searcher sandbox](https://collective.flashbots.net/t/searching-in-tdx/3902)
+infrastructure and will soon contain our [BuilderNet](https://buildernet.org/blog/introducing-buildernet)
+infrastructure as well, along with any future TDX projects we implement.
 
-For more information about this repository, see [the Flashbots collective post](https://collective.flashbots.net/t/beyond-yocto-exploring-mkosi-for-tdx-images/4739).
+For more information about this repository, see
+[the Flashbots collective post](https://collective.flashbots.net/t/beyond-yocto-exploring-mkosi-for-tdx-images/4739).
 
 ## 🌟 Features
 
@@ -19,55 +26,25 @@ For more information about this repository, see [the Flashbots collective post](
 
 ### Prerequisites
 
-0. Make sure you're running systemd v250 or greater. Alternatively, you can utilize experimental [container support](DEVELOPMENT.md#building-with-podman-not-recommended).
-
-1. **Install Nix** (single user mode is sufficient):
-   ```bash
-   sh <(curl -L https://nixos.org/nix/install) --no-daemon
-   ```
-
-2. **Enable Nix experimental features** in `~/.config/nix/nix.conf`:
-   ```
-   experimental-features = nix-command flakes
-   ```
-
-3. **Install Debian archive keyring** (temporary requirement):
-   ```bash
-   # On Ubuntu/Debian
-   sudo apt install debian-archive-keyring
-   # On other systems, download via package manager or use Docker approach below
-   ```
+In order to build images, you'll need to install [Lima](https://lima-vm.io/) for your operating system. Building images without Lima is possible, but due to inconsistencies between distributions, it is not supported for generating official reproducible images.
 
 ### Building Images
 
-**Using Make (Recommended)**:
 ```bash
 # Build the BOB (searcher sandbox) image
 make build IMAGE=bob
 
-# Build the Buildernet image  
+# Build the Buildernet image
 make build IMAGE=buildernet
+
+# Build the l2 builder image
+make build IMAGE=l2-builder
 
 # Build with development tools
 make build-dev IMAGE=bob
 
 # View all available targets
 make help
-```
-
-**Manual Build**:
-```bash
-# Enter the development environment
-nix develop -c $SHELL
-
-# Build a specific image
-mkosi --force -I bob.conf
-mkosi --force -I buildernet.conf
-
-# Build with profiles
-mkosi --force -I bob.conf --profile=devtools
-mkosi --force -I bob.conf --profile=azure
-mkosi --force -I bob.conf --profile=azure,devtools
 ```
 
 ### Measuring TDX Boot Process
@@ -116,7 +93,87 @@ This generates measurement files in the `build/` directory for attestation and v
     # ... rest of options same as above
   ```
 
-> Depending on your Linux distro, these commands may require changing the supplied OVMF paths or installing your distro's OVMF package.
+> [!NOTE]
+> 
+> Depending on your Linux distro, these commands may require changing the
+> supplied OVMF paths or installing your distro's OVMF package.
+
+> [!NOTE]
+>
+> Running `systemctl status` generates a report with an `unmerged-bin` taint. That's
+> expected.
+>
+> See [bug report #1085370](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1085370)
+> for details.
+
+## Building Without Lima (Unsupported)
+
+### Prerequisites
+
+1. **Install Nix** (single user mode is sufficient):
+
+    ```bash
+    sh <(curl -L https://nixos.org/nix/install) --no-daemon
+    ```
+
+2. **Enable Nix experimental features** in `~/.config/nix/nix.conf`:
+
+    ```conf
+    experimental-features = nix-command flakes
+    ```
+
+3. **Install Debian archive keyring** (temporary requirement):
+
+    ```bash
+    # On Ubuntu/Debian
+    sudo apt install debian-archive-keyring
+    # On other systems, download via package manager or use Docker approach below
+    ```
+
+### Building
+
+```bash
+# Enter the development environment
+nix develop -c $SHELL
+
+# Build a specific image
+mkosi --force -I bob.conf
+mkosi --force -I buildernet.conf
+
+# Build with profiles
+mkosi --force -I bob.conf --profile=devtools
+mkosi --force -I bob.conf --profile=azure
+mkosi --force -I bob.conf --profile=azure,devtools
+```
+
+### Troubleshooting
+
+- If you encounter `mkosi was forbidden to unshare namespaces`, try
+adding an apparmor profile like so:
+
+  ```bash
+    sudo cat <<EOF > /etc/apparmor.d/mkosi
+    abi <abi/4.0>,
+    include <tunables/global>
+
+    /nix/store/*-mkosi-*/bin/mkosi flags=(default_allow) {
+      userns,
+    }
+    EOF
+
+    sudo systemctl reload apparmor
+  ```
+
+- If you encounter `unshare: setgroups failed: Operation not permitted`,
+try to disable apparmor's restriction:
+
+  ```bash
+  sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
+
+  sudo -c 'echo "kernel.apparmor_restrict_unprivileged_userns=0" >> /etc/sysctl.conf'
+  ```
+
+- If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu.
 
 ## 📖 Documentation
 
