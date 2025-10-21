@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euxo pipefail
 
+export RUSTUP_HOME="/rustup"
+export CARGO_HOME="/cargo"
+mkosi-chroot rustup toolchain install 1.88
+mkosi-chroot rustup default 1.88
+export PATH="$CARGO_HOME/bin:$PATH"
+
 source scripts/build_rust_package.sh
 source scripts/make_git_package.sh
 
@@ -11,38 +17,32 @@ chmod 755 "$DESTDIR/usr/bin/searchersh"
 
 # Compile cryptsetup
 make_git_package \
-    "cryptsetup" \
-    "v2.8.1" \
-    "https://gitlab.com/cryptsetup/cryptsetup" \
-    './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
-    ".libs/cryptsetup:/usr/sbin/cryptsetup" \
-    ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
+	"cryptsetup" \
+	"v2.8.1" \
+	"https://gitlab.com/cryptsetup/cryptsetup" \
+	'./autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
+	".libs/cryptsetup:/usr/sbin/cryptsetup" \
+	".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
 
 # Compile lighthouse
 LIGHTHOUSE_BUILD_CMD="
-    # Switch from jemalloc to the system allocator to fix reproducibility issues
-    sed -i 's/malloc_utils = { workspace = true, features = \[\"jemalloc\"\] }/malloc_utils = { workspace = true }/' lighthouse/Cargo.toml
-    sed -i 's/#\[cfg(target_os = \"windows\")\]/#[cfg(not(feature = \"jemalloc\"))]/' lighthouse/src/main.rs
-    sed -i 's/#\[cfg(not(target_os = \"windows\"))\]/#[cfg(feature = \"jemalloc\")]/' lighthouse/src/main.rs
+    export CARGO_INCREMENTAL=0
+    export LC_ALL=C
+    export TZ=UTC
+    export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
-    # Reproducibility flags
-    export RUSTFLAGS='-C target-cpu=generic -C link-arg=-Wl,--build-id=none -C symbol-mangling-version=v0 -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
-    export CARGO_PROFILE_RELEASE_LTO='thin'
-    export CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1'
-    export CARGO_PROFILE_RELEASE_PANIC='unwind'
-    export CARGO_PROFILE_RELEASE_STRIP='none'
-    export CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
-    export CARGO_TERM_COLOR='never'
-
-    cargo fetch
-    DESTDIR=$BUILDROOT cargo build --release --frozen --bin lighthouse --no-default-features --features portable
+    cargo build --bin lighthouse \
+        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,sysmalloc \
+        --profile reproducible \
+        --locked \
+        --target x86_64-unknown-linux-gnu
 "
 make_git_package \
-    "lighthouse" \
-    "v7.1.0" \
-    "https://github.com/sigp/lighthouse.git" \
+	"lighthouse" \
+	"stable" \
+	"https://github.com/sigp/lighthouse.git" \
 	"$LIGHTHOUSE_BUILD_CMD" \
-    "target/release/lighthouse:/usr/bin/lighthouse"
+	"target/x86_64-unknown-linux-gnu/reproducible/lighthouse:/usr/bin/lighthouse"
 
 # Build fluent-bit
 BUILD_CMD="
@@ -53,31 +53,31 @@ BUILD_CMD="
     make -C build -j$(nproc)
 "
 make_git_package \
-    "fluent-bit" \
-    "v4.0.9" \
-    "https://github.com/fluent/fluent-bit.git" \
-    "$BUILD_CMD" \
-    "build/bin/fluent-bit:/usr/bin/fluent-bit"
+	"fluent-bit" \
+	"v4.0.9" \
+	"https://github.com/fluent/fluent-bit.git" \
+	"$BUILD_CMD" \
+	"build/bin/fluent-bit:/usr/bin/fluent-bit"
 
 # Build tdx-init
 make_git_package \
-    "tdx-init" \
-    "v0.1.1" \
-    "https://github.com/flashbots/tdx-init" \
-    'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/tdx-init' \
-    "build/tdx-init:/usr/bin/tdx-init"
+	"tdx-init" \
+	"v0.1.1" \
+	"https://github.com/flashbots/tdx-init" \
+	'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/tdx-init' \
+	"build/tdx-init:/usr/bin/tdx-init"
 
 # Build ssh-pubkey-server
 make_git_package \
-    "ssh-pubkey-server" \
-    "multi-key" \
-    "https://github.com/flashbots/ssh-pubkey-server" \
-    'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
-    "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
+	"ssh-pubkey-server" \
+	"multi-key" \
+	"https://github.com/flashbots/ssh-pubkey-server" \
+	'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
+	"build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
 make_git_package \
-    "cvm-reverse-proxy" \
-    "v0.1.8" \
-    "https://github.com/flashbots/cvm-reverse-proxy" \
-    "make build-proxy-server" \
-    "build/proxy-server:/usr/bin/cvm-reverse-proxy"
+	"cvm-reverse-proxy" \
+	"v0.1.8" \
+	"https://github.com/flashbots/cvm-reverse-proxy" \
+	"make build-proxy-server" \
+	"build/proxy-server:/usr/bin/cvm-reverse-proxy"
