@@ -8,9 +8,9 @@ Type=exec
 User=lighthouse
 Group=eth
 ExecStartPre=+/usr/bin/lighthouse-init
-ExecStartPre=+/bin/mkdir -p /persistent/lighthouse_logs
-ExecStartPre=+/bin/chown lighthouse:eth /persistent/lighthouse_logs
-ExecStartPre=+/bin/chmod 755 /persistent/lighthouse_logs
+ExecStartPre=+/bin/mkdir -p /persistent/cl_logs
+ExecStartPre=+/bin/chown lighthouse:eth /persistent/cl_logs
+ExecStartPre=+/bin/chmod 755 /persistent/cl_logs
 ExecStart=/usr/bin/lighthouse bn \
 		--network mainnet \
 		--execution-endpoint http://localhost:8551 \
@@ -20,7 +20,7 @@ ExecStart=/usr/bin/lighthouse bn \
 		--datadir "/persistent/lighthouse" \
         --disable-optimistic-finalized-sync \
         --disable-quic \
-        --logfile-dir /persistent/lighthouse_logs \
+        --logfile-dir /persistent/cl_logs \
         --logfile-format JSON \
         --logfile-debug-level debug \
         --logfile-max-number 5 \

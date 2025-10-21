@@ -1,0 +1,111 @@
+# This script is sourced from firewall script and contains image-specific rules
+# See also: bob-common/mkosi.extra/usr/bin/init-firewall.sh
+
+# Image-specific ports
+SSH_CONTROL_PORT=22
+SSH_DATA_PORT=10022
+SSH_REGISTER_PORT=8080
+CVM_REVERSE_PROXY_PORT=8745
+SEARCHER_INPUT_PORT=27017
+
+# Well-known ports
+DNS_PORT=53
+HTTP_PORT=80
+HTTPS_PORT=443
+NTP_PORT=123
+CL_P2P_PORT=9000
+EL_P2P_PORT=30303
+
+TITAN_IP="52.207.17.217"
+TITAN_BUNDLE_PORT=1338      # bundle submission (always on)
+TITAN_STATE_DIFF_PORT=42203 # state diff stream (production only)
+# If Titan state diff port ever changes to any of accepted in maintenance,
+# update MAINTENANCE_OUT the same way as for FLASHBOTS_TX_STREAM*
+
+# Flashbots bundle (always on)
+FLASHBOTS_BUNDLE_1="18.221.59.61"
+FLASHBOTS_BUNDLE_2="3.15.88.156"
+# Flashbots tx stream (production only)
+FLASHBOTS_TX_STREAM_1="3.136.107.142"
+FLASHBOTS_TX_STREAM_2="3.149.14.12"
+
+###########################################################################
+# (1) ALWAYS_IN: Inbound rules that are always applied
+###########################################################################
+
+accept_dst_port $CHAIN_ALWAYS_IN tcp $SSH_CONTROL_PORT "SSH control port"
+accept_dst_port $CHAIN_ALWAYS_IN udp $SEARCHER_INPUT_PORT "Searcher input channel"
+
+# CVM reverse-proxy serves server attestation
+# Also forwards request to ssh pubkey server on localhost:5001,
+#    which serves searcher-container openssh server pubkey
+accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
+
+# Note: this is CL running on the host
+accept_dst_port $CHAIN_ALWAYS_IN tcp $CL_P2P_PORT "CL P2P (TCP)"
+accept_dst_port $CHAIN_ALWAYS_IN udp $CL_P2P_PORT "CL P2P (UDP)"
+
+###########################################################################
+# (2) ALWAYS_OUT: Outbound rules that are always applied
+###########################################################################
+
+# Note: this is CL running on the host, searcher netns has DROP on those
+# See also init-container.sh
+accept_dst_port $CHAIN_ALWAYS_OUT tcp $CL_P2P_PORT "CL P2P (TCP)"
+accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
+
+# Note: this is accessible only from host, searcher netns has DROP on those
+accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+
+# Titan builder bundle endpoints (always on)
+# Security note: This is a side channel.
+# While the operator will not be able to see the content of the packets,
+# they can observe the presence or absence of packets.
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $TITAN_IP $TITAN_BUNDLE_PORT "Titan builder bundle"
+
+# Flashbots bundle endpoints (always on)
+# Security note: This is a side channel.
+# While the operator will not be able to see the content of the packets,
+# they can observe the presence or absence of packets.
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $FLASHBOTS_BUNDLE_1,$FLASHBOTS_BUNDLE_2 $HTTPS_PORT "Flashbots bundle"
+
+###########################################################################
+# (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
+###########################################################################
+
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $SSH_DATA_PORT "SSH data plane"
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $SSH_REGISTER_PORT "SSH register service"
+
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $EL_P2P_PORT "EL P2P (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
+
+###########################################################################
+# (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
+###########################################################################
+
+# Block Flashbots protect tx endpoints during maintenance
+iptables -A $CHAIN_MAINTENANCE_OUT \
+    -d $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 -j DROP \
+    -m comment --comment "Flashbots Protect (DROP before accept-all 443)"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTP_PORT "HTTP"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTPS_PORT "HTTPS"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $EL_P2P_PORT "EL P2P (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
+
+###########################################################################
+# (5) PRODUCTION_IN: Inbound rules for Production Mode
+###########################################################################
+
+# None at the moment
+
+###########################################################################
+# (6) PRODUCTION_OUT: Outbound rules for Production Mode
+###########################################################################
+
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $TITAN_IP $TITAN_STATE_DIFF_PORT "Titan state diff WSS"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
