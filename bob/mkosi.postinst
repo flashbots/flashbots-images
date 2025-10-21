@@ -33,6 +33,7 @@ for service in \
     fluent-bit.service \
     wait-for-key.service \
     searcher-firewall.service \
+    apparmor.service \
     dropbear.service \
     lighthouse.service \
     searcher-container.service \
@@ -42,6 +43,10 @@ do
     mkosi-chroot systemctl enable "$service"
     ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
 done
+
+# Monkey-patch runc to add apparmorProfile to config.json on "create"
+mv "$BUILDROOT/usr/bin/runc" "$BUILDROOT/usr/bin/runc.real"
+install -m 755 $SRCDIR/bob/runc-apparmor.sh "$BUILDROOT/usr/bin/runc"
 
 # Don't reserve port 22
 mkosi-chroot systemctl disable ssh.service ssh.socket
