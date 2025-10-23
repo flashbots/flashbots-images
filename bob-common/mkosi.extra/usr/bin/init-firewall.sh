@@ -20,7 +20,7 @@ set -eu -o pipefail
 #    ├(loopback?)─> ACCEPT
 #    └─> default DROP
 #
-# - There are no ports opened in this file, refer to bob*/mkosi.extra/etc/firewall-config
+# - There are no ports opened in this file, refer to bob*/mkosi.extra/etc/bob/firewall-config
 #   for actual chain rules.
 # - Mode-specific ESTABLISHED/RELATED connections are killed by
 #   `conntrack -D ...` upon mode toggle.
@@ -98,7 +98,7 @@ iptables -A OUTPUT ! -o lo -d 127.0.0.0/8 -j DROP
 
 ###########################################################################
 #
-# Some helper functions to reduce boilerplate in /etc/firewall-config
+# Some helper functions to reduce boilerplate in /etc/bob/firewall-config
 #
 ###########################################################################
 accept_dst_port() {
@@ -135,11 +135,11 @@ drop_dst_ip() {
 
 ###########################################################################
 # (5) Load firewall rules in {MAINTENANCE,PRODUCTION}_{IN,OUT} chains.
-# Those are customized per image, see bob*/mkosi.extra/etc/firewall-config
+# Those are customized per image, see bob*/mkosi.extra/etc/bob/firewall-config
 #
 # `source` is not supported in dash
 ###########################################################################
-. /etc/firewall-config
+. /etc/bob/firewall-config
 
 ###########################################################################
 # (6) Start in Maintenance Mode
