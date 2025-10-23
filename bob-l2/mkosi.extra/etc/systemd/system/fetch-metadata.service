@@ -1,0 +1,14 @@
+[Unit]
+Description=Fetch some environment variables from metadata service
+After=network.target network-setup.service
+Requires=network-setup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fetch-metadata.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
