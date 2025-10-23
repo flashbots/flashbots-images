@@ -6,7 +6,11 @@ After=network.target network-online.target render-config.service
 [Service]
 Type=oneshot
 User=config-watchdog
-SupplementaryGroups=rbuilder rbuilder-bidding
+RuntimeDirectory=config-watchdog
+SupplementaryGroups=rbuilder-operator rbuilder-bidding
+ExecStartPre=+/bin/bash -c 'R_S=/var/lib/persistent/rbuilder-operator; mkdir -p $R_S && \
+                            chown rbuilder-operator:rbuilder-operator $R_S && \
+                            chmod 775 $R_S'
 ExecStart=/usr/bin/config-watchdog
 
 [Install]

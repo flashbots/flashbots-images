@@ -1,4 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Disable until we figure out how to include extensions into the PCR measurements
 systemctl mask systemd-pcrphase.service systemd-pcrphase-initrd.service systemd-pcrphase-sysinit.service
+
+# Unlock system accounts that run commands via sudo
+chage -E -1 config-watchdog
+chage -E -1 operator-api

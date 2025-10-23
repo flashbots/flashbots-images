@@ -2,6 +2,7 @@
 Description=ACME Let's Encrypt client
 Wants=network-online.target
 After=network.target network-online.target render-config.service haproxy.service
+ConditionPathExists=!%S/persistent/acme.sh/bootstrap-complete
 
 [Service]
 Type=oneshot
@@ -16,9 +17,10 @@ Environment=ACME_HOME=%S/persistent/acme.sh \
             CSR_FILE=%S/persistent/acme.sh/csr.pem \
             OPERATOR_API_FIFO=/run/operator-api/journal.fifo
 EnvironmentFile=%E/acme-le/acme-le.env
-ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
+ExecStartPre=+/bin/bash -c 'cd ${CONFIGURATION_DIRECTORY} && chown -R $USER .'
 ExecStartPre=/bin/bash -c "ln -sf ${CONFIGURATION_DIRECTORY}/{deploy,dnsapi} ${STATE_DIRECTORY}"
 ExecStart=/usr/bin/acme-le
+ExecStart=+/bin/bash -c '${CONFIGURATION_DIRECTORY}/hooks/post-post-hook.sh'
 RemainAfterExit=yes
 
 [Install]

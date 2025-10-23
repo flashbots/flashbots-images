@@ -9,7 +9,7 @@ RBUILDER_STATUS_FLAG_FILE="${RBUILDER_PERSISTENT_DIR}/rbuilder.enabled"
 # locally exposed BuilderHub API proxied through CVM proxy
 RBUILDER_BIDDING_CONFIG_DIR="/etc/rbuilder-bidding"
 BHUB_URL_PROXIED="http://localhost:7937/api/l1-builder/v1/configuration"
-BHUB_CONFIG_FILE="/etc/init-config-watchdog.json"
+BHUB_CONFIG_FILE="$RUNTIME_DIRECTORY/init-config-watchdog.json"
 
 function cleanup() {
   rm -f "${BHUB_CONFIG_FILE}"
@@ -22,32 +22,28 @@ function check_rbuilder_enabled() {
   local rbuilder_enabled
   rbuilder_enabled="$(jq -r '.rbuilder.enabled' "$bhub_config_file")"
 
-  if [[ ! -d "$RBUILDER_PERSISTENT_DIR" ]]; then
-    mkdir -p "$RBUILDER_PERSISTENT_DIR"
-  fi
-
   if [[ $rbuilder_enabled == true ]]; then
     if [[ ! -f "$RBUILDER_STATUS_FLAG_FILE" ]]; then
       : > "$RBUILDER_STATUS_FLAG_FILE"
-      log "rbuilder-status-watchdog: rbuilder is enabled in BuilderHub"
-      systemctl restart rbuilder-operator
+      sudo systemctl --no-pager --no-ask-password restart rbuilder-operator
+      log "rbuilder-status-watchdog: rbuilder was enabled in BuilderHub, service started"
     fi
   else
     if [[ -f "$RBUILDER_STATUS_FLAG_FILE" ]]; then
       rm -f "$RBUILDER_STATUS_FLAG_FILE"
-      log "rbuilder-status-watchdog: rbuilder is disabled in BuilderHub"
-      systemctl stop rbuilder-operator
+      sudo systemctl --no-pager --no-ask-password stop rbuilder-operator
+      log "rbuilder-status-watchdog: rbuilder was disabled in BuilderHub, service stopped"
     fi
   fi
 }
 
 function check_subsidies_config_update() {
   local bhub_config_file="$1"
-  /usr/bin/render-config.sh --unsafe "$bhub_config_file" "$RBUILDER_BIDDING_CONFIG_DIR/bidding-service.toml.mustache" > /tmp/bidding-service.toml.tmp
+  /usr/bin/render-config --unsafe "$bhub_config_file" "$(ls /usr/lib/mustache-templates/etc/rbuilder-bidding/config.toml.mustache*|head -n1)" > "$RUNTIME_DIRECTORY/config.toml"
 
-  if ! diff -q /tmp/bidding-service.toml.tmp "$RBUILDER_BIDDING_CONFIG_DIR/bidding-service.toml" &>/dev/null; then
-    mv /tmp/bidding-service.toml.tmp "$RBUILDER_BIDDING_CONFIG_DIR/bidding-service.toml"
-    systemctl reload rbuilder-bidding
+  if ! diff -q "$RUNTIME_DIRECTORY/config.toml" "$RBUILDER_BIDDING_CONFIG_DIR/config.toml" &>/dev/null; then
+    mv "$RUNTIME_DIRECTORY/config.toml" "$RBUILDER_BIDDING_CONFIG_DIR/config.toml"
+    sudo systemctl --no-pager --no-ask-password reload rbuilder-bidding
     log "update-subsidies-config: Updated bidding service config"
   fi
 }

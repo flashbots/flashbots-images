@@ -2,14 +2,15 @@
 Description=Operator API journald pipe
 Wants=network-online.target
 After=network.target network-online.target operator-api.service
-Requires=operator-api.service
 BindsTo=operator-api.service
 
 [Service]
 Type=exec
 User=operator-api
 RuntimeDirectory=operator-api
-ExecStart=while true; \
+SupplementaryGroups=systemd-journal
+ExecStart=/bin/bash -c "while true; \
   do \
-    socat -u SYSTEM:'journalctl -q -t operator-api-pipe --no-pager' PIPE:%t/operator-api/journal.fifo; \
-  done
+    socat -u SYSTEM:'journalctl -q -t operator-api-pipe --no-pager --cursor-file=${RUNTIME_DIRECTORY}/journald-cursor' PIPE:%t/operator-api/journal.fifo; \
+    sleep 1; \
+  done"

@@ -10,7 +10,7 @@ LATEST_META=$(rclone --config "$CONFIGURATION_DIRECTORY/rclone.conf" cat "$SNAPS
 log "reth-sync: Latest snapshot: $LATEST_META"
 
 rclone sync --config "$CONFIGURATION_DIRECTORY/rclone.conf" -P --transfers=20 --multi-thread-streams 30 \
-  --contimeout=10m --retries 10 --retries-sleep 60 --error-on-no-transfer --update --fast-list \
+  --contimeout=10m --retries 10 --retries-sleep 60s --error-on-no-transfer --update --fast-list \
   --delete-during --disable-http2 --no-gzip-encoding \
   --exclude 'files.txt' "$SNAPSHOT_ROOT/$LATEST_META/" "$STATE_DIRECTORY" 2>&1 | log
 

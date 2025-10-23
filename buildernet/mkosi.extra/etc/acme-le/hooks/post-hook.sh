@@ -35,7 +35,4 @@ ln -fsr "$PRIV_KEY" "$(dirname $CERT_PATH)/${MAIN_DOMAIN}.key"
 mkdir -p /var/lib/persistent/haproxy/static
 install -m 644 --no-target-directory "$CERT_PATH" /var/lib/persistent/haproxy/static/le.cer
 
-install -D -m 600 --owner=operator-api --group=operator-api \
-  "$PRIV_KEY" /var/lib/persistent/operator-api/key.pem
-install -D -m 644 --owner=operator-api --group=operator-api \
-  "$CERT_PATH" /var/lib/persistent/operator-api/cert.pem
+echo "export CERT_PATH=${CERT_PATH}" > /tmp/acme-le-cert-path

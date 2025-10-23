@@ -22,14 +22,14 @@ tls_key_path = "/var/lib/persistent/operator-api/key.pem"
 # Make sure to update buildernet/mkosi.extra/etc/sudoers.d/operator-api
 # when adding a new action
 [actions]
-reboot = "reboot"
-rbuilder_restart = "systemctl restart rbuilder"
-rbuilder_stop = "systemctl stop rbuilder"
-fetch_config = "systemctl start fetch-config"
-rbuilder_bidding_restart = ""systemctl restart rbuilder-bidding"
-ssh_stop = "systemctl stop ssh.service ssh.socket"
-ssh_start = "systemctl start ssh.service ssh.socket"
-haproxy_restart = "systemctl restart haproxy"
+reboot = "sudo systemctl --no-pager --no-ask-password reboot"
+rbuilder_restart = "sudo systemctl --no-pager --no-ask-password restart rbuilder-operator"
+rbuilder_stop = "sudo systemctl --no-pager --no-ask-password stop rbuilder-operator"
+fetch_config = "sudo systemctl --no-pager --no-ask-password start fetch-config"
+rbuilder_bidding_restart = "sudo systemctl --no-pager --no-ask-password restart rbuilder-bidding"
+ssh_stop = "sudo systemctl --no-pager --no-ask-password stop ssh.service ssh.socket"
+ssh_start = "sudo systemctl --no-pager --no-ask-password start ssh.service ssh.socket"
+haproxy_restart = "sudo systemctl --no-pager --no-ask-password restart haproxy"
 
 [file_uploads]
-rbuilder_blocklist = "/var/lib/persistent/rbuilder/rbuilder.blocklist.json"
+rbuilder_blocklist = "/var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json"

@@ -1,8 +1,8 @@
-operator-api ALL= NOPASSWD: /usr/sbin/reboot
-operator-api ALL= NOPASSWD: /usr/bin/systemctl restart rbuilder
-operator-api ALL= NOPASSWD: /usr/bin/systemctl stop rbuilder
-operator-api ALL= NOPASSWD: /usr/bin/systemctl start fetch-config
-operator-api ALL= NOPASSWD: /usr/bin/systemctl restart rbuilder-bidding
-operator-api ALL= NOPASSWD: /usr/bin/systemctl stop ssh.service ssh.socket
-operator-api ALL= NOPASSWD: /usr/bin/systemctl start ssh.service ssh.socket
-operator-api ALL= NOPASSWD: /usr/bin/systemctl restart haproxy
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password reboot
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart rbuilder-operator
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password stop rbuilder-operator
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password start fetch-config
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart rbuilder-bidding
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password stop ssh.service ssh.socket
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password start ssh.service ssh.socket
+operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart haproxy

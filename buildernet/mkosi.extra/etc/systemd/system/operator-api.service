@@ -1,7 +1,8 @@
 [Unit]
 Description=Operator API
 Wants=network-online.target
-After=network.target network-online.target render-config.service
+After=network.target network-online.target render-config.service acme-le.service
+Requires=operator-api-journald-pipe.service
 
 [Service]
 Type=exec
@@ -10,8 +11,9 @@ SupplementaryGroups=rbuilder-operator
 ConfigurationDirectory=operator-api
 StateDirectory=persistent/operator-api
 RuntimeDirectory=operator-api
+Environment=SHELL_TO_USE=/bin/bash
 ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
-ExecStart=/usr/bin/operator-api --config %S/persistent/operator-api/config.toml
+ExecStart=/usr/bin/operator-api --config %E/operator-api/config.toml
 
 #CapabilityBoundingSet=
 #RestrictAddressFamilies=AF_INET AF_INET6
@@ -30,3 +32,6 @@ ExecStart=/usr/bin/operator-api --config %S/persistent/operator-api/config.toml
 #RestrictRealtime=yes
 #SystemCallFilter=~@privileged
 #SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

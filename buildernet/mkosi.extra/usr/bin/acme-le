@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 source /usr/bin/helper-functions.sh
 
-HAPROXY_ENV_FILE=/etc/haproxy/haproxy.env
+HAPROXY_ENV_FILE="${ACME_HOME}/haproxy.env"
 
 # Builds `subj` and `subjectAltName` strings for openssl command
 # Given a comma-separated list of DNS names, it:
