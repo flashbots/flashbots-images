@@ -124,6 +124,14 @@ accept_dst_ip_port() {
                          -m comment --comment "$comment"
 }
 
+drop_dst_ip() {
+    chain="$1"
+    ip="$2"
+    comment="$3"
+
+    iptables -A "$chain" -d "$ip" -j DROP \
+                         -m comment --comment "$comment"
+}
 
 ###########################################################################
 # (5) Load firewall rules in {MAINTENANCE,PRODUCTION}_{IN,OUT} chains.
