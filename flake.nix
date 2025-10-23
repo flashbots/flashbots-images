@@ -65,7 +65,6 @@
             mustache-go
             cryptsetup
             gptfdisk
-            mtools
             util-linux
             zstd
             which
