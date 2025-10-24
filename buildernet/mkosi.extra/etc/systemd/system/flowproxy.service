@@ -1,0 +1,17 @@
+[Unit]
+Description=FlowProxy - order flow proxy for BuilderNet
+Wants=network-online.target
+After=network.target network-online.target render-config.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+ConfigurationDirectory=flowproxy
+StateDirectory=persistent/flowproxy
+EnvironmentFile=%E/flowproxy/flowproxy.env
+ExecStart=/usr/bin/flowproxy
+Restart=on-failure
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

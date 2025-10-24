@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# TODO: proper install
+echo "Installing flowproxy..."
+
+mkdir -p $DESTDIR/usr/bin
+curl -fSsL -o $DESTDIR/usr/bin/flowproxy https://snapshots.flashbots.dev/flowlink-v1.1.2
+chmod +x $DESTDIR/usr/bin/flowproxy

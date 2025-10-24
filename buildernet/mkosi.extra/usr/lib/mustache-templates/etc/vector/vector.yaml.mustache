@@ -30,6 +30,10 @@ sources:
     type: prometheus_scrape
     endpoints:
       - http://localhost:8405/metrics
+  metrics_ntpd_rs:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9975/metrics
 
 transforms:
   metrics_job_node_exporter:
@@ -68,6 +72,12 @@ transforms:
       - metrics_haproxy
     source: |-
       .tags.job = "haproxy"
+  metrics_job_ntpd_rs:
+    type: remap
+    inputs:
+      - metrics_ntpd_rs
+    source: |-
+      .tags.job = "ntpd-rs"
 
   metrics_relabel:
     type: remap

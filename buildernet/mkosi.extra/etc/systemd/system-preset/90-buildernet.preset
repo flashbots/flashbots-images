@@ -3,3 +3,4 @@ disable ssh.*
 disable systemd-pcrphase.service
 disable systemd-pcrphase-initrd.service
 disable systemd-pcrphase-sysinit.service
+enable ntpd-rs-metrics.service

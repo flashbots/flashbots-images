@@ -1,0 +1,24 @@
+[observability]
+log-level = "info"
+observation-path = "/var/run/ntpd-rs/observe"
+
+[[source]]
+mode = "nts"
+address = "nts.netnod.se"
+
+[[source]]
+mode = "nts"
+address = "time.cloudflare.com"
+
+[[source]]
+mode = "nts"
+address = "ntppool1.time.nl"
+
+## Below are configured various thresholds beyond which ntpd-rs will not
+## change the system clock. CHANGE THESE TO MATCH YOUR SECURITY NEEDS!
+[synchronization]
+# The maximum step size (in seconds) of a single step during normal operation
+single-step-panic-threshold = 1800
+# On startup a larger jump may occur, this sets limits for that initial jump
+startup-step-panic-threshold = { forward="inf", backward = 86400 }
+minimum-agreeing-sources = 2
