@@ -23,7 +23,6 @@ debloat_paths=(
     "/usr/share/bug"
     "/usr/share/menu"
     "/usr/share/systemd"
-    "/usr/share/bash-completion"
     "/usr/share/zsh"
     "/usr/share/mime"
     "/usr/lib/modules"
@@ -40,4 +39,13 @@ debloat_paths=(
     "/nix"
 )
 
-for p in "${debloat_paths[@]}"; do rm -rf $BUILDROOT$p; done
+if [[ ! "$PROFILES" == *"devtools"* ]]; then
+    debloat_paths+=(
+        "/usr/share/bash-completion"
+    )
+fi
+
+for p in "${debloat_paths[@]}"; do
+    echo "Debloating $p"
+    rm -rf $BUILDROOT$p
+done

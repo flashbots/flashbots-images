@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Configuration
-KERNEL_VERSION="6.13.12"
+KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
 KERNEL_REPO="https://github.com/gregkh/linux"
 BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"
 
@@ -30,19 +30,19 @@ if [[ -f "$kernel_file" ]]; then
 else
     echo "Building kernel from source..."
     build_dir="$BUILDROOT/build/kernel-${KERNEL_VERSION}"
-    
+
     # Clone if needed
     [[ ! -d "$build_dir" ]] && git clone --depth 1 --branch "v${KERNEL_VERSION}" "$KERNEL_REPO" "$build_dir"
-    
+
     # Build kernel
     cd "$build_dir"
     cp "$config_file" .config
     export KBUILD_BUILD_TIMESTAMP="$(date -u -d @${SOURCE_DATE_EPOCH:-$(date +%s)})"
     export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
-    
+
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
-    
+
     # Cache result
     mkdir -p "$cache_dir"
     cp arch/x86_64/boot/bzImage "$cache_dir/"
