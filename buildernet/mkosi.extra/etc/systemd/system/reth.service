@@ -29,6 +29,7 @@ ExecStart=/usr/bin/reth node \
     --engine.persistence-threshold=0 \
     --engine.memory-block-buffer-target=0 \
     --ipcpath=%t/reth/reth.ipc
+ExecStartPost=+/bin/bash -c 'until chmod g=u $STATE_DIRECTORY/db $RUNTIME_DIRECTORY/reth.ipc; do sleep 1; done'
 Restart=on-failure
 
 [Install]

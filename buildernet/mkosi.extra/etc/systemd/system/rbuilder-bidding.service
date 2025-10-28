@@ -5,12 +5,12 @@ After=network.target network-online.target render-config.service rbuilder-biddin
 
 [Service]
 Type=exec
-User=rbuilder-bidding
-SupplementaryGroups=rbuilder-operator
+User=rbuilder-operator
 ConfigurationDirectory=rbuilder-bidding
 RuntimeDirectory=rbuilder-bidding
-ExecStartPre=+/bin/bash -c 'chown -R $USER:rbuilder-bidding $CONFIGURATION_DIRECTORY && chmod 775 $CONFIGURATION_DIRECTORY'
+ExecStartPre=+/bin/bash -c 'chown -R $USER:rbuilder-operator $CONFIGURATION_DIRECTORY'
 ExecStart=/usr/bin/rbuilder-bidding %E/rbuilder-bidding/config.toml
+ExecStopPost=+/bin/bash -c 'rm -rf /tmp/iceoryx2 /dev/shm/iox2_*'
 ExecReload=kill -HUP $MAINPID
 PrivateNetwork=yes
 

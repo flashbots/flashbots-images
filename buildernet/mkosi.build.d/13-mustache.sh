@@ -9,4 +9,4 @@ VERSION="1.4.0"
 mkdir -p $DESTDIR/usr/bin
 curl -fSsL "https://github.com/cbroglie/mustache/releases/download/v${VERSION}/mustache_${VERSION}_linux_amd64.tar.gz" | \
   tar xzf - -C $DESTDIR/usr/bin
-sha256sum $DESTDIR/usr/bin/mustache | grep -q $EXPECTED_SHA256 || { echo "SHA256 checksum verification failed"; exit 1; }
+echo "${EXPECTED_SHA256}" $DESTDIR/usr/bin/mustache | sha256sum --check

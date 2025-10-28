@@ -1,3 +1,4 @@
+adjust_finalized_blocks = true
 bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
 blocklist = "{{rbuilder.blocklist}}"
 blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
@@ -31,11 +32,12 @@ root_hash_sparse_trie_version = "v2"
 root_hash_threads = {{rbuilder.root_hash_threads}}
 root_hash_use_sparse_trie = true
 sbundle_mergeable_signers = ["0xFC171C46A32DC7fF09fBDDD4884a65b2aD596517"]
-scraped_bids_publisher_url = "{{rbuilder.scraped_bids_publisher_url}}"
 simulation_threads = 8
 system_recipient_allowlist = {{{rbuilder.system_recipient_allowlist}}}
 time_to_keep_mempool_txs_secs = {{rbuilder.time_to_keep_mempool_txs_secs}}
 watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
+
+{{{rbuilder.relay_bid_scrapers}}}
 
 {{{rbuilder.builders}}}
 
