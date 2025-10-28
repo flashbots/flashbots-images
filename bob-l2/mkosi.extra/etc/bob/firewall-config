@@ -42,6 +42,9 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 
 accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METADATA_BOB_L2_BACKRUNS_IP" $HTTP_PORT "bundle"
 
+# TODO: this is temporary for tests
+iptables -A $CHAIN_ALWAYS_OUT -j ACCEPT
+
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
 ###########################################################################

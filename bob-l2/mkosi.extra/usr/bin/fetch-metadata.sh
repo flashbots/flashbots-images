@@ -15,6 +15,7 @@ if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU"; then
 METADATA_BOB_L2_BACKRUNS_IP='1.1.1.1'
 METADATA_BOB_L2_TX_STREAM_IP='1.0.0.1'
 METADATA_BOB_L2_OP_NODE_CIDR='10.0.0.0/8'
+METADATA_BOB_L2_P2P_NODES_IPS='1.1.1.1,1.0.0.1'
 EOF
 
     # Ideally, this logic should be somewhere else, but it's fine for now
@@ -36,7 +37,8 @@ fetch_metadata_value() {
 for key in \
     BOB_L2_BACKRUNS_IP \
     BOB_L2_TX_STREAM_IP \
-    BOB_L2_OP_NODE_CIDR
+    BOB_L2_OP_NODE_CIDR \
+    BOB_L2_P2P_NODES_IPS
 do
     value=$(fetch_metadata_value "$key")
 
