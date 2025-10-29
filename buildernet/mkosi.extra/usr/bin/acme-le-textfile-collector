@@ -1,0 +1,5 @@
+#!/bin/bash
+FILE=/run/acme-le/acme_le_cert_expiration.prom
+SIZE=$(stat -c %s "$FILE" 2>/dev/null)
+printf 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %s\r\nConnection: close\r\n\r\n' $SIZE
+cat $FILE

@@ -34,6 +34,10 @@ sources:
     type: prometheus_scrape
     endpoints:
       - http://localhost:9975/metrics
+  metrics_acme_le:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9115/
 
 transforms:
   metrics_job_node_exporter:
@@ -78,6 +82,12 @@ transforms:
       - metrics_ntpd_rs
     source: |-
       .tags.job = "ntpd-rs"
+  metrics_job_acme_le:
+    type: remap
+    inputs:
+      - metrics_acme_le
+    source: |-
+      .tags.job = "acme-le"
 
   metrics_relabel:
     type: remap

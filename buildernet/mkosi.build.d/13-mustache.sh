@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "Installing mustache..."
 
-EXPECTED_SHA256="5f3a9722a071bb9e2aa16d7d575881ff93223e0103059afae6d52c01d15eb96a"
+EXPECTED_SHA256="fa775964b5789e30a32bb0dc714e6b5f2234556eded779648eb1571b29502a5e"
 VERSION="1.4.0"
 
 mkdir -p $DESTDIR/usr/bin

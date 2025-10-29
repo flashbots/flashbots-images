@@ -7,7 +7,7 @@ After=network.target network-online.target render-config.service
 Type=oneshot
 User=config-watchdog
 RuntimeDirectory=config-watchdog
-SupplementaryGroups=rbuilder-operator rbuilder-bidding
+SupplementaryGroups=rbuilder-operator
 ExecStartPre=+/bin/bash -c 'R_S=/var/lib/persistent/rbuilder-operator; mkdir -p $R_S && \
                             chown rbuilder-operator:rbuilder-operator $R_S && \
                             chmod 775 $R_S'

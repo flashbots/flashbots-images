@@ -1,7 +1,7 @@
 [Unit]
 Description=Fetch rbuilder-bidding and top-bid-source binary
 Wants=network-online.target
-After=network-online.target
+After=network-online.target render-config.service
 
 [Service]
 Type=oneshot

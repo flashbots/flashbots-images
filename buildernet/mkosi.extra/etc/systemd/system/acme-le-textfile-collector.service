@@ -1,0 +1,13 @@
+[Unit]
+Description=Exports certificate expiration date as Prometheus metric after acme-le.service has run.
+Wants=network-online.target
+After=network.target network-online.target acme-le.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+ExecStart=/usr/bin/socat -T5 TCP-LISTEN:9115,reuseaddr,fork EXEC:/usr/bin/acme-le-textfile-collector
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
