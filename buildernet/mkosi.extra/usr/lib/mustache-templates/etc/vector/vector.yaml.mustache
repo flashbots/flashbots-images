@@ -144,4 +144,6 @@ sinks:
     aws:
       region: <%aws_credentials.region%>
     <%/sigv4%>
+    batch:
+      max_bytes: 1048576
 <%/vector.prometheus_metrics.sinks%>
