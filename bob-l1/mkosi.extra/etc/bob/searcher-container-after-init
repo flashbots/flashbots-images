@@ -1,0 +1,12 @@
+# This script is sourced from init-container.sh and contains image-specific stuff
+# See also: bob-common/mkosi.extra/usr/bin/init-container.sh
+
+echo "Injecting static hosts into searcher container..."
+exec_in_container '
+    cat <<EOF >> /etc/hosts
+3.149.14.12   tx.tee-searcher.flashbots.net
+3.136.107.142 tx.tee-searcher.flashbots.net
+18.221.59.61  backruns.tee-searcher.flashbots.net
+3.15.88.156   backruns.tee-searcher.flashbots.net
+52.207.17.217 fbtee.titanbuilder.xyz
+EOF'

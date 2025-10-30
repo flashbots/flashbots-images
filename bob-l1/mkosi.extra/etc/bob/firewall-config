@@ -84,9 +84,7 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
 ###########################################################################
 
 # Block Flashbots protect tx endpoints during maintenance
-iptables -A $CHAIN_MAINTENANCE_OUT \
-    -d $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 -j DROP \
-    -m comment --comment "Flashbots Protect (DROP before accept-all 443)"
+drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 "Flashbots Protect (DROP before accept-all rules)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"

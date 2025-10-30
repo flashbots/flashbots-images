@@ -10,7 +10,12 @@ mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
 # Install lighthouse
 install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
 
-# Enable lighthouse service
+# Enable services
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
-mkosi-chroot systemctl enable lighthouse.service
-ln -sf /etc/systemd/system/lighthouse.service "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+for service in \
+    lighthouse.service \
+    openntpd.service
+do
+    mkosi-chroot systemctl enable "$service"
+    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+done
