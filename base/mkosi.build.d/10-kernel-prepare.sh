@@ -2,5 +2,5 @@
 set -eu -o pipefail
 
 apt-get -y build-dep linux-source
-apt-get -y install linux-source
+apt-get -y install linux-source --install-recommends
 # socat UNIX-LISTEN:$SRCDIR/debug.sock,fork EXEC:/bin/bash,pty,stderr

@@ -1,0 +1,57 @@
+#!/bin/bash
+set -eu -o pipefail
+
+determine_kernel_config() {
+  if [ -z "${PROFILES:-}" ]; then
+    echo "Error: PROFILES environment variable is not set!"
+    exit 1
+  fi
+
+  read -r -a profile_array <<< "$PROFILES"
+  local bare_metal_found=false
+  local cloud_found=false
+
+  for profile in "${profile_array[@]}"; do
+    if [ "$profile" == "bare-metal" ]; then
+      bare_metal_found=true
+    elif [ "$profile" == "cloud" ]; then
+      cloud_found=true
+    fi
+  done
+
+  if [ "$bare_metal_found" = true ] && [ "$cloud_found" = false ]; then
+    echo "config.amd64_none_amd64.xz"
+  elif [ "$cloud_found" = true ] && [ "$bare_metal_found" = false ]; then
+    echo "config.amd64_none_cloud-amd64.xz"
+  else
+    echo "Error: You must specify exactly one of 'bare-metal' or 'cloud' in PROFILES!"
+    exit 1
+  fi
+}
+
+BUILDDIR="$BUILDDIR/kernel"
+mkdir -p $BUILDDIR
+tar xaf /usr/src/linux-source-* -C $SRCDIR/buildernet/src
+LINUX_SOURCE=$(echo $SRCDIR/buildernet/src/linux-source-*)
+cd $LINUX_SOURCE
+
+KERNEL_CONFIG_FILE=$(determine_kernel_config)
+
+unxz /usr/src/linux-config-*/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
+./scripts/kconfig/merge_config.sh -O $BUILDDIR /tmp/kernel.config $SRCDIR/base/kernel/configs/*
+rm /tmp/kernel.config
+
+export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
+export MAKEFLAGS=-j$(nproc)
+export KBUILD_BUILD_TIMESTAMP="Fri Jun  5 15:58:00 CEST 1971"
+export KBUILD_BUILD_HOST="mkosi"
+export KBUILD_BUILD_USER="mkosi"
+LOCALVERSION=${LOCALVERSION:-"-local"}
+export LOCALVERSION
+
+make O=$BUILDDIR olddefconfig
+make O=$BUILDDIR bindeb-pkg
+
+mv $BUILDDIR/../*.deb $PACKAGEDIR/
+rm -f $BUILDDIR/../*.buildinfo
+#KDEB_PKGVERSION=someversion
