@@ -11,6 +11,7 @@
 - sysctl -w net.core.default_qdisc=fq, sysctl -w net.ipv4.tcp_congestion_control=bbr
 - cert expiration metric prometheus
 - operator-api 100% CPU usage!?!?!?
+- tar gz GCP image
 
 Services left:
 - rbuilder-operator: check if works

@@ -6,7 +6,6 @@ mkosi.cache/
 mkosi.builddir/
 mkosi.tools/
 mkosi.tools.manifest
-mkosi.sandbox
 *.qcow2
 *.raw
 .claudesync/

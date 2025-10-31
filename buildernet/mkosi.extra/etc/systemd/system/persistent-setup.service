@@ -9,6 +9,7 @@ Type=oneshot
 RemainAfterExit=yes
 Environment=BUILDERNET_TARGET_LUN=__BUILDERNET_TARGET_LUN
 ExecStart=/usr/bin/persistent-setup $BUILDERNET_TARGET_LUN
+TimeoutStartSec=600
 
 [Install]
 WantedBy=local-fs-pre.target

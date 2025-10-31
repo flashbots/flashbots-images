@@ -32,25 +32,18 @@ function find_target_device {
   return 1
 }
 
-TIMEOUT=600
 INTERVAL=2
 
 log "persistent-setup: Waiting for device with LUN ${LUN} to appear..."
 
-while [[ $TIMEOUT -gt 0 ]]; do
+while true; do
   if TARGET_DEVICE=$(find_target_device "$LUN"); then
     log "persistent-setup: Found device ${TARGET_DEVICE} for LUN ${LUN}"
     break
   fi
 
   sleep $INTERVAL
-  TIMEOUT=$((TIMEOUT - INTERVAL))
 done
-
-if [[ -z "${TARGET_DEVICE:-}" ]]; then
-  log "persistent-setup: No device found for LUN ${LUN} after timeout"
-  exit 1
-fi
 
 # Ensure we got a real block device, not a glob or missing path
 if [[ ! -b "$TARGET_DEVICE" ]]; then

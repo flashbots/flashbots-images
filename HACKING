@@ -80,3 +80,6 @@ dpkg --configure -a
 ```
 
 DO NOT RUN `apt update`!
+
+# GCP TDX custom image requirements
+https://cloud.google.com/confidential-computing/confidential-vm/docs/create-custom-confidential-vm-images

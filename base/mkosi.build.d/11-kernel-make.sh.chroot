@@ -29,15 +29,14 @@ determine_kernel_config() {
   fi
 }
 
-BUILDDIR="$BUILDDIR/kernel"
+BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION"
 mkdir -p $BUILDDIR
-tar xaf /usr/src/linux-source-* -C $SRCDIR/buildernet/src
-LINUX_SOURCE=$(echo $SRCDIR/buildernet/src/linux-source-*)
-cd $LINUX_SOURCE
+tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz
+cd linux-source-${KERNEL_VERSION}
 
 KERNEL_CONFIG_FILE=$(determine_kernel_config)
 
-unxz /usr/src/linux-config-*/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
+unxz /usr/src/linux-config-${KERNEL_VERSION}/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
 ./scripts/kconfig/merge_config.sh -O $BUILDDIR /tmp/kernel.config $SRCDIR/base/kernel/configs/*
 rm /tmp/kernel.config
 
@@ -46,12 +45,12 @@ export MAKEFLAGS=-j$(nproc)
 export KBUILD_BUILD_TIMESTAMP="Fri Jun  5 15:58:00 CEST 1971"
 export KBUILD_BUILD_HOST="mkosi"
 export KBUILD_BUILD_USER="mkosi"
-LOCALVERSION=${LOCALVERSION:-"-local"}
+LOCALVERSION=${LOCALVERSION:-"-mkosi"}
 export LOCALVERSION
 
 make O=$BUILDDIR olddefconfig
 make O=$BUILDDIR bindeb-pkg
 
-mv $BUILDDIR/../*.deb $PACKAGEDIR/
+find $BUILDDIR/.. -type f -name "linux-image-${KERNEL_VERSION}*.deb" -exec mv {} $PACKAGEDIR/ \;
 rm -f $BUILDDIR/../*.buildinfo
 #KDEB_PKGVERSION=someversion
