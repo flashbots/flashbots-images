@@ -1,10 +1,10 @@
-build/
 mkosi/
 env.json
-mkosi.packages/
-mkosi.cache/
-mkosi.builddir/
-mkosi.tools/
+**/mkosi.packages/
+**/mkosi.output/
+**/mkosi.cache/
+**/mkosi.builddir/*
+**/mkosi.tools/
 mkosi.tools.manifest
 *.qcow2
 *.raw
@@ -14,4 +14,3 @@ tmp/
 
 !/**/.gitkeep
 .vscode/
-buildernet/src
