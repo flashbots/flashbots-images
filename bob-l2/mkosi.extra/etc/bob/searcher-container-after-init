@@ -3,6 +3,5 @@
 
 exec_in_container "
     cat <<EOF >> /etc/hosts
-$METADATA_BOB_L2_TX_STREAM_IP tx-stream.internal
-$METADATA_BOB_L2_BACKRUNS_IP  backruns.internal
+$CONFIG_SIMULATOR_IP simulator.internal
 EOF"

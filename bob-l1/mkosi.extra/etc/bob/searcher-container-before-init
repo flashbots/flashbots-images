@@ -2,9 +2,12 @@
 # See also: bob-common/mkosi.extra/usr/bin/init-container.sh
 
 ENGINE_API_PORT=8551
+EL_P2P_PORT=30303
 
 BOB_SEARCHER_EXTRA_PODMAN_FLAGS="\
     -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
+    -p ${EL_P2P_PORT}:${EL_P2P_PORT} \
+    -p ${EL_P2P_PORT}:${EL_P2P_PORT}/udp \
     -v /persistent/lighthouse_logs:/var/log/lighthouse:ro \
     -v /tmp/jwt.hex:/secrets/jwt.hex:ro \
 "
