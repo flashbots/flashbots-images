@@ -31,8 +31,8 @@ determine_kernel_config() {
 
 BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION"
 mkdir -p $BUILDDIR
-tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz
-cd linux-source-${KERNEL_VERSION}
+tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz -C /tmp
+cd /tmp/linux-source-${KERNEL_VERSION}
 
 KERNEL_CONFIG_FILE=$(determine_kernel_config)
 

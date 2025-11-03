@@ -1,17 +1,7 @@
-- Post messages to Operator API PIPE when services start/stop/restart. ExecStartPre/ExecStartPost
 - compile mustache from source
-- Check out https://github.com/DaanDeMeyer/mkosi-kernel for kernel builds
 - Maybe https://learn.microsoft.com/en-us/azure/virtual-machines/nvme-linux#321-manual-download-of-udev-file
-
-[    3.830067] systemd[1]: systemd-pcrextend.socket - TPM PCR Measurements was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
-[    3.831565] systemd[1]: systemd-pcrlock.socket - Make TPM PCR Policy was skipped because of an unmet condition check (ConditionSecurity=measured-uki)
 - Change After=render-config.service to Requisite=render-config.service
-- journalctl aggressive rotation
-- bump cvm proxies to latest tag
 - sysctl -w net.core.default_qdisc=fq, sysctl -w net.ipv4.tcp_congestion_control=bbr
-- cert expiration metric prometheus
 - operator-api 100% CPU usage!?!?!?
 - tar gz GCP image
-
-Services left:
-- rbuilder-operator: check if works
+- cargo cache

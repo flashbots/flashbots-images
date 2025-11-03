@@ -2,7 +2,7 @@ mkosi/
 env.json
 **/mkosi.packages/
 **/mkosi.output/
-**/mkosi.cache/
+**/mkosi.cache/*
 **/mkosi.builddir/*
 **/mkosi.tools/
 mkosi.tools.manifest

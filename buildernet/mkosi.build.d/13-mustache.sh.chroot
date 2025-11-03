@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Installing mustache..."
+
+REF=52295247b56175b48857d38fda6576844f43f7d1 #v1.4.0
+BUILDDIR="$BUILDDIR/mustache"
+PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
+export GOCACHE="$SRCDIR/buildernet/mkosi.cache/go-build"
+
+mkdir -p $BUILDDIR
+
+curl -sSfL https://api.github.com/repos/cbroglie/mustache/tarball/${REF} | \
+  tar xzf - -C $BUILDDIR --strip-components=1
+
+cd $BUILDDIR
+VERSION=${REF:0:7}
+go build -trimpath -ldflags "-s -w -buildid= -X github.com/cbroglie/mustache/common.Version=${VERSION}" \
+  -v -o ./build/mustache cmd/mustache/main.go
+
+mkdir -p $DESTDIR/usr/bin
+cp $BUILDDIR/build/mustache $DESTDIR/usr/bin/mustache
