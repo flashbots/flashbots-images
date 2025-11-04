@@ -14,7 +14,7 @@ HTTP_PORT=80
 HTTPS_PORT=443
 NTP_PORT=123
 OP_NODE_P2P_PORT=9222
-OP_GETH_P2P_PORT=30303
+OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
 
 ###########################################################################
