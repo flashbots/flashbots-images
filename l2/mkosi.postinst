@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Enable systemd services
+
+mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
+
+for service in \
+    automount-data.service \
+    google-cloud-ops-agent-fluent-bit.service \
+    google-cloud-ops-agent.service \
+    prometheus-node-exporter.service \
+    prometheus-process-exporter.service \
+    ptlb-routes-nanny.timer \
+    vault-agent.service
+do
+    mkosi-chroot systemctl enable "$service"
+    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+done
+
+# Remove automatically generated vault cert
+
+rm -rf "$BUILDROOT/opt/vault/tls"
+
+# Fix permissions
+
+mkosi-chroot mkdir -p   /vault/secrets
+mkosi-chroot chmod 0770 /vault/secrets
+
+mkosi-chroot chmod        0750 /etc/vault-agent
+mkosi-chroot chmod        0750 /etc/vault-agent/gomplate
+mkosi-chroot sh -c "chmod 0640 /etc/vault-agent/gomplate/*"

@@ -1,0 +1,6 @@
+vault:
+  version: 1.20.1
+
+deps:
+  gomplate_version: 4.3.0
+  ops_agent_version: 2.57.0

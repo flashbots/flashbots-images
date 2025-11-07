@@ -1,0 +1,16 @@
+[Unit]
+Description=Automatically mount data volume
+
+[Service]
+Type=oneshot
+SyslogIdentifier=automount-data
+User=root
+Group=root
+
+RemainAfterExit=yes
+
+EnvironmentFile=-/etc/sysconfig/automount-data.env
+ExecStart=/usr/bin/automount-data.sh
+
+[Install]
+WantedBy=default.target
