@@ -8,7 +8,7 @@ should_use_lima() {
     # Use Lima by default for now
     true ||
     # Use Lima on macOS or if FORCE_LIMA is set
-    [[ "$OSTYPE" == "darwin"* ]] || [ -n "${FORCE_LIMA:-}" ] || 
+    [[ "$OSTYPE" == "darwin"* ]] || [ -n "${FORCE_LIMA:-}" ] ||
     # Use Lima if it's available but Nix is not
     (command -v limactl &>/dev/null && ! command -v nix &>/dev/null)
 }
@@ -22,29 +22,42 @@ setup_lima() {
         exit 1
     fi
 
+    LIMA_CPUS="${LIMA_CPUS:-$( nproc )}"
+    LIMA_MEMORY="${LIMA_MEMORY:-$( free -g | awk '/^Mem:/ {print $2-2 }' )}"
+
     # Create VM if it doesn't exist
     if ! limactl list "$LIMA_VM" > /dev/null 2>&1; then
         declare -a args=()
-        if [ -n "${LIMA_CPUS:-}" ]; then
-            args+=("--cpus" "$LIMA_CPUS")
-        fi
-        if [ -n "${LIMA_MEMORY:-}" ]; then
-            args+=("--memory" "$LIMA_MEMORY")
-        fi
+        args+=("--cpus" "$LIMA_CPUS")
+        args+=("--memory" "$LIMA_MEMORY")
         if [ -n "${LIMA_DISK:-}" ]; then
             args+=("--disk" "$LIMA_DISK")
         fi
 
         echo -e "Creating $LIMA_VM VM..."
         # Portable way to expand array on bash 3 & 4
-        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} lima.yaml
+        limactl create --yes \
+                --name "$LIMA_VM" \
+                --set ".mounts=[{\"location\":\"$( pwd )\",\"mountPoint\":\"/home/debian/mnt\",\"writable\":true}]" \
+                ${args[@]+"${args[@]}"} \
+            lima.yaml
     fi
 
     # Start VM if not running
     status=$(limactl list "$LIMA_VM" --format "{{.Status}}")
     if [ "$status" != "Running" ]; then
+        declare -a args=()
+        args+=("--cpus" "$LIMA_CPUS")
+        args+=("--memory" "$LIMA_MEMORY")
+        if [ -n "${LIMA_DISK:-}" ]; then
+            args+=("--disk" "$LIMA_DISK")
+        fi
+
         echo -e "Starting $LIMA_VM VM..."
-        limactl start -y "$LIMA_VM"
+        limactl start --yes \
+                --timeout 30m \
+                ${args[@]+"${args[@]}"} \
+            "$LIMA_VM"
 
         rm -f NvVars # Remove stray file created by QEMU
     fi
@@ -76,7 +89,7 @@ is_mkosi_cmd() {
 }
 
 if is_mkosi_cmd && [ -n "${MKOSI_EXTRA_ARGS:-}" ]; then
-    # TODO: these args will be overriden by default cache/out dir in Lima
+    # TODO: these args will be overridden by default cache/out dir in Lima
     # Not a big deal, but might worth fixing
     cmd+=($MKOSI_EXTRA_ARGS)
 fi
