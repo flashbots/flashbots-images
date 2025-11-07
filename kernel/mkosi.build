@@ -37,7 +37,7 @@ else
     # Build kernel
     cd "$build_dir"
     cp "$config_file" .config
-    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @${SOURCE_DATE_EPOCH:-$(date +%s)})"
+    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @$(git log -1 --pretty=%ct))"
     export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
 
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
