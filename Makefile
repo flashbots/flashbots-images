@@ -60,7 +60,7 @@ measure-gcp: ## Export TDX measurements for GCP
 		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
 		exit 1; \
 	fi
-	@$(WRAPPER) dstack-mr -uki build/tdx-debian.efi -json > build/gcp_measurements.json
+	@$(WRAPPER) bash -c "dstack-mr -uki build/tdx-debian.efi -json > build/gcp_measurements.json"
 	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
