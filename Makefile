@@ -37,6 +37,9 @@ check-perms: ## Check repository permissions
 setup: ## Install dependencies (Linux only)
 	@scripts/setup_deps.sh
 
+preflight:
+	@$(WRAPPER) echo "Ready to build"
+
 # Build module
 build: check-perms setup ## Build the specified module
 	$(WRAPPER) mkosi --force -I $(IMAGE).conf
