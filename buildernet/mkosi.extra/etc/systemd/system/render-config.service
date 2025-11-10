@@ -6,6 +6,7 @@ After=network.target network-online.target
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/fetch-config /usr/lib/mustache-templates /
+ExecStartPost=+/bin/bash -c 'hostnamectl set-hostname $(cat /etc/hostname)'
 RemainAfterExit=yes
 
 [Install]

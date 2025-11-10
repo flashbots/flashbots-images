@@ -9,3 +9,4 @@ echo "${EXPECTED_SHA256}" $PACKAGEDIR/ntpd-rs.deb | sha256sum --check
 dpkg-deb -R $PACKAGEDIR/ntpd-rs.deb /tmp/ntpd-rs-deb
 rm /tmp/ntpd-rs-deb/DEBIAN/postinst
 dpkg -b /tmp/ntpd-rs-deb $PACKAGEDIR/ntpd-rs.deb
+# TODO: switch to debian repository when updated, currently 1.4.0 there

@@ -105,7 +105,11 @@ transforms:
       inputs:
         - logs_journald
       source: |-
-        . = {"message": .message, "host": .host, "UNIT": .UNIT}
+        . = {
+            "message": parse_json(.message) ?? .message,
+            "host": .host,
+            "service": get!(value: ., path: ["_SYSTEMD_UNIT"]) || "catchall"
+          }
 
 sinks:
 <%#vector.cloudwatch_logs.sinks%>
@@ -118,7 +122,7 @@ sinks:
     inputs:
       - logs_journald_message_only
     group_name: "<%log_group_name%>"
-    stream_name: "{{ host }}-{{ UNIT }}"
+    stream_name: "{{ host }}-{{ service }}"
     create_missing_group: true
     create_missing_stream: true
     compression: gzip
@@ -143,7 +147,13 @@ sinks:
       strategy: aws
     aws:
       region: <%aws_credentials.region%>
-    <%/sigv4%>
     batch:
       max_bytes: 750000
+    <%/sigv4%>
+    <%#basic_auth%>
+    auth:
+      strategy: basic
+      user: <%username%>
+      password: <%password%>
+    <%/basic_auth%>
 <%/vector.prometheus_metrics.sinks%>
