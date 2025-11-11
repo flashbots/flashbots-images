@@ -50,6 +50,38 @@ build-dev: check-perms setup ## Build module with development tools
 
 ##@ Utilities
 
+check-repro: ## Build same module twice and compare resulting images
+	@rm -rf build.1
+	@rm -rf build.2
+
+	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
+	@sleep 5
+
+	@echo "Building image #1..."
+	$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@cp -r build build.1
+
+	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
+	@sleep 5
+
+	@echo "Building image #2..."
+	$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@cp -r build build.2
+
+	@echo "Comparing..."
+
+	@echo ""
+	@sha256sum build.1/tdx-debian.vmlinuz
+	@sha256sum build.2/tdx-debian.vmlinuz
+
+	@echo ""
+	@sha256sum build.1/tdx-debian.initrd
+	@sha256sum build.2/tdx-debian.initrd
+
+	@echo ""
+	@sha256sum build.1/tdx-debian.efi
+	@sha256sum build.2/tdx-debian.efi
+
 measure: ## Export TDX measurements for the built EFI file
 	@if [ ! -f build/tdx-debian.efi ]; then \
 		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \

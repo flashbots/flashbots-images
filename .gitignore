@@ -1,6 +1,7 @@
 # mkosi artifacts
 
 build/
+build.*/
 env.json
 mkosi.builddir/
 mkosi.cache/
