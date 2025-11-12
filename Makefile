@@ -55,14 +55,18 @@ check-repro: ## Build same module twice and compare resulting images
 	@rm -rf build.2
 
 	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
-	@sleep 5
+#	hack:  there's some race condition under lima that causes apt to fail while trying to
+#	       create a temp dir under apt cache
+	@sleep 15
 
 	@echo "Building image #1..."
 	$(WRAPPER) mkosi --force -I $(IMAGE).conf
 	@cp -r build build.1
 
 	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
-	@sleep 5
+#	hack:  there's some race condition under lima that causes apt to fail while trying to
+#	       create a temp dir under apt cache
+	@sleep 15
 
 	@echo "Building image #2..."
 	$(WRAPPER) mkosi --force -I $(IMAGE).conf
