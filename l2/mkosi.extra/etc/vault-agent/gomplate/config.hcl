@@ -10,7 +10,7 @@ vault {
 
 auto_auth {
   method "gcp" {
-    mount_path = "[[ gcp.Meta "vault_auth_mount_gcp" ]]"
+    mount_path = "[[ gcp.Meta "attributes/vault_auth_mount_gcp" ]]"
 
     config = {
       type = "gce"

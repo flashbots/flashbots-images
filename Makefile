@@ -42,11 +42,11 @@ preflight:
 
 # Build module
 build: check-perms setup ## Build the specified module
-	$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: check-perms setup ## Build module with development tools
-	$(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
 
 ##@ Utilities
 
@@ -60,8 +60,10 @@ check-repro: ## Build same module twice and compare resulting images
 	@sleep 15
 
 	@echo "Building image #1..."
-	$(WRAPPER) mkosi --force -I $(IMAGE).conf
-	@cp -r build build.1
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@mkdir -p build/cache
+	@mv mkosi.builddir/* build/cache/
+	@mv build build.1
 
 	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
 #	hack:  there's some race condition under lima that causes apt to fail while trying to
@@ -69,22 +71,17 @@ check-repro: ## Build same module twice and compare resulting images
 	@sleep 15
 
 	@echo "Building image #2..."
-	$(WRAPPER) mkosi --force -I $(IMAGE).conf
-	@cp -r build build.2
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@mkdir -p build/cache
+	@mv mkosi.builddir/* build/cache/
+	@mv build build.2
 
 	@echo "Comparing..."
-
-	@echo ""
-	@sha256sum build.1/tdx-debian.vmlinuz
-	@sha256sum build.2/tdx-debian.vmlinuz
-
-	@echo ""
-	@sha256sum build.1/tdx-debian.initrd
-	@sha256sum build.2/tdx-debian.initrd
-
-	@echo ""
-	@sha256sum build.1/tdx-debian.efi
-	@sha256sum build.2/tdx-debian.efi
+	@for file in $$( find build.1 -type f ); do \
+		sha256sum $$file; \
+		sha256sum $${file/build1/build.2}; \
+		echo ""; \
+	done
 
 measure: ## Export TDX measurements for the built EFI file
 	@if [ ! -f build/tdx-debian.efi ]; then \

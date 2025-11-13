@@ -13,9 +13,10 @@ if [ -e /dev/disk/by-id/google-data ]; then
       mkfs.ext4 -m 0 ${device}
       eval $( blkid --output export ${device} )
     fi
-    echo "UUID=${UUID} ${MOUNT:-/var/opt/peristent} ${TYPE} defaults 0 0" >> /etc/fstab
-    mkdir -p ${MOUNT:-/var/opt/peristent}
-    chmod 0777 ${MOUNT:-/var/opt/peristent}
+    AUTOMOUNT_PATH_DATA=${AUTOMOUNT_PATH_DATA:-/var/opt/data}
+    echo "UUID=${UUID} ${AUTOMOUNT_PATH_DATA} ${TYPE} defaults 0 0" >> /etc/fstab
+    mkdir -p "${AUTOMOUNT_PATH_DATA}"
+    chmod 0777 "${AUTOMOUNT_PATH_DATA}"
     systemctl daemon-reload
     mount --all
   else

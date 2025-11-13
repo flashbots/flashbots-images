@@ -1,0 +1,14 @@
+rust:
+  version: 1.91.1
+
+node_healthchecker:
+  git_reference: v0.1.11
+
+op_rbuilder:
+  git_reference: op-rbuilder/v0.2.9
+
+rproxy:
+  git_reference: v0.0.6
+
+tdx_quote_provider:
+  git_reference: tdx-quote-provider/v0.1.0

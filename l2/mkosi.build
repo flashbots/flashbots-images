@@ -4,33 +4,35 @@ set -euxo pipefail
 
 ENV_YAML="$SRCDIR/l2/mkosi.extra/etc/flashbots/l2.yaml"
 
-VAULT_VERSION=$(mkosi-chroot yq -r .vault.version < "$ENV_YAML")
-GOMPLATE_VERSION=$(mkosi-chroot yq -r .deps.gomplate_version < "$ENV_YAML")
-OPS_AGENT_VERSION=$(mkosi-chroot yq -r .deps.ops_agent_version < "$ENV_YAML")
+VAULT_REF=$(mkosi-chroot yq -r .vault.git_reference < "$ENV_YAML")
+GOMPLATE_REF=$(mkosi-chroot yq -r .gomplate.git_reference < "$ENV_YAML")
+GCP_OPS_AGENT_REF=$(mkosi-chroot yq -r .gcp_ops_agent.git_reference < "$ENV_YAML")
 
 source scripts/make_git_package.sh
 
 # build gomplate
+
 make_git_package \
     "gomplate" \
-    "v${GOMPLATE_VERSION}" \
+    "${GOMPLATE_REF}" \
     "https://github.com/hairyhenderson/gomplate" \
-    'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/gomplate ./cmd/gomplate' \
+    'go build -trimpath -ldflags "-s -w -X github.com/hairyhenderson/gomplate/v4/version=${GOMPLATE_REF} -buildid=" -o ./build/gomplate ./cmd/gomplate' \
     "build/gomplate:/usr/bin/gomplate"
 chmod +x $DESTDIR/usr/bin/gomplate
 
 # build vault
+
 make_git_package \
     "vault" \
-    "v${VAULT_VERSION}" \
+    "${VAULT_REF}" \
     "https://github.com/hashicorp/vault.git" \
-    'go build -trimpath -ldflags "-s -w -buildid=" -o ./bin/vault .' \
+    'go build -trimpath -ldflags "-s -w -X github.com/hashicorp/vault/version.Version=${VAULT_REF} -buildid=" -o ./bin/vault .' \
     "bin/vault:/usr/bin/vault"
 chmod +x $DESTDIR/usr/bin/vault
 
-cd "$BUILDROOT"
+# build gcp ops agent
 
-# Build Google Cloud Ops Agent
+cd "$BUILDROOT"
 IMPORT_PATH="github.com/GoogleCloudPlatform/ops-agent"
 BUILD_CMD="
     # Fluentbit
@@ -44,7 +46,7 @@ BUILD_CMD="
     LDFLAGS='-s -w -buildid='
     go build -buildvcs=false -trimpath -ldflags \"\$LDFLAGS \\
         -X $IMPORT_PATH/internal/version.BuildDistro=debian13 \\
-        -X $IMPORT_PATH/internal/version.Version=$OPS_AGENT_VERSION\" \\
+        -X $IMPORT_PATH/internal/version.Version=$GCP_OPS_AGENT_REF\" \\
         -o out/libexec/google_cloud_ops_agent_engine \\
         $IMPORT_PATH/cmd/google_cloud_ops_agent_engine
 
@@ -52,15 +54,13 @@ BUILD_CMD="
         -o out/libexec/google_cloud_ops_agent_wrapper \\
         $IMPORT_PATH/cmd/agent_wrapper
 "
-
 make_git_package \
     "google-cloud-ops-agent" \
-    "$OPS_AGENT_VERSION" \
+    "$GCP_OPS_AGENT_REF" \
     "https://github.com/GoogleCloudPlatform/ops-agent" \
     "$BUILD_CMD" \
     "out/libexec:/opt/google-cloud-ops-agent/libexec" \
     "out/opt/google-cloud-ops-agent/subagents/fluent-bit:/opt/google-cloud-ops-agent/subagents/fluent-bit" \
     "systemd/google-cloud-ops-agent-fluent-bit.service:/usr/lib/systemd/system/google-cloud-ops-agent-fluent-bit.service" \
     "systemd/google-cloud-ops-agent.service:/usr/lib/systemd/system/google-cloud-ops-agent.service"
-
 sed -i 's|@PREFIX@|/opt/google-cloud-ops-agent|g; s|@SYSCONFDIR@|/etc|g' "$DESTDIR/usr/lib/systemd/system/google-cloud-ops-agent"*.service

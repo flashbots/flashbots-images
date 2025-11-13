@@ -19,7 +19,7 @@ build_rust_package() {
     fi
 
     # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${version}"
+    local cached_binary="$BUILDDIR/${package}-${version#${package}/}/${package}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         cp "$cached_binary" "$dest_path"
@@ -54,6 +54,7 @@ build_rust_package() {
     "
 
     # Cache and install the built binary
+    mkdir -p "$( dirname $cached_binary )"
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
 }

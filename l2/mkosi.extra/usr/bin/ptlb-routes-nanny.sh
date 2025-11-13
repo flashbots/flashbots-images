@@ -35,7 +35,7 @@ for line in "$(
         http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/forwarded-ips/${idx}
     )
 
-    if is_ip4 "${ip}"; then
+    if is_ip4 "${ip}" > /dev/null; then
       route="local ${ip} dev ${interface} proto 66 scope host"
 
       if ! ip route show table local | grep -q "${route}"; then
