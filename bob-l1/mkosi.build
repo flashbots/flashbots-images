@@ -24,7 +24,7 @@ LIGHTHOUSE_BUILD_CMD="
 "
 make_git_package \
     "lighthouse" \
-    "v7.1.0" \
+    "v8.0.0" \
     "https://github.com/sigp/lighthouse.git" \
 	"$LIGHTHOUSE_BUILD_CMD" \
     "target/release/lighthouse:/usr/bin/lighthouse"
