@@ -22,8 +22,25 @@ setup_lima() {
         exit 1
     fi
 
-    LIMA_CPUS="${LIMA_CPUS:-$( nproc )}"
-    LIMA_MEMORY="${LIMA_MEMORY:-$( free -g | awk '/^Mem:/ {print $2-2 }' )}"
+    # Detect CPU count (cross-platform)
+    if command -v nproc &>/dev/null; then
+        LIMA_CPUS="${LIMA_CPUS:-$( nproc )}"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        LIMA_CPUS="${LIMA_CPUS:-$( sysctl -n hw.ncpu )}"
+    else
+        LIMA_CPUS="${LIMA_CPUS:-2}"  # Fallback
+    fi
+    
+    # Detect memory (cross-platform)
+    if command -v free &>/dev/null; then
+        LIMA_MEMORY="${LIMA_MEMORY:-$( free -g | awk '/^Mem:/ {print $2-2 }' )}"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # sysctl returns bytes, convert to GB and subtract 2GB
+        mem_gb=$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024 - 2))
+        LIMA_MEMORY="${LIMA_MEMORY:-$mem_gb}"
+    else
+        LIMA_MEMORY="${LIMA_MEMORY:-4}"  # Fallback
+    fi
 
     # Create VM if it doesn't exist
     if ! limactl list "$LIMA_VM" > /dev/null 2>&1; then
