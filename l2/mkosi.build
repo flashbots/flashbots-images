@@ -36,6 +36,13 @@ cd "$BUILDROOT"
 IMPORT_PATH="github.com/GoogleCloudPlatform/ops-agent"
 BUILD_CMD="
     # Fluentbit
+
+    # Install cmake 3.28 to fix build issues on Apple Silicon hosts
+    # See https://gitlab.kitware.com/cmake/cmake/-/issues/25562
+    curl -L -o cmake.sh https://cmake.org/files/v3.28/cmake-3.28.6-linux-x86_64.sh
+    chmod +x cmake.sh
+    ./cmake.sh --prefix=/usr --skip-license
+
     export SOURCE_DATE_EPOCH=0 PATH=/usr/local/go/bin:\$PATH
     export CFLAGS='-fno-ident -Wno-date-time' CXXFLAGS='-fno-ident -Wno-date-time'
     git submodule update --init --depth 1 submodules/fluent-bit
