@@ -5,6 +5,7 @@ global
   ulimit-n 32768
 
   stats socket /run/haproxy/admin.sock level admin mode 660
+  tune.h2.initial-window-size 1048576
 
 defaults
   mode http

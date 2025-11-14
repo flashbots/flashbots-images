@@ -1,7 +1,8 @@
 [Unit]
+DefaultDependencies=no
 Description=Pull and render configs from BuilderHub
-Wants=network-online.target
-After=network.target network-online.target
+Wants=network-online.target cvm-reverse-proxy-client.service
+After=network.target network-online.target cvm-reverse-proxy-client.service
 
 [Service]
 Type=oneshot

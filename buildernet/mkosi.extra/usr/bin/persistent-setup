@@ -3,15 +3,77 @@ set -eu -o pipefail
 
 source /usr/bin/helper-functions.sh
 
-# Parse LUN from first argument
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $(basename "$0") <LUN>" >&2
+# Initialize variables
+DEVICE_LUN=""
+DEVICE_NAME=""
+KEY_FILE=""
+USE_TPM2=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --device-lun)
+      DEVICE_LUN="$2"
+      shift 2
+      ;;
+    --device-name)
+      DEVICE_NAME="$2"
+      shift 2
+      ;;
+    --key-file)
+      KEY_FILE="$2"
+      shift 2
+      ;;
+    --tpm2)
+      USE_TPM2=true
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $(basename "$0") [OPTIONS]"
+      echo "  --device-lun <LUN>    Specify device by LUN number"
+      echo "  --device-name <NAME>  Specify device by name"
+      echo "  --key-file <FILE>     Path to file containing passphrase"
+      echo "  --tpm2                Enable TPM2 encryption"
+      echo "  -h, --help           Show this help message"
+      echo ""
+      echo "Encryption options:"
+      echo "  --key-file only:      Passphrase-based encryption"
+      echo "  --tpm2 only:          TPM2-only encryption"
+      echo "  Both flags:           Dual authentication (passphrase + TPM2)"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: $(basename "$0") [OPTIONS]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Validate arguments
+if [[ -z "$DEVICE_LUN" && -z "$DEVICE_NAME" ]]; then
+  echo "Error: Either --device-lun or --device-name must be specified" >&2
+  echo "Usage: $(basename "$0") [OPTIONS]" >&2
   exit 1
 fi
 
-LUN="$1"
+if [[ -n "$DEVICE_LUN" && -n "$DEVICE_NAME" ]]; then
+  echo "Error: Cannot specify both --device-lun and --device-name" >&2
+  exit 1
+fi
 
-function find_target_device {
+# Validate encryption options
+if [[ -z "$KEY_FILE" && "$USE_TPM2" == false ]]; then
+  echo "Error: Must specify at least one encryption method (--key-file or --tpm2)" >&2
+  exit 1
+fi
+
+if [[ -n "$KEY_FILE" && ! -f "$KEY_FILE" ]]; then
+  echo "Error: Key file does not exist: $KEY_FILE" >&2
+  exit 1
+fi
+
+function find_target_device_by_lun {
   local lun="$1"
 
   # Try SCSI by-path
@@ -32,13 +94,41 @@ function find_target_device {
   return 1
 }
 
+function find_target_device_by_name {
+  local device_name="$1"
+  local device_path=(/dev/disk/by-id/${device_name})
+  if [[ -e "${device_path}" ]]; then
+    readlink -f "${device_path}"
+    return 0
+  fi
+  return 1
+}
+
+function find_target_device {
+  if [[ -n "$DEVICE_LUN" ]]; then
+    find_target_device_by_lun "$DEVICE_LUN"
+  elif [[ -n "$DEVICE_NAME" ]]; then
+    find_target_device_by_name "$DEVICE_NAME"
+  else
+    return 1
+  fi
+}
+
 INTERVAL=2
 
-log "persistent-setup: Waiting for device with LUN ${LUN} to appear..."
+if [[ -n "$DEVICE_LUN" ]]; then
+  log "persistent-setup: Waiting for device with LUN ${DEVICE_LUN} to appear..."
+else
+  log "persistent-setup: Waiting for device named ${DEVICE_NAME} to appear..."
+fi
 
 while true; do
-  if TARGET_DEVICE=$(find_target_device "$LUN"); then
-    log "persistent-setup: Found device ${TARGET_DEVICE} for LUN ${LUN}"
+  if TARGET_DEVICE=$(find_target_device); then
+    if [[ -n "$DEVICE_LUN" ]]; then
+      log "persistent-setup: Found device ${TARGET_DEVICE} for LUN ${DEVICE_LUN}"
+    else
+      log "persistent-setup: Found device ${TARGET_DEVICE} for name ${DEVICE_NAME}"
+    fi
     break
   fi
 
@@ -55,28 +145,67 @@ LUKS_UUID=""
 BLOCK_UUID=""
 
 if cryptsetup isLuks "$TARGET_DEVICE"; then
-  log "persistent-setup: Device ${TARGET_DEVICE} for LUN ${LUN} is already LUKS encrypted, attempting to unlock"
+  log "persistent-setup: Device ${TARGET_DEVICE} is already LUKS encrypted, attempting to unlock"
 
   LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
 
-  # Try to open the device (TPM should unlock it automatically)
-  if cryptsetup open "$TARGET_DEVICE" persistent; then
-    log "persistent-setup: Successfully unlocked encrypted device"
-    BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
-  else
-    log "persistent-setup: Failed to unlock device ${TARGET_DEVICE}"
-    exit 1
+  # Try to unlock with the appropriate method
+  if [[ -n "$KEY_FILE" && "$USE_TPM2" == true ]]; then
+    # Dual authentication: try passphrase first, TPM should auto-unlock if available
+    if cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent; then
+      log "persistent-setup: Successfully unlocked encrypted device with passphrase"
+    elif cryptsetup open "$TARGET_DEVICE" persistent; then
+      log "persistent-setup: Successfully unlocked encrypted device with TPM2"
+    else
+      log "persistent-setup: Failed to unlock device ${TARGET_DEVICE} with either method"
+      exit 1
+    fi
+  elif [[ -n "$KEY_FILE" ]]; then
+    # Passphrase-only authentication
+    if cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent; then
+      log "persistent-setup: Successfully unlocked encrypted device with passphrase"
+    else
+      log "persistent-setup: Failed to unlock device ${TARGET_DEVICE} with passphrase"
+      exit 1
+    fi
+  elif [[ "$USE_TPM2" == true ]]; then
+    # TPM2-only authentication
+    if cryptsetup open "$TARGET_DEVICE" persistent; then
+      log "persistent-setup: Successfully unlocked encrypted device with TPM2"
+    else
+      log "persistent-setup: Failed to unlock device ${TARGET_DEVICE} with TPM2"
+      exit 1
+    fi
   fi
-else
-  log "persistent-setup: Device ${TARGET_DEVICE} for LUN ${LUN} is not encrypted, performing initial setup"
 
-  TEMP_ENC_PASS=$(openssl rand -hex 64)
-  echo -n "$TEMP_ENC_PASS" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
-  systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file=<(echo -n "$TEMP_ENC_PASS")
-  # Allow only unlocking with TPM
-  systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
-  unset TEMP_ENC_PASS
-  cryptsetup open "$TARGET_DEVICE" persistent
+  BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
+else
+  log "persistent-setup: Device ${TARGET_DEVICE} is not encrypted, performing initial setup"
+
+  if [[ -n "$KEY_FILE" && "$USE_TPM2" == true ]]; then
+    # !!!! Be careful with a newline in passphrase !!!!
+    # Dual authentication setup
+    log "persistent-setup: Setting up dual authentication (passphrase + TPM2)"
+    cat "$KEY_FILE" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file="$KEY_FILE"
+    cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent
+  elif [[ -n "$KEY_FILE" ]]; then
+    # Passphrase-only setup
+    log "persistent-setup: Setting up passphrase-based encryption"
+    cat "$KEY_FILE" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
+    cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent
+  elif [[ "$USE_TPM2" == true ]]; then
+    # TPM2-only setup
+    log "persistent-setup: Setting up TPM2-only encryption"
+    TEMP_ENC_PASS=$(openssl rand -hex 64)
+    echo -n "$TEMP_ENC_PASS" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file=<(echo -n "$TEMP_ENC_PASS")
+    # Allow only unlocking with TPM
+    systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
+    unset TEMP_ENC_PASS
+    cryptsetup open "$TARGET_DEVICE" persistent
+  fi
+
   mkfs.ext4 /dev/mapper/persistent
 
   LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
@@ -84,11 +213,35 @@ else
 fi
 
 # Ensure crypttab and fstab are configured
-echo "persistent UUID=${LUKS_UUID} - tpm2-device=auto,tpm2-pcrs=11" > /etc/crypttab
+if [[ -n "$KEY_FILE" && "$USE_TPM2" == true ]]; then
+  # Dual authentication: configure both passphrase and TPM2
+  echo "persistent UUID=${LUKS_UUID} ${KEY_FILE} tpm2-device=auto,tpm2-pcrs=11" > /etc/crypttab
+elif [[ -n "$KEY_FILE" ]]; then
+  # Passphrase-only
+  echo "persistent UUID=${LUKS_UUID} ${KEY_FILE} -" > /etc/crypttab
+elif [[ "$USE_TPM2" == true ]]; then
+  # TPM2-only
+  echo "persistent UUID=${LUKS_UUID} - tpm2-device=auto,tpm2-pcrs=11" > /etc/crypttab
+fi
+
 echo "UUID=${BLOCK_UUID} /var/lib/persistent ext4 defaults,nosuid,noexec,noatime,x-systemd.mkdir,x-systemd.automount 0 2" > /etc/fstab
 
 systemctl daemon-reload
 systemctl start systemd-cryptsetup@persistent.service
 systemctl start var-lib-persistent.automount
 
-log "persistent-setup: Completed setup for LUN ${LUN} on device ${TARGET_DEVICE}"
+# Construct encryption method description for logging
+ENCRYPTION_METHOD=""
+if [[ -n "$KEY_FILE" && "$USE_TPM2" == true ]]; then
+  ENCRYPTION_METHOD="dual authentication (passphrase + TPM2)"
+elif [[ -n "$KEY_FILE" ]]; then
+  ENCRYPTION_METHOD="passphrase-based encryption"
+elif [[ "$USE_TPM2" == true ]]; then
+  ENCRYPTION_METHOD="TPM2-only encryption"
+fi
+
+if [[ -n "$DEVICE_LUN" ]]; then
+  log "persistent-setup: Completed setup for LUN ${DEVICE_LUN} on device ${TARGET_DEVICE} with ${ENCRYPTION_METHOD}"
+else
+  log "persistent-setup: Completed setup for device ${DEVICE_NAME} on ${TARGET_DEVICE} with ${ENCRYPTION_METHOD}"
+fi

@@ -12,7 +12,7 @@ function replace_underscore_template {
 # Populate environment variables
 for var in "${!BUILDERNET_@}"; do
   case $var in
-    BUILDERNET_TARGET_LUN)
+    BUILDERNET_PERSISTENT_DEVICE_LUN)
       replace_underscore_template "$BUILDROOT/etc/systemd/system/persistent-setup.service" "${!var}"
       ;;
     BUILDERNET_BUILDERHUB_URL)

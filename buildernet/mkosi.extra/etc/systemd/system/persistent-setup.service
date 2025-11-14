@@ -1,14 +1,14 @@
 [Unit]
 DefaultDependencies=no
-Wants=systemd-udev-settle.service
-After=systemd-udev-settle.service tpm2.target
+Wants=systemd-udev-settle.service render-config.service
+After=systemd-udev-settle.service tpm2.target render-config.service
 Before=local-fs.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-Environment=BUILDERNET_TARGET_LUN=__BUILDERNET_TARGET_LUN
-ExecStart=/usr/bin/persistent-setup $BUILDERNET_TARGET_LUN
+Environment=BUILDERNET_PERSISTENT_DEVICE_LUN=__BUILDERNET_PERSISTENT_DEVICE_LUN
+ExecStart=/usr/bin/persistent-setup --device-lun $BUILDERNET_PERSISTENT_DEVICE_LUN
 TimeoutStartSec=600
 
 [Install]

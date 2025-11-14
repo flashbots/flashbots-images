@@ -34,6 +34,17 @@ mkdir -p $BUILDDIR
 tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz -C /tmp
 cd /tmp/linux-source-${KERNEL_VERSION}
 
+for dir in base $PROFILES; do
+  if [[ "$dir" = "base" ]]; then
+    find "$SRCDIR/$dir/kernel/patches/$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true
+  else
+    find "$SRCDIR/mkosi.profiles/$dir/kernel/patches/$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true
+  fi
+done | sort | while read patch; do
+  echo "Applying patch: $patch"
+  patch -p1 < "$patch"
+done
+
 KERNEL_CONFIG_FILE=$(determine_kernel_config)
 
 unxz /usr/src/linux-config-${KERNEL_VERSION}/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
