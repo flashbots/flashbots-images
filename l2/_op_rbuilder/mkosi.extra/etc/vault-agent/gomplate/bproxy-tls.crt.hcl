@@ -2,7 +2,7 @@ template {
   left_delimiter  = "(("
   right_delimiter = "))"
 
-  destination = "/etc/rproxy/tls.crt"
+  destination = "/etc/bproxy/tls.crt"
 
   user  = "op-rbuilder"
   group = "optimism"
@@ -13,7 +13,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        systemctl restart rproxy
+        systemctl restart bproxy
       EOT
     ]
   }

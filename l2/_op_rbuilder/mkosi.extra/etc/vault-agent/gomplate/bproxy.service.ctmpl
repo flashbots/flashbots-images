@@ -1,0 +1,90 @@
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=L2 builder proxy
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=bproxy
+User=op-rbuilder
+Group=optimism
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+ExecStartPre=+/usr/bin/mkdir -p /etc/bproxy
+ExecStartPre=+/usr/bin/chown -R op-rbuilder:optimism /etc/bproxy
+
+((- $service := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_common[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data ))
+((- $tls_crt := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_tls[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data.tls_crt ))
+((- $tls_key := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_tls[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data.tls_key ))
+
+ExecStart=/usr/bin/bproxy serve \
+    --authrpc-backend http://127.0.0.1:18651 \
+    --authrpc-backend-timeout 5s \
+    --authrpc-client-idle-connection-timeout 15m \
+    --authrpc-deduplicate-fcus \
+    --authrpc-enabled \
+    --authrpc-healthcheck http://127.0.0.1:8080 \
+    --authrpc-listen-address 0.0.0.0:8651 \
+    --authrpc-max-backend-connections-per-host 1 \
+    --authrpc-max-request-size 150 \
+    --authrpc-max-response-size 1150 \
+    ((- if $service.authrpc_peers ))
+    ((- range $idx, $url := $service.authrpc_peers ))
+    --authrpc-peers '(( printf "%s" $url ))' \
+    ((- end ))
+    --authrpc-remove-backend-from-peers \
+    ((- end ))
+    ((- if $tls_crt ))
+    --authrpc-tls-crt /etc/bproxy/tls.crt \
+    ((- end ))
+    ((- if $tls_key ))
+    --authrpc-tls-key /etc/bproxy/tls.key \
+    ((- end ))
+    --authrpc-use-priority-queue \
+    ((- if $service.feat_flashblocks ))(( if $service.feat_flashblocks | parseBool ))
+    --flashblocks-backend ws://127.0.0.1:11111 \
+    --flashblocks-enabled \
+    --flashblocks-healthcheck http://127.0.0.1:8080 \
+    --flashblocks-listen-address 0.0.0.0:1111 \
+    ((- if $tls_crt ))
+    --flashblocks-tls-crt /etc/bproxy/tls.crt \
+    ((- end ))
+    ((- if $tls_key ))
+    --flashblocks-tls-key /etc/bproxy/tls.key \
+    ((- end ))
+    ((- end ))(( end ))
+    --metrics-listen-address 0.0.0.0:6785 \
+    --rpc-backend http://127.0.0.1:18645 \
+    --rpc-backend-timeout 5s \
+    --rpc-enabled \
+    --rpc-healthcheck http://127.0.0.1:8080 \
+    --rpc-listen-address 0.0.0.0:8645 \
+    --rpc-max-backend-connections-per-host 512 \
+    --rpc-max-request-size 150 \
+    --rpc-max-response-size 1150 \
+    ((- if $service.rpc_peers ))
+    ((- range $idx, $url := $service.rpc_peers ))
+    --rpc-peers '(( printf "%s" $url ))' \
+    ((- end ))
+    --rpc-remove-backend-from-peers \
+    ((- end ))
+    ((- if $tls_crt ))
+    --rpc-tls-crt /etc/bproxy/tls.crt \
+    ((- end ))
+    ((- if $tls_key ))
+    --rpc-tls-key /etc/bproxy/tls.key \
+    ((- end ))
+    --rpc-use-priority-queue \
+    ((- if $service.bproxy_custom_flags ))(( range $idx, $flag := $service.bproxy_custom_flags ))
+    (( printf "%s" $flag )) \
+    ((- end ))(( end ))
+
+ExecStop=/usr/bin/sh -c "kill -1 $( pgrep node-health ) | true"
+ExecStop=/usr/bin/sleep 15
+ExecStop=/usr/bin/sh -c "PID=$( pgrep bproxy ); if [ \"0${PID}\" -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"

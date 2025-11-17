@@ -2,8 +2,8 @@ template {
   left_delimiter  = "(("
   right_delimiter = "))"
 
-  source      = "/etc/vault-agent/rproxy.service.ctmpl"
-  destination = "/etc/systemd/system/rproxy.service"
+  source      = "/etc/vault-agent/bproxy.service.ctmpl"
+  destination = "/etc/systemd/system/bproxy.service"
 
   user  = "root"
   group = "root"
@@ -15,8 +15,8 @@ template {
     command = ["/bin/sh", "-c",
       <<-EOT
         systemctl daemon-reload
-        systemctl enable rproxy
-        systemctl restart rproxy
+        systemctl enable bproxy
+        systemctl restart bproxy
       EOT
     ]
   }

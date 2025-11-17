@@ -8,7 +8,7 @@ RUST_VERSION=$(mkosi-chroot yq -r .rust.version < "$ENV_YAML")
 
 OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
 TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
-RPROXY_REF=$(mkosi-chroot yq -r .rproxy.git_reference < "$ENV_YAML")
+BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
 
 export RUSTUP_HOME="/rustup"
@@ -44,18 +44,18 @@ else
         "" "" "-g"
 fi
 
-# build rproxy
+# build bproxy
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/rproxy" ]; then
-    echo "Using pre-built rproxy binary"
+if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/bproxy" ]; then
+    echo "Using pre-built bproxy binary"
 else
     make_git_package \
-        "rproxy" \
-        "${RPROXY_REF}" \
-        "https://github.com/flashbots/rproxy.git" \
-        'TARGET=x86_64-unknown-linux-gnu ./build.sh' \
-        "target/x86_64-unknown-linux-gnu/release/rproxy:/usr/bin/rproxy"
-    chmod +x $DESTDIR/usr/bin/rproxy
+        "bproxy" \
+        "${BPROXY_REF}" \
+        "https://github.com/flashbots/bproxy.git" \
+        'make build' \
+        "bin/bproxy:/usr/bin/bproxy"
+    chmod +x $DESTDIR/usr/bin/bproxy
 fi
 
 # build node-healthchecker

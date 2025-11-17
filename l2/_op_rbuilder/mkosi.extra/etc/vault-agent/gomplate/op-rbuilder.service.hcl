@@ -23,7 +23,7 @@ template {
         PID=$( pgrep node-health ); if [ \"0${PID}\" -gt 0 ]; then kill -SIGHUP ${PID} | true; fi
         sleep 5
 
-        PID=$( pgrep rproxy ); if [ \"0${PID}\" -gt 0 ]; then kill -SIGHUP ${PID} | true; fi
+        PID=$( pgrep bproxy ); if [ \"0${PID}\" -gt 0 ]; then kill -SIGHUP ${PID} | true; fi
 
         systemctl restart op-rbuilder
         systemctl restart node-healthchecker

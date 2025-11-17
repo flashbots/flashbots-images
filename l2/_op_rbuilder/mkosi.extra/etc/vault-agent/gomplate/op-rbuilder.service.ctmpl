@@ -6,7 +6,7 @@ WantedBy=default.target
 [Unit]
 Description=op-rbuilder
 After=network-online.target
-Before=rproxy.service node-healthchecker.service
+Before=bproxy.service node-healthchecker.service
 Requires=automount-data.service vault-agent.service
 Wants=network-online.target
 
