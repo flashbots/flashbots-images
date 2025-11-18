@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: build image
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v5
+
+      # - name: Restore cache
+      #   id: restore-cache
+      #   uses: actions/cache/restore@v4
+      #   with:
+      #     path: |
+      #       cache.tar
+      #     key: mkosi-buildernet-
+
+      - name: Install mkosi
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+          sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+      # - name: Extract cache
+      #   run: |
+      #     if [[ -f cache.tar ]]; then
+      #       sudo tar -xf cache.tar
+      #       sudo rm -f cache.tar
+      #     fi
+
+      - name: Build image
+        run: |
+          sudo mkosi --force -I buildernet.conf --profile=devtools,gcp,local,cloud
+          echo "sha256 of the image: $(sha256sum /home/runner/work/flashbots-images/flashbots-images/buildernet/mkosi.output/buildernet.efi)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildernet.efi
+          path: /home/runner/work/flashbots-images/flashbots-images/buildernet/mkosi.output/buildernet.efi
+
+      # - name: Prepare cache
+      #   run: |
+      #     sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+      #       sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+
+      # - uses: actions/cache/save@v4
+      #   id: save-cache
+      #   with:
+      #     path: cache.tar
+      #     key: mkosi-buildernet-${{ github.run_id }}
