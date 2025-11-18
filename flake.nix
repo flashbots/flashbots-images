@@ -44,10 +44,10 @@
       src = pkgs.fetchFromGitHub {
         owner = "flashbots";
         repo = "dstack-mr-gcp";
-        rev = "3d718ab28599ea0c05e65d0f742fdee9fc17a5c7";
-        sha256 = "sha256-KFo9wcQuG98Hi4mlMr5VS6D6/STW7jzZ9y1DyqsI820=";
+        rev = "aa9a276ab354dc72d0cda2b28c7a231649f96430";
+        sha256 = "sha256-42cctX0MzWlHJxTcJnJvnPzgGcbf6QMEkmkZWCNdsc8=";
       };
-      vendorHash = "sha256-MxOQSXLAbWC1SOCPzPrNcU20WElbe7eUVdCLTutSYM8=";
+      vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
