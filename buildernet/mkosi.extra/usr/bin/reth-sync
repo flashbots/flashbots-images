@@ -6,10 +6,12 @@ source /usr/bin/helper-functions.sh
 
 SNAPSHOT_ROOT="r2:chain-db-snapshots/reth-mainnet-full-1-1-5"
 LATEST_META=$(rclone --config "$CONFIGURATION_DIRECTORY/rclone.conf" cat "$SNAPSHOT_ROOT/latest_version.meta.txt")
+TRANSFERS=${RCLONE_TRANSFERS:-20}
+STREAMS=${RCLONE_STREAMS:-30}
 
 log "reth-sync: Latest snapshot: $LATEST_META"
 
-rclone sync --config "$CONFIGURATION_DIRECTORY/rclone.conf" -P --transfers=20 --multi-thread-streams 30 \
+rclone sync --config "$CONFIGURATION_DIRECTORY/rclone.conf" -P --transfers=$TRANSFERS --multi-thread-streams $STREAMS \
   --contimeout=10m --retries 10 --retries-sleep 60s --error-on-no-transfer --update --fast-list \
   --delete-during --disable-http2 --no-gzip-encoding \
   --exclude 'files.txt' "$SNAPSHOT_ROOT/$LATEST_META/" "$STATE_DIRECTORY" 2>&1 | log

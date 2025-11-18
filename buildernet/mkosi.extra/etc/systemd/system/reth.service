@@ -1,7 +1,7 @@
 [Unit]
 Description=Reth Execution Client
 Wants=network-online.target eth-jwt.service
-After=network.target network-online.target render-config.service reth-sync.service eth-jwt.service
+After=network.target network-online.target reth-sync.service eth-jwt.service
 
 [Service]
 Type=exec

@@ -1,7 +1,7 @@
 [Unit]
 Description=Vector is a high-performance, end-to-end (agent & aggregator) observability data pipeline.
 Wants=network-online.target
-After=network.target network-online.target render-config.service
+After=network.target network-online.target
 
 [Service]
 Type=exec

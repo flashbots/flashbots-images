@@ -1,7 +1,7 @@
 [Unit]
 Description=ACME Let's Encrypt client
 Wants=network-online.target
-After=network.target network-online.target render-config.service haproxy.service
+After=network.target network-online.target haproxy.service
 ConditionPathExists=!%S/persistent/acme.sh/bootstrap-complete
 
 [Service]

@@ -152,7 +152,7 @@ if cryptsetup isLuks "$TARGET_DEVICE"; then
   # Try to unlock with the appropriate method
   if [[ -n "$KEY_FILE" && "$USE_TPM2" == true ]]; then
     # Dual authentication: try passphrase first, TPM should auto-unlock if available
-    if cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent; then
+    if cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent; then
       log "persistent-setup: Successfully unlocked encrypted device with passphrase"
     elif cryptsetup open "$TARGET_DEVICE" persistent; then
       log "persistent-setup: Successfully unlocked encrypted device with TPM2"
@@ -162,7 +162,7 @@ if cryptsetup isLuks "$TARGET_DEVICE"; then
     fi
   elif [[ -n "$KEY_FILE" ]]; then
     # Passphrase-only authentication
-    if cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent; then
+    if cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent; then
       log "persistent-setup: Successfully unlocked encrypted device with passphrase"
     else
       log "persistent-setup: Failed to unlock device ${TARGET_DEVICE} with passphrase"
@@ -186,20 +186,20 @@ else
     # !!!! Be careful with a newline in passphrase !!!!
     # Dual authentication setup
     log "persistent-setup: Setting up dual authentication (passphrase + TPM2)"
-    cat "$KEY_FILE" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
-    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file="$KEY_FILE"
-    cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent
+    cryptsetup luksFormat --type luks2 --key-file="$KEY_FILE" "$TARGET_DEVICE"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 --unlock-key-file="$KEY_FILE" "$TARGET_DEVICE"
+    cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent
   elif [[ -n "$KEY_FILE" ]]; then
     # Passphrase-only setup
     log "persistent-setup: Setting up passphrase-based encryption"
-    cat "$KEY_FILE" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
-    cat "$KEY_FILE" | cryptsetup open "$TARGET_DEVICE" persistent
+    cryptsetup luksFormat --type luks2 --key-file="$KEY_FILE" "$TARGET_DEVICE"
+    cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent
   elif [[ "$USE_TPM2" == true ]]; then
     # TPM2-only setup
     log "persistent-setup: Setting up TPM2-only encryption"
     TEMP_ENC_PASS=$(openssl rand -hex 64)
-    echo -n "$TEMP_ENC_PASS" | cryptsetup luksFormat --type luks2 "$TARGET_DEVICE"
-    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 "$TARGET_DEVICE" --unlock-key-file=<(echo -n "$TEMP_ENC_PASS")
+    cryptsetup luksFormat --type luks2 --key-file=<(echo -n "$TEMP_ENC_PASS") "$TARGET_DEVICE"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 --unlock-key-file=<(echo -n "$TEMP_ENC_PASS") "$TARGET_DEVICE"
     # Allow only unlocking with TPM
     systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
     unset TEMP_ENC_PASS
@@ -210,6 +210,7 @@ else
 
   LUKS_UUID=$(cryptsetup luksUUID "$TARGET_DEVICE")
   BLOCK_UUID=$(blkid -s UUID -o value /dev/mapper/persistent)
+  shred -u "$KEY_FILE" || true
 fi
 
 # Ensure crypttab and fstab are configured

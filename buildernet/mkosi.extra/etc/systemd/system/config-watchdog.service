@@ -1,7 +1,7 @@
 [Unit]
 Description=rbuilder and rbuilder-bidding configs watchdog/reloader
 Wants=network-online.target
-After=network.target network-online.target render-config.service
+After=network.target network-online.target
 
 [Service]
 Type=oneshot

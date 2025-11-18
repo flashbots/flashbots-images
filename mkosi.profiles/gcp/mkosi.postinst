@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+function replace_underscore_template {
+  local filename=$1
+  local value=$2
+
+  sed -i -E "s|__BUILDERNET_([^ ]*)|${value}|g" "$filename"
+  return 0
+}
+
+# Populate environment variables
+for var in "${!BUILDERNET_@}"; do
+  case $var in
+    BUILDERNET_PERSISTENT_DEVICE_NAME)
+      replace_underscore_template "$BUILDROOT/etc/systemd/system/persistent-setup.service.d/gcp-override.conf" "${!var}"
+      ;;
+    *)
+      echo "Unknown BUILDERNET_* variable: $var"
+      ;;
+  esac
+done

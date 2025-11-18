@@ -1,7 +1,7 @@
 [Unit]
 Description=Lighthouse Consensus Client
 Wants=network-online.target eth-jwt.service
-After=network.target network-online.target render-config.service eth-jwt.service
+After=network.target network-online.target eth-jwt.service
 
 [Service]
 Type=exec
