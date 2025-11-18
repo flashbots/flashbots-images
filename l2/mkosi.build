@@ -35,18 +35,6 @@ chmod +x $DESTDIR/usr/bin/vault
 cd "$BUILDROOT"
 IMPORT_PATH="github.com/GoogleCloudPlatform/ops-agent"
 BUILD_CMD="
-    # Install cmake 3.28 to fix build issues on Apple Silicon hosts
-    # See https://gitlab.kitware.com/cmake/cmake/-/issues/25562
-    curl -L -o cmake.sh https://cmake.org/files/v3.28/cmake-3.28.6-linux-x86_64.sh
-    chmod +x cmake.sh
-    ./cmake.sh --prefix=/usr --skip-license
-
-    # Fluentbit
-    export SOURCE_DATE_EPOCH=0 PATH=/usr/local/go/bin:\$PATH
-    export CFLAGS='-fno-ident -Wno-date-time' CXXFLAGS='-fno-ident -Wno-date-time'
-    git submodule update --init --depth 1 submodules/fluent-bit
-    ./builds/fluent_bit.sh \$(pwd)/out
-
     # Main gcs agent binaries
     mkdir -p out/libexec
     LDFLAGS='-s -w -buildid='
@@ -66,7 +54,9 @@ make_git_package \
     "https://github.com/GoogleCloudPlatform/ops-agent" \
     "$BUILD_CMD" \
     "out/libexec:/opt/google-cloud-ops-agent/libexec" \
-    "out/opt/google-cloud-ops-agent/subagents/fluent-bit:/opt/google-cloud-ops-agent/subagents/fluent-bit" \
     "systemd/google-cloud-ops-agent-fluent-bit.service:/usr/lib/systemd/system/google-cloud-ops-agent-fluent-bit.service" \
     "systemd/google-cloud-ops-agent.service:/usr/lib/systemd/system/google-cloud-ops-agent.service"
+
+mkdir -p "$DESTDIR/opt/google-cloud-ops-agent/subagents"
+ln -s /opt/fluent-bit/bin/fluent-bit "$DESTDIR/opt/google-cloud-ops-agent/subagents/fluent-bit"
 sed -i 's|@PREFIX@|/opt/google-cloud-ops-agent|g; s|@SYSCONFDIR@|/etc|g' "$DESTDIR/usr/lib/systemd/system/google-cloud-ops-agent"*.service
