@@ -6,6 +6,8 @@ global
 
   stats socket /run/haproxy/admin.sock level admin mode 660
   tune.h2.initial-window-size 1048576
+  # tune.h2.fe.rxbuf 5242880 # only supported in 3.2
+  tune.h2.fe.max-concurrent-streams 256
 
 defaults
   mode http
