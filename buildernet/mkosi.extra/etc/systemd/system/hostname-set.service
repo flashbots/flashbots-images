@@ -1,0 +1,13 @@
+[Unit]
+Description=Confgiures rendered hostname
+DefaultDependencies=no
+Wants=network-online.target render-config.service
+After=network.target network-online.target render-config.service systemd-hostnamed.socket
+Before=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'hostnamectl hostname "$(cat /etc/hostname)"'
+
+[Install]
+WantedBy=multi-user.target
