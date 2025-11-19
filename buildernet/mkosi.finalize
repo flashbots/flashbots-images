@@ -5,6 +5,7 @@ set -euo pipefail
 find "$BUILDROOT/var/log" -type f -delete
 find "$BUILDROOT/var/cache" -type f -delete
 
+# Remove sources of irreproducibility
 remove_paths=(
   "/usr/share/doc"
   "/etc/ssh/ssh_host_*_key*"
