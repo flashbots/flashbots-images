@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+# Remove all logs and cache, but keep directory structure intact
+find "$BUILDROOT/var/log" -type f -delete
+find "$BUILDROOT/var/cache" -type f -delete
+
+remove_paths=(
+  "/usr/share/doc"
+  "/etc/ssh/ssh_host_*_key*"
+  "/etc/nvme/hostnqn"
+  "/etc/nvme/hostid"
+)
+
+for p in "${remove_paths[@]}"; do
+  echo "Removing $p"
+  rm -rf "$BUILDROOT$p"
+done
