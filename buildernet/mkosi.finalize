@@ -15,5 +15,5 @@ remove_paths=(
 
 for p in "${remove_paths[@]}"; do
   echo "Removing $p"
-  rm -rf "$BUILDROOT$p"
+  rm -rf $BUILDROOT$p
 done
