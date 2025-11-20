@@ -5,7 +5,7 @@ node_healthchecker:
   git_reference: v0.1.11
 
 op_rbuilder:
-  git_reference: op-rbuilder/v0.2.10
+  git_reference: op-rbuilder/v0.2.13-reth-downgrade
 
 rproxy:
   git_reference: v0.0.8
