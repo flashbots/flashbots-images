@@ -27,7 +27,7 @@ jobs:
 
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf --profile=gcp,cloud
+          sudo -E mkosi --force -I buildernet.conf --profile=gcp,cloud
 
       - name: Calculate SHA256
         id: sha256
