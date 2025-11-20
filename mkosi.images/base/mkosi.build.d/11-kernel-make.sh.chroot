@@ -16,20 +16,20 @@ determine_kernel_config() {
   fi
 }
 
-BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION"
+BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION-$IMAGE_ID"
 mkdir -p $BUILDDIR
 tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz -C /tmp
 cd /tmp/linux-source-${KERNEL_VERSION}
 
 # Apply base patches first
-find "$SRCDIR/base/kernel/patches/$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null | sort | while read patch; do
+find "$SRCDIR/mkosi.images/base/kernel/patches/$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true | sort | while read patch; do
   echo "Applying patch: $patch"
   patch -p1 < "$patch"
 done
 
 # Apply image-specific patches if they exist
 if [ -n "${IMAGE_ID:-}" ]; then
-  find "$SRCDIR/mkosi.images/"*/kernel/patches/"$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null | sort | while read patch; do
+  find "$SRCDIR/mkosi.images/"*/kernel/patches/"$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true | sort | while read patch; do
     echo "Applying patch: $patch"
     patch -p1 < "$patch"
   done
@@ -38,7 +38,7 @@ fi
 KERNEL_CONFIG_FILE=$(determine_kernel_config)
 
 unxz /usr/src/linux-config-${KERNEL_VERSION}/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
-./scripts/kconfig/merge_config.sh -O $BUILDDIR /tmp/kernel.config $SRCDIR/base/kernel/configs/*
+./scripts/kconfig/merge_config.sh -O $BUILDDIR /tmp/kernel.config $SRCDIR/mkosi.images/base/kernel/configs/*
 rm /tmp/kernel.config
 
 export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
