@@ -1,8 +1,15 @@
 name: release
 
 on:
-  # push:
-  workflow_dispatch: {}
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Build profile (comma-separated)
+        type: string
+        default: cloud
 
 jobs:
   build:
@@ -11,45 +18,46 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # - name: Restore cache
-      #   id: restore-cache
-      #   uses: actions/cache/restore@v4
-      #   with:
-      #     path: |
-      #       cache.tar
-      #     key: mkosi-buildernet-
+      - name: Restore cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache.tar
+          key: mkosi-buildernet-
 
       - name: Install mkosi
         run: |
           sudo apt-get update && sudo apt-get install -y debian-archive-keyring
           sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
-      # - name: Extract cache
-      #   run: |
-      #     if [[ -f cache.tar ]]; then
-      #       sudo tar -xf cache.tar
-      #       sudo rm -f cache.tar
-      #     fi
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar ]]; then
+            sudo tar -xf cache.tar
+            sudo rm -f cache.tar
+          fi
 
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf --profile=devtools,gcp,local,cloud
-          echo "sha256 of the image: $(sha256sum /home/runner/work/flashbots-images/flashbots-images/buildernet/mkosi.output/buildernet.efi)"
+          sudo mkosi --force -I buildernet.conf --profile=${{ github.event.inputs.profile }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: buildernet.efi
-          path: /home/runner/work/flashbots-images/flashbots-images/buildernet/mkosi.output/buildernet.efi
+          name: buildernet-images
+          path: |
+            buildernet/mkosi.output/*.efi
+            buildernet/mkosi.output/*.tar.gz
+            buildernet/mkosi.output/*.vhd
 
-      # - name: Prepare cache
-      #   run: |
-      #     sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-      #       sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+      - name: Prepare cache
+        run: |
+          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
 
-      # - uses: actions/cache/save@v4
-      #   id: save-cache
-      #   with:
-      #     path: cache.tar
-      #     key: mkosi-buildernet-${{ github.run_id }}
-      #
+      - uses: actions/cache/save@v4
+        id: save-cache
+        with:
+          path: cache.tar
+          key: mkosi-buildernet-${{ github.run_id }}
