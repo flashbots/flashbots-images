@@ -15,8 +15,8 @@ jobs:
         include:
           - runner: warp-ubuntu-2404-x64-32x
             machine: machine-1
-          # - runner: warp-ubuntu-2204-x64-32x
-          #   machine: machine-2
+          - runner: warp-ubuntu-2204-x64-32x
+            machine: machine-2
     steps:
       - uses: actions/checkout@v5
 
