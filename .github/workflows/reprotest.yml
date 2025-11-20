@@ -1,0 +1,73 @@
+name: reproducible-build-test
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 1 */2 * *"
+
+jobs:
+  build:
+    name: build reproducible images
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: warp-ubuntu-2404-x64-32x
+            machine: machine-1
+          - runner: warp-ubuntu-2204-x64-32x
+            machine: machine-2
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mkosi
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+          sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+      - name: Build image
+        run: |
+          sudo mkosi --force -I buildernet.conf --profile=gcp,cloud
+
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          sha256sum buildernet/mkosi.output/buildernet.efi > checksum.sha256
+          echo "buildernet.efi SHA256 on ${{ matrix.machine }}: $(cat checksum.sha256)"
+
+      - name: Upload the hash
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.machine }}
+          path: |
+            checksum.sha256
+          retention-days: 1
+
+  compare:
+    name: compare results
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts from machine-1
+        uses: actions/download-artifact@v4
+        with:
+          name: checksum-machine-1
+          path: machine-1/
+      - name: Download artifacts from machine-2
+        uses: actions/download-artifact@v4
+        with:
+          name: checksum-machine-2
+          path: machine-2/
+      - name: Compare SHA256 hashes
+        run: |
+          echo "=== SHA256 Comparison ==="
+          echo "Machine 1 hash:"
+          cat machine-1/checksum.sha256
+          echo "Machine 2 hash:"
+          cat machine-2/checksum.sha256
+
+          if cmp -s machine-1/checksum.sha256 machine-2/checksum.sha256; then
+            echo "✅ SUCCESS: Images are identical (reproducible build verified)"
+          else
+            echo "❌ FAILURE: Images differ (reproducible build failed)"
+            exit 1
+          fi
