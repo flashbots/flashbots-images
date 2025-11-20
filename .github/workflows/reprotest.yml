@@ -26,13 +26,13 @@ jobs:
 
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf --profile=gcp,cloud
+          sudo mkosi --force -I buildernet.conf --dependency=gcp
 
       - name: Calculate SHA256
         id: sha256
         run: |
-          sha256sum buildernet/mkosi.output/buildernet.efi > checksum.sha256
-          echo "buildernet.efi SHA256 on ${{ matrix.machine }}: $(cat checksum.sha256)"
+          sha256sum mkosi.output/buildernet-gcp.efi > checksum.sha256
+          echo "buildernet-gcp.efi SHA256 on ${{ matrix.machine }}: $(cat checksum.sha256)"
 
       - name: Upload the hash
         uses: actions/upload-artifact@v4

@@ -4,12 +4,7 @@ on:
   push:
     tags:
       - v*
-  workflow_dispatch:
-    inputs:
-      profile:
-        description: Build profile (comma-separated)
-        type: string
-        default: cloud
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -40,16 +35,16 @@ jobs:
 
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf --profile=${{ github.event.inputs.profile }}
+          sudo mkosi --force -I buildernet.conf
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: buildernet-images
           path: |
-            buildernet/mkosi.output/*.efi
-            buildernet/mkosi.output/*.tar.gz
-            buildernet/mkosi.output/*.vhd
+            mkosi.output/*.efi
+            mkosi.output/*.tar.gz
+            mkosi.output/*.vhd
 
       - name: Prepare cache
         run: |
