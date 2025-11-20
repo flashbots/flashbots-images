@@ -1,5 +1,0 @@
-#!/bin/bash
-
-if [ ! -f "$SRCDIR/mkosi.packages/fluent-bit.deb" ]; then
-    curl -sSfL https://packages.fluentbit.io/debian/bookworm/fluent-bit_3.1.6_amd64.deb -o "$SRCDIR/mkosi.packages/fluent-bit.deb"
-fi
