@@ -1,11 +1,22 @@
+# mkosi artifacts
+
 build/
-mkosi/
+build.*/
 env.json
-mkosi.packages/
-mkosi.cache/
 mkosi.builddir/
-*.qcow2
-.claudesync/
-.claudeignore
+mkosi.cache/
+mkosi.packages/
+mkosi/
+
+# temporary files
+
+.temp
 tmp/
+
+# IDEs/agents/whatnot
+
+.claudeignore
+.claudesync/
+.vscode
+*.qcow2
 NvVars

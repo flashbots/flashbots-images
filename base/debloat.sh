@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure deterministic ordering of uid and gids before debloating
+# See Debian issue #963788
+mkosi-chroot pwck  --sort >/dev/null
+mkosi-chroot grpck --sort >/dev/null
+
 # Remove all logs and cache, but keep directory structure intact
 find "$BUILDROOT/var/log" -type f -delete
 find "$BUILDROOT/var/cache" -type f -delete
@@ -34,12 +39,13 @@ debloat_paths=(
     "/usr/lib/systemd/network"
     "/usr/lib/pcrlock.d"
     "/usr/lib/tmpfiles.d"
+    "/var/lib/ucf"
     "/etc/systemd/network"
     "/etc/credstore"
     "/nix"
 )
 
-if [[ ! "$PROFILES" == *"devtools"* ]]; then
+if [[ ! "${PROFILES:-}" == *"devtools"* ]]; then
     debloat_paths+=(
         "/usr/share/bash-completion"
     )

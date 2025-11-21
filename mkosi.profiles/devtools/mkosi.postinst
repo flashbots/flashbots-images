@@ -1,5 +1,16 @@
 #!/bin/bash
+
 set -euxo pipefail
+
+# Enable systemd services
+
+mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
+for service in \
+    serial-console.service
+do
+    mkosi-chroot systemctl enable "$service"
+    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+done
 
 # Deterministically set root password
 PASSWORD="dqSPjo4p"
@@ -11,8 +22,26 @@ if [ -f "$BUILDROOT/etc/default/dropbear" ]; then
     # Remove -s, -w, -g flags from dropbear args
     sed -i '/^DROPBEAR_EXTRA_ARGS=/s/-[swg] \?//g' "$BUILDROOT/etc/default/dropbear"
 else
-    echo "PermitRootLogin yes" >> "$BUILDROOT/etc/ssh/sshd_config"
+    echo "PermitRootLogin yes"        >> "$BUILDROOT/etc/ssh/sshd_config"
     echo "PasswordAuthentication yes" >> "$BUILDROOT/etc/ssh/sshd_config"
     mkosi-chroot systemctl enable ssh.service
     mkosi-chroot systemctl unmask ssh.service ssh.socket
 fi
+
+# Create users and groups
+mkosi-chroot groupadd -g 1000    ubuntu                        || true
+mkosi-chroot useradd  -u 1000 -g ubuntu -m -s /bin/bash ubuntu || true
+
+cat <<EOF > "$BUILDROOT/etc/sudoers.d/ubuntu"
+# user "ubuntu" b/c all our current scripts assume "ubuntu" exists
+ubuntu ALL=(ALL) NOPASSWD:ALL
+EOF
+mkosi-chroot chmod 0440 /etc/sudoers.d/ubuntu
+
+mkosi-chroot mkdir -p            /home/ubuntu/.ssh
+mkosi-chroot chmod 0750          /home/ubuntu/.ssh
+mkosi-chroot chown ubuntu:ubuntu /home/ubuntu/.ssh
+
+mkosi-chroot touch               /home/ubuntu/.ssh/authorized_keys
+mkosi-chroot chmod 0600          /home/ubuntu/.ssh/authorized_keys
+mkosi-chroot chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys

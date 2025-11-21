@@ -1,0 +1,8 @@
+gcp_ops_agent:
+  git_reference: 2.57.0
+
+gomplate:
+  git_reference: v4.3.0
+
+vault:
+  git_reference: v1.20.1

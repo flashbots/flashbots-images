@@ -26,7 +26,10 @@ For more information about this repository, see
 
 ### Prerequisites
 
-In order to build images, you'll need to install [Lima](https://lima-vm.io/) for your operating system. Building images without Lima is possible, but due to inconsistencies between distributions, it is not supported for generating official reproducible images.
+In order to build images, you'll need to install [Lima](https://lima-vm.io/) for
+your operating system. Building images without Lima is possible, but due to
+inconsistencies between distributions, it is not supported for generating
+official reproducible images.
 
 ### Building Images
 
@@ -94,7 +97,7 @@ This generates measurement files in the `build/` directory for attestation and v
   ```
 
 > [!NOTE]
-> 
+>
 > Depending on your Linux distro, these commands may require changing the
 > supplied OVMF paths or installing your distro's OVMF package.
 

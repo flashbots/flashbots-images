@@ -1,0 +1,61 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+ENV_YAML="$SRCDIR/l2/mkosi.extra/etc/flashbots/l2.yaml"
+
+VAULT_REF=$(mkosi-chroot yq -r .vault.git_reference < "$ENV_YAML")
+GOMPLATE_REF=$(mkosi-chroot yq -r .gomplate.git_reference < "$ENV_YAML")
+GCP_OPS_AGENT_REF=$(mkosi-chroot yq -r .gcp_ops_agent.git_reference < "$ENV_YAML")
+
+source scripts/make_git_package.sh
+
+# build gomplate
+
+make_git_package \
+    "gomplate" \
+    "${GOMPLATE_REF}" \
+    "https://github.com/hairyhenderson/gomplate" \
+    'go build -trimpath -ldflags "-s -w -X github.com/hairyhenderson/gomplate/v4/version=${GOMPLATE_REF} -buildid=" -o ./build/gomplate ./cmd/gomplate' \
+    "build/gomplate:/usr/bin/gomplate"
+chmod +x $DESTDIR/usr/bin/gomplate
+
+# build vault
+
+make_git_package \
+    "vault" \
+    "${VAULT_REF}" \
+    "https://github.com/hashicorp/vault.git" \
+    'go build -trimpath -ldflags "-s -w -X github.com/hashicorp/vault/version.Version=${VAULT_REF} -buildid=" -o ./bin/vault .' \
+    "bin/vault:/usr/bin/vault"
+chmod +x $DESTDIR/usr/bin/vault
+
+# build gcp ops agent
+
+cd "$BUILDROOT"
+IMPORT_PATH="github.com/GoogleCloudPlatform/ops-agent"
+BUILD_CMD="
+    # Main gcs agent binaries
+    mkdir -p out/libexec
+    LDFLAGS='-s -w -buildid='
+    go build -buildvcs=false -trimpath -ldflags \"\$LDFLAGS \\
+        -X $IMPORT_PATH/internal/version.BuildDistro=debian13 \\
+        -X $IMPORT_PATH/internal/version.Version=$GCP_OPS_AGENT_REF\" \\
+        -o out/libexec/google_cloud_ops_agent_engine \\
+        $IMPORT_PATH/cmd/google_cloud_ops_agent_engine
+
+    go build -buildvcs=false -trimpath -ldflags \"\$LDFLAGS\" \\
+        -o out/libexec/google_cloud_ops_agent_wrapper \\
+        $IMPORT_PATH/cmd/agent_wrapper
+"
+make_git_package \
+    "google-cloud-ops-agent" \
+    "$GCP_OPS_AGENT_REF" \
+    "https://github.com/GoogleCloudPlatform/ops-agent" \
+    "$BUILD_CMD" \
+    "out/libexec:/opt/google-cloud-ops-agent/libexec" \
+    "systemd/google-cloud-ops-agent-fluent-bit.service:/usr/lib/systemd/system/google-cloud-ops-agent-fluent-bit.service" \
+    "systemd/google-cloud-ops-agent.service:/usr/lib/systemd/system/google-cloud-ops-agent.service"
+mkdir -p "$DESTDIR/opt/google-cloud-ops-agent/subagents"
+ln -s /opt/fluent-bit "$DESTDIR/opt/google-cloud-ops-agent/subagents/fluent-bit"
+sed -i 's|@PREFIX@|/opt/google-cloud-ops-agent|g; s|@SYSCONFDIR@|/etc|g' "$DESTDIR/usr/lib/systemd/system/google-cloud-ops-agent"*.service

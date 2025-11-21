@@ -1,0 +1,8 @@
+#
+# rendered by vault-agent/gomplate
+#
+[[- range ( ( gcp.Meta "attributes/ssh-keys" ) | strings.Split "\n" ) ]]
+[[- if strings.HasPrefix "ubuntu:" . ]]
+[[ strings.TrimPrefix "ubuntu:" . ]]
+[[- end ]]
+[[- end ]]

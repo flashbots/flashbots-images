@@ -1,0 +1,7 @@
+# Set the command-line arguments to pass to the server.
+ARGS="\
+--collector.systemd \
+--collector.systemd.unit-include=\".*(node-healthchecker|op-rbuilder|prometheus-node-exporter|prometheus-process-exporter|rproxy|vault-agent).*\" \
+--log.format=json \
+--web.listen-address=0.0.0.0:9100 \
+"

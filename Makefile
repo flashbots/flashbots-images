@@ -37,15 +37,51 @@ check-perms: ## Check repository permissions
 setup: ## Install dependencies (Linux only)
 	@scripts/setup_deps.sh
 
+preflight:
+	@$(WRAPPER) echo "Ready to build"
+
 # Build module
 build: check-perms setup ## Build the specified module
-	$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: check-perms setup ## Build module with development tools
-	$(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
 
 ##@ Utilities
+
+check-repro: ## Build same module twice and compare resulting images
+	@rm -rf build.1
+	@rm -rf build.2
+
+	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
+#	hack:  there's some race condition under lima that causes apt to fail while trying to
+#	       create a temp dir under apt cache
+	@sleep 15
+
+	@echo "Building image #1..."
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@mkdir -p build/cache
+	@mv mkosi.builddir/* build/cache/
+	@mv build build.1
+
+	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
+#	hack:  there's some race condition under lima that causes apt to fail while trying to
+#	       create a temp dir under apt cache
+	@sleep 15
+
+	@echo "Building image #2..."
+	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@mkdir -p build/cache
+	@mv mkosi.builddir/* build/cache/
+	@mv build build.2
+
+	@echo "Comparing..."
+	@for file in $$( find build.1 -type f ); do \
+		sha256sum $$file; \
+		sha256sum $${file/build1/build.2}; \
+		echo ""; \
+	done
 
 measure: ## Export TDX measurements for the built EFI file
 	@if [ ! -f build/tdx-debian.efi ]; then \
@@ -60,8 +96,7 @@ measure-gcp: ## Export TDX measurements for GCP
 		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
 		exit 1; \
 	fi
-	@$(WRAPPER) dstack-mr -uki build/tdx-debian.efi -json > build/gcp_measurements.json
-	echo "GCP Measurements exported to build/gcp_measurements.json"
+	@$(WRAPPER) dstack-mr -uki build/tdx-debian.efi
 
 # Clean build artifacts
 clean: ## Remove cache and build artifacts

@@ -1,0 +1,116 @@
+# op-rbuilder
+
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=op-rbuilder
+After=network-online.target
+Before=rproxy.service node-healthchecker.service
+Requires=automount-data.service vault-agent.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+SyslogIdentifier=op-rbuilder
+User=op-rbuilder
+Group=optimism
+
+EnvironmentFile=-/etc/sysconfig/op-rbuilder.env
+KillMode=control-group
+KillSignal=SIGINT
+OOMScoreAdjust=-500
+Restart=always
+RestartSec=10s
+TimeoutStopSec=120
+
+Environment=HOME=/home/op-rbuilder
+Environment=RUST_BACKTRACE=full
+
+ExecStartPre=+/usr/bin/init-op-rbuilder.sh
+
+((- $service := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_common[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data ))
+
+ExecStart=/usr/bin/op-rbuilder node \
+    --authrpc.addr '0.0.0.0' \
+    --authrpc.jwtsecret '/var/opt/optimism/jwtsecret' \
+    --authrpc.port '18651' \
+    ((- if $service.el_bootnodes ))(( range $idx, $enode := $service.el_bootnodes ))
+    --bootnodes '(( printf "%s" $enode ))' \
+    ((- end ))(( end ))
+    ((- if $service.feat_revert_protection ))(( if $service.feat_revert_protection | parseBool ))
+    --builder.enable-revert-protection \
+    ((- end ))(( end ))
+    --builder.extra-block-deadline-secs '30' \
+    --builder.extradata 'Illuminate Dmocratize Dstribute' \
+    --builder.log-pool-transactions \
+    ((- if $service.genesis_json ))
+    --chain '/var/opt/optimism/rbuilder/genesis.json' \
+    ((- else ))(( if $service.network_name ))
+    --chain '(( $service.network_name ))' \
+    ((- end ))(( end ))
+    --color 'never' \
+    --datadir '/var/opt/optimism/rbuilder' \
+    --discovery.port '9200' \
+    --enable-discv5-discovery \
+    ((- if $service.feat_flashblocks ))(( if $service.feat_flashblocks | parseBool ))
+    --flashblocks.addr '0.0.0.0' \
+    --flashblocks.enabled \
+    --flashblocks.port '11111' \
+    ((- if $service.feat_flashblocks_number_contract_address ))
+    --flashblocks.number-contract-address '(( $service.feat_flashblocks_number_contract_address ))' \
+    ((- end ))
+    ((- end ))(( end ))
+    ((- if $service.feat_flashtestations ))(( if $service.feat_flashtestations | parseBool ))
+    ((- if $service.feat_flashtestations_builder_policy_address ))
+    --flashtestations.builder-policy-address '(( $service.feat_flashtestations_builder_policy_address ))' \
+    ((- end ))
+    ((- if $service.feat_flashtestations_block_proofs ))(( if $service.feat_flashtestations_block_proofs | parseBool ))
+    --flashtestations.enable-block-proofs \
+    ((- end ))(( end ))
+    --flashtestations.enabled \
+    --flashtestations.quote-provider http://127.0.0.1:5757/attest \
+    ((- if $service.feat_flashtestations_registry_address ))
+    --flashtestations.registry-address '(( $service.feat_flashtestations_registry_address ))' \
+    ((- end ))
+    ((- if $service.feat_flashtestations_rpc_url ))
+    --flashtestations.rpc-url '(( $service.feat_flashtestations_rpc_url ))' \
+    ((- end ))
+    ((- end ))(( end ))
+    --http \
+    --http.addr '0.0.0.0' \
+    --http.api 'admin,debug,eth,net,trace,txpool' \
+    --http.corsdomain '*' \
+    --http.port '18645' \
+    --log.file.filter 'off' \
+    --log.stdout.format 'json' \
+    --metrics '0.0.0.0:9001' \
+    --port '40404' \
+    --rollup.disable-tx-pool-gossip \
+    --rpc-max-connections '5000' \
+    --rpc-max-logs-per-response '200000' \
+    --rpc-max-request-size '150' \
+    --rpc-max-response-size '1150' \
+    --rpc-max-subscriptions-per-connection '10240' \
+    --rpc-max-tracing-requests '250' \
+    ((- if $service.feat_telemetry_sampling_ratio ))(( if $service.feat_telemetry_sampling_ratio ))
+    --telemetry.sampling-ratio '(( $service.feat_telemetry_sampling_ratio ))' \
+    ((- end ))(( end ))
+    ((- if $service.el_static_peers ))(( range $idx, $enode := $service.el_static_peers ))
+    --trusted-peers '(( printf "%s" $enode ))' \
+    ((- end ))(( end ))
+    --txpool.max-new-pending-txs-notifications '100000' \
+    --txpool.max-new-txns '100000' \
+    --txpool.max-pending-txns '100000' \
+    --ws \
+    --ws.addr '0.0.0.0' \
+    --ws.api 'admin,debug,eth,net,trace,txpool' \
+    --ws.origins '*' \
+    --ws.port '8646' \
+    ((- if $service.custom_flags ))(( range $idx, $flag := $service.custom_flags ))
+    (( printf "%s" $flag )) \
+    ((- end ))(( end ))
+
+ExecStop=+/usr/bin/sh -c "kill -1 $( pgrep node-health ) | true"
+ExecStop=+/usr/bin/sleep 15
+ExecStop=+/usr/bin/sh -c "PID=$( pgrep op-rbuilder ); if [ \"0${PID}\" -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"

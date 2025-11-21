@@ -1,0 +1,13 @@
+/var/log/syslog {
+    hourly
+    rotate 2
+    notifempty
+    create
+    nocompress
+    missingok
+    size 128M
+    sharedscripts
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}
