@@ -16,7 +16,7 @@ determine_kernel_config() {
   fi
 }
 
-BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION-$IMAGE_ID"
+BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION"
 mkdir -p $BUILDDIR
 tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz -C /tmp
 cd /tmp/linux-source-${KERNEL_VERSION}

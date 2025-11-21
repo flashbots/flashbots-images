@@ -6,7 +6,7 @@ echo "Installing mustache..."
 REF=52295247b56175b48857d38fda6576844f43f7d1 #v1.4.0
 BUILDDIR="$BUILDDIR/mustache"
 PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
-export GOCACHE="$SRCDIR/buildernet/mkosi.cache/go-build"
+export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"
 
 mkdir -p $BUILDDIR
 

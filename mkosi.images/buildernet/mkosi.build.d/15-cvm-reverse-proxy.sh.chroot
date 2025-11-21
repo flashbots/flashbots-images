@@ -4,7 +4,7 @@ set -euo pipefail
 REF=7453ce73d0027548bd0b64224c3198345905f159 #v0.1.9
 BUILDDIR="$BUILDDIR/cvm-reverse-proxy"
 PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
-export GOCACHE="$SRCDIR/buildernet/mkosi.cache/go-build"
+export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"
 
 echo "Installing cvm-reverse-proxy..."
 

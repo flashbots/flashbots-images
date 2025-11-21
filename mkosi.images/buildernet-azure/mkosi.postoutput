@@ -8,10 +8,11 @@ rm -f ${OUTPUTDIR}/${IMAGE_ID}.raw
 
 systemd-repart --empty=create \
   --size=auto \
-  --definitions=buildernet/repart.d \
+  --definitions=mkosi.images/buildernet/repart.d \
   --copy-source=${OUTPUTDIR} \
   --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \
   --dry-run=no \
   ${OUTPUTDIR}/${IMAGE_ID}.raw
 
 rm -rf ${OUTPUTDIR}/esp
+./scripts/raw-to-vhd.sh ${OUTPUTDIR}/${IMAGE_ID}.raw ${OUTPUTDIR}/${IMAGE_ID}.vhd

@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -eu -o pipefail
-
-./scripts/raw-to-vhd.sh ${OUTPUTDIR}/${IMAGE_ID}.raw ${OUTPUTDIR}/${IMAGE_ID}.vhd

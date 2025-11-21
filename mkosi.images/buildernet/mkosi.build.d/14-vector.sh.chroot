@@ -6,7 +6,7 @@ REF=dc7e79278323d1323bcafe3741d7e258b0c37fb4 #v0.49.0
 CARGO_HOME="$BUILDDIR/.cargo"
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
 BUILDDIR="$BUILDDIR/vector"
-export CARGO_HOME="$SRCDIR/buildernet/mkosi.cache/cargo"
+export CARGO_HOME="$SRCDIR/mkosi.images/buildernet/mkosi.cache/cargo"
 
 echo "Installing vector..."
 

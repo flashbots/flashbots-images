@@ -1,8 +1,0 @@
-#!/bin/bash
-
-set -eu -o pipefail
-
-cd ${OUTPUTDIR}
-ln -sf ${IMAGE_ID}.raw disk.raw
-tar --dereference --format=oldgnu -Sczf ${IMAGE_ID}-gcp-import.tar.gz disk.raw
-unlink disk.raw

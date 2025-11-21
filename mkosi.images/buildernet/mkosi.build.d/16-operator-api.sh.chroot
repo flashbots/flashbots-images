@@ -4,7 +4,7 @@ set -euo pipefail
 REF=a8296e4ccd355f5fac805828ad8e474381a6c5a2 #v0.7.0
 BUILDDIR="$BUILDDIR/operator-api"
 PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
-export GOCACHE="$SRCDIR/buildernet/mkosi.cache/go-build"
+export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"
 
 echo "Installing operator-api..."
 
