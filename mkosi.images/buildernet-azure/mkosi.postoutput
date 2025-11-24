@@ -16,3 +16,4 @@ systemd-repart --empty=create \
 
 rm -rf ${OUTPUTDIR}/esp
 ./scripts/raw-to-vhd.sh ${OUTPUTDIR}/${IMAGE_ID}.raw ${OUTPUTDIR}/${IMAGE_ID}.vhd
+rm -f ${OUTPUTDIR}/${IMAGE_ID}.raw

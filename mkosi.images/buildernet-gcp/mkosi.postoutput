@@ -18,5 +18,6 @@ rm -rf ${OUTPUTDIR}/esp
 
 cd ${OUTPUTDIR}
 ln -sf ${IMAGE_ID}.raw disk.raw
-tar --dereference --format=oldgnu -Sczf ${IMAGE_ID}-gcp-import.tar.gz disk.raw
+tar --dereference --format=oldgnu -Sczf ${IMAGE_ID}-import.tar.gz disk.raw
 unlink disk.raw
+rm -f ${OUTPUTDIR}/${IMAGE_ID}.raw

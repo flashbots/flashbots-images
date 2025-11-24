@@ -1,0 +1,1 @@
+Make sure to set KERNEL_CONFIG_FLAVOR environment variable to `bare-metal` to build the kernel with extended hardware support

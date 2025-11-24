@@ -1,57 +1,59 @@
 #!/bin/bash
 set -eu -o pipefail
 
-determine_kernel_config() {
-  # Determine kernel config based on IMAGE_ID
-  # Default to bare-metal if IMAGE_ID is not set or doesn't match known patterns
-  local image_id="${IMAGE_ID:-}"
+# Define flavors to build
+FLAVORS=("cloud" "bare-metal")
 
-  if [[ "$image_id" == *"bare-metal"* ]]; then
-    echo "config.amd64_none_amd64.xz"
-  elif [[ "$image_id" == *"azure"* ]] || [[ "$image_id" == *"gcp"* ]]; then
-    echo "config.amd64_none_cloud-amd64.xz"
+for FLAVOR in "${FLAVORS[@]}"; do
+  echo "Building kernel flavor: $FLAVOR"
+
+  if [[ "$FLAVOR" == "cloud" ]]; then
+    KERNEL_CONFIG_FILE="config.amd64_none_cloud-amd64.xz"
   else
-    # Default to bare-metal config
-    echo "config.amd64_none_amd64.xz"
+    KERNEL_CONFIG_FILE="config.amd64_none_amd64.xz"
   fi
-}
 
-BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION"
-mkdir -p $BUILDDIR
-tar xaf /usr/src/linux-source-${KERNEL_VERSION}.tar.xz -C /tmp
-cd /tmp/linux-source-${KERNEL_VERSION}
+  FLAVOR_BUILDDIR="$BUILDDIR/linux-kernel-$KERNEL_VERSION-$FLAVOR"
+  mkdir -p "$FLAVOR_BUILDDIR"
 
-# Apply base patches first
-find "$SRCDIR/mkosi.images/base/kernel/patches/$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true | sort | while read patch; do
-  echo "Applying patch: $patch"
-  patch -p1 < "$patch"
-done
+  tar xaf "/usr/src/linux-source-${KERNEL_VERSION}.tar.xz" -C /tmp
+  SOURCE_DIR="/tmp/linux-source-${KERNEL_VERSION}"
 
-# Apply image-specific patches if they exist
-if [ -n "${IMAGE_ID:-}" ]; then
-  find "$SRCDIR/mkosi.images/"*/kernel/patches/"$KERNEL_VERSION" -type f -name "*.patch" 2>/dev/null || true | sort | while read patch; do
-    echo "Applying patch: $patch"
+  cd "$SOURCE_DIR"
+
+  # 1. Apply base/common patches
+  # These are patches located in mkosi.images/base/kernel/patches/<version>/
+  find "$SRCDIR/mkosi.images/base/kernel/patches/$KERNEL_VERSION" -maxdepth 1 -type f -name "*.patch" 2>/dev/null || true | sort | while read patch; do
+    echo "Applying base patch: $patch"
     patch -p1 < "$patch"
   done
-fi
 
-KERNEL_CONFIG_FILE=$(determine_kernel_config)
+  # 2. Apply flavor-specific patches from ALL images
+  # Looks for patches in: mkosi.images/*/kernel/patches/<version>/<flavor>/
+  find "$SRCDIR/mkosi.images" -path "*/kernel/patches/$KERNEL_VERSION/$FLAVOR/*.patch" 2>/dev/null || true | sort | while read patch; do
+    echo "Applying $FLAVOR patch: $patch"
+    patch -p1 < "$patch"
+  done
 
-unxz /usr/src/linux-config-${KERNEL_VERSION}/$KERNEL_CONFIG_FILE -c > /tmp/kernel.config
-./scripts/kconfig/merge_config.sh -O $BUILDDIR /tmp/kernel.config $SRCDIR/mkosi.images/base/kernel/configs/*
-rm /tmp/kernel.config
+  echo "Using kernel config file: $KERNEL_CONFIG_FILE"
 
-export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
-export MAKEFLAGS=-j$(nproc)
-export KBUILD_BUILD_TIMESTAMP="Fri Jun  5 15:58:00 CEST 1971"
-export KBUILD_BUILD_HOST="mkosi"
-export KBUILD_BUILD_USER="mkosi"
-LOCALVERSION=${LOCALVERSION:-"-mkosi"}
-export LOCALVERSION
+  unxz "/usr/src/linux-config-${KERNEL_VERSION}/$KERNEL_CONFIG_FILE" -c > /tmp/kernel.config
+  ./scripts/kconfig/merge_config.sh -O "$FLAVOR_BUILDDIR" /tmp/kernel.config "$SRCDIR/mkosi.images/base/kernel/configs/"*
+  rm /tmp/kernel.config
 
-make O=$BUILDDIR olddefconfig
-make O=$BUILDDIR bindeb-pkg
+  export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
+  export MAKEFLAGS=-j$(nproc)
+  export KBUILD_BUILD_TIMESTAMP="Fri Jun  5 15:58:00 CEST 1971"
+  export KBUILD_BUILD_HOST="mkosi"
+  export KBUILD_BUILD_USER="mkosi"
+  export LOCALVERSION="${LOCALVERSION:-}-mkosi-$FLAVOR"
 
-find $BUILDDIR/.. -type f -name "linux-image-${KERNEL_VERSION}*.deb" -exec mv {} $PACKAGEDIR/ \;
-rm -f $BUILDDIR/../*.buildinfo
+  make O="$FLAVOR_BUILDDIR" olddefconfig
+  make O="$FLAVOR_BUILDDIR" bindeb-pkg
+
+  find "$FLAVOR_BUILDDIR/.." -type f -name "linux-image-${KERNEL_VERSION}*.deb" -exec cp {} "$PACKAGEDIR/" \;
+
+  rm -rf "$FLAVOR_BUILDDIR/.."/*.buildinfo "$FLAVOR_BUILDDIR/.."/*.deb "$FLAVOR_BUILDDIR/.."/*.changes
+  unset LOCALVERSION
+done
 #KDEB_PKGVERSION=someversion
