@@ -26,7 +26,7 @@ function log_delay(tag, ts_table, record)
     -- 2) Check if we've already processed this second
     if last_processed_second == now_floor then
         -- Skip the flush; Return no output
-        return 2, ts_table, {}
+        return -1, ts_table, {}
     end
 
     -- 3) Otherwise, do the flush logic once for this second
@@ -49,7 +49,7 @@ function log_delay(tag, ts_table, record)
 
     -- 4) Return any flushed logs
     if #to_emit == 0 then
-        return 2, ts_table, {}
+        return -1, ts_table, {}
     else
         local new_ts = { sec = now_sec, nsec = 0 }
         return 1, new_ts, to_emit
