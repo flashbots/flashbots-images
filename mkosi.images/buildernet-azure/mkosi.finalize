@@ -11,6 +11,7 @@ remove_paths=(
   "/etc/ssh/ssh_host_*_key*"
   "/etc/nvme/hostnqn"
   "/etc/nvme/hostid"
+  "/var/lib/dpkg/info/*"
 )
 
 for p in "${remove_paths[@]}"; do
