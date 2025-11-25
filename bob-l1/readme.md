@@ -277,7 +277,7 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
 ]
 ```
 
-> Note: at the time of the writing, those measurements were acquired by building from commit 1b142eb61f34454172f99c02b29e6b0caa4bc863, if you're viewing this from main branch please ensure to build from the same commit to get the same measurements.
+> Note: at the time of the writing, those measurements were acquired by building from commit ef5dd2727ba4569d530c67822dc96778f54a295a, if you're viewing this from main branch please ensure to build from the same commit to get the same measurements.
 
 > Note: at the time of the writing, compiling bob-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
