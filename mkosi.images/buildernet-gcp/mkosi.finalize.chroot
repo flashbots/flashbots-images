@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+
+# GCP images run without TPM
+systemctl mask dev-tpmrm0.device
