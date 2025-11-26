@@ -2,6 +2,7 @@
 
 set -eu -o pipefail
 
+export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
 mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
 cp ${OUTPUTDIR}/${IMAGE_ID}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI
 rm -f ${OUTPUTDIR}/${IMAGE_ID}.raw

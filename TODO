@@ -5,3 +5,4 @@
 - operator-api 100% CPU usage!?!?!?
 - tar gz GCP image
 - cargo cache
+- try c3-standard-8, fix disk guid,fat serial, PARTITION_GUID

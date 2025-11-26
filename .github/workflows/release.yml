@@ -21,10 +21,29 @@ jobs:
             cache.tar
           key: mkosi-buildernet-
 
-      - name: Install mkosi
+      - name: Install tools
         run: |
-          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+          # mkosi
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring rclone
           sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+          # minisign
+          curl -sSfL https://github.com/jedisct1/minisign/releases/download/0.12/minisign-0.12-linux.tar.gz | \
+            sudo tar xzf - -C /usr/bin --strip-components=2 minisign-linux/x86_64/minisign
+
+      - name: Create rclone config
+        run: |
+          cat << EOF > ~/.config/rclone/rclone.conf
+          [r2-flashbots-public-artifacts]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY"
+          secret_access_key = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY"
+          region = auto
+          endpoint = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT"
+          acl = private
+          EOF
 
       - name: Extract cache
         run: |
