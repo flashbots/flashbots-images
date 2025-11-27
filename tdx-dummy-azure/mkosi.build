@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euxo pipefail
+
+source scripts/build_rust_package.sh
+
+# local package="$1"
+# local version="$2"
+# local git_url="$3"
+# local provided_binary="$4"
+# local extra_features="${5:-}"
+# local extra_rustflags="${6:-}"
+build_rust_package \
+    "dummy-attestation-server" \
+    "main" \
+    "https://github.com/flashbots/attested-tls-proxy.git" \
+    "" \
+    "" \
+    ""

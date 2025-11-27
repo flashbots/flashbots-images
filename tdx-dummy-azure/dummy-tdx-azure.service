@@ -1,0 +1,17 @@
+[Unit]
+Description=Dummy TDX server for azure attestation
+After=network-setup.service
+Wants=network-setup.service
+
+[Service]
+Type=exec
+User=root
+Group=root
+ExecStart=/usr/bin/dummy-attestation-server --listen-addr 0.0.0.0:8080 --server-attestation-type azure-tdx
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
