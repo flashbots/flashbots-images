@@ -39,28 +39,20 @@ setup: ## Install dependencies (Linux only)
 
 # Build module
 build: check-perms setup ## Build the specified module
-	$(WRAPPER) mkosi --force -I $(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE) -I $(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: check-perms setup ## Build module with development tools
-	$(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools -I $(IMAGE).conf
 
 ##@ Utilities
 
 measure: ## Export TDX measurements for the built EFI file
-	@if [ ! -f build/tdx-debian.efi ]; then \
-		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
-		exit 1; \
-	fi
-	@$(WRAPPER) measured-boot build/tdx-debian.efi build/measurements.json --direct-uki
+	@$(WRAPPER) measured-boot $(FILE) build/measurements.json --direct-uki
 	echo "Measurements exported to build/measurements.json"
 
 measure-gcp: ## Export TDX measurements for GCP
-	@if [ ! -f build/tdx-debian.efi ]; then \
-		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
-		exit 1; \
-	fi
-	@$(WRAPPER) dstack-mr -uki build/tdx-debian.efi -json > build/gcp_measurements.json
+	@$(WRAPPER) dstack-mr -uki $(FILE) -json > build/gcp_measurements.json
 	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
