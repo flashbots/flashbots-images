@@ -39,7 +39,7 @@ debloat_paths=(
     "/nix"
 )
 
-if [[ ! "$PROFILES" == *"devtools"* ]]; then
+if [[ "${PROFILES:-}" != *"devtools"* ]]; then
     debloat_paths+=(
         "/usr/share/bash-completion"
     )
