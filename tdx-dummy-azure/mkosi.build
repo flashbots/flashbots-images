@@ -15,4 +15,4 @@ build_rust_package \
     "https://github.com/flashbots/attested-tls-proxy.git" \
     "" \
     "" \
-    ""
+    "-l z -l zstd"
