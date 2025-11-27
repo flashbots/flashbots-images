@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+# mkosi doesn't support customizing version script path in config files,
+# so we store it in the root of repo / cwd of running mkosi commands.
+
+# careful: this script is executed on host, and not in any of sandboxes
+
+# Add current directory to git safe directories if not already present
+if ! git config --global --get-all safe.directory | grep -Fxq "$PWD"; then
+    git config --global --add safe.directory "$PWD"
+fi
+
+commit_date=$(TZ=UTC0 git show -s --date=format:'%Y-%m-%d' --format='%ad')
+commit_hash=$(git rev-parse --short=12 HEAD)
+dirty_suffix=""
+if [ -n "$(git status --porcelain)" ]; then
+    dirty_suffix="-dirty"
+fi
+
+# example value: 2025-06-26.a1b2c3d-dirty
+echo "${commit_date}.${commit_hash}${dirty_suffix}"
