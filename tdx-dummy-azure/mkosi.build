@@ -11,7 +11,7 @@ source scripts/build_rust_package.sh
 # local extra_rustflags="${6:-}"
 build_rust_package \
     "dummy-attestation-server" \
-    "main" \
+    "peg/add-maa" \
     "https://github.com/flashbots/attested-tls-proxy.git" \
     "" \
     "" \
