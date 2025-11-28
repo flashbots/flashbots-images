@@ -25,6 +25,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y debian-archive-keyring
           pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
+      - name: Enable user namespaces
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Build image
         run: |
           mkosi --force -I buildernet.conf
