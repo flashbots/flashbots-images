@@ -47,6 +47,7 @@ for FLAVOR in "${FLAVORS[@]}"; do
   export KBUILD_BUILD_HOST="mkosi"
   export KBUILD_BUILD_USER="mkosi"
   export LOCALVERSION="${LOCALVERSION:-}-mkosi-$FLAVOR"
+  rm -f "$FLAVOR_BUILDDIR/.version"
 
   make O="$FLAVOR_BUILDDIR" olddefconfig
   make O="$FLAVOR_BUILDDIR" bindeb-pkg

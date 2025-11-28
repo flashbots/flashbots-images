@@ -23,11 +23,11 @@ jobs:
       - name: Install mkosi
         run: |
           sudo apt-get update && sudo apt-get install -y debian-archive-keyring
-          sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+          pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf
+          mkosi --force -I buildernet.conf
 
       - name: Calculate SHA256
         id: sha256
