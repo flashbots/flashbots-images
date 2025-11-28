@@ -1,0 +1,13 @@
+[Unit]
+Description=Delay Pipe Log Forwarder
+After=persistent-mount.service
+Requires=persistent-mount.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/delay-pipe /persistent/searcher_logs/bob.log /persistent/delayed_logs/output.log 300
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=minimal.target

@@ -2,6 +2,7 @@
 set -euxo pipefail
 
 source scripts/make_git_package.sh
+source scripts/build_rust_package.sh
 
 # Compile searchersh
 mkdir -p "$DESTDIR/usr/bin"
@@ -17,20 +18,11 @@ make_git_package \
     ".libs/cryptsetup:/usr/sbin/cryptsetup" \
     ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
 
-# Build fluent-bit
-BUILD_CMD="
-    export SOURCE_DATE_EPOCH=0
-    export CFLAGS='-fno-ident -Wno-date-time'
-    export CXXFLAGS='-fno-ident -Wno-date-time'
-    cmake -B build -DCMAKE_BUILD_TYPE=Release -DFLB_DEBUG=Off -DFLB_TRACE=Off -DFLB_CONFIG_YAML=Off .
-    make -C build -j$(nproc)
-"
-make_git_package \
-    "fluent-bit" \
-    "v4.0.9" \
-    "https://github.com/fluent/fluent-bit.git" \
-    "$BUILD_CMD" \
-    "build/bin/fluent-bit:/usr/bin/fluent-bit"
+# Build delay-pipe
+build_rust_package \
+    "delay-pipe" \
+    "0743ae183525edbd0340d81f215d7546e90f080b" \
+    "https://github.com/flashbots/delay-pipe"
 
 # Build tdx-init
 make_git_package \
