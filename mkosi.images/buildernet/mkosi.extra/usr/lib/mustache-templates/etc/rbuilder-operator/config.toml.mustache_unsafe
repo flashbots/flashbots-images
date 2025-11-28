@@ -17,14 +17,11 @@ ignore_cancellable_orders = false
 jsonrpc_server_ip = "127.0.0.1"
 jsonrpc_server_port = 8645
 key_registration_url = "http://127.0.0.1:7937"
-max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
 live_builders = {{{rbuilder.live_builders}}}
 log_color = false
 log_json = true
 log_level = "info,rbuilder=debug"
-optimistic_enabled = true
-optimistic_max_bid_value_eth = "10"
-optimistic_relay_secret_key = "{{rbuilder.optimistic_relay_secret_key}}"
+max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
 optimistic_v3_server_ip = "0.0.0.0"
 optimistic_v3_server_port = 6000
 optimistic_v3_public_url = "{{rbuilder.optimistic_v3_public_url}}"
@@ -42,8 +39,17 @@ system_recipient_allowlist = {{{rbuilder.system_recipient_allowlist}}}
 time_to_keep_mempool_txs_secs = {{rbuilder.time_to_keep_mempool_txs_secs}}
 watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
 
-{{{rbuilder.relay_bid_scrapers}}}
+[built_blocks_clickhouse_config]
+host = "{{rbuilder.clickhouse_host}}"
+database = "{{rbuilder.clickhouse_database}}"
+username = "{{rbuilder.clickhouse_username}}"
+password = "{{rbuilder.clickhouse_password}}"
+disk_database_path = "/persistent/rbuilder/failed_clickhouse.db"
+disk_max_size_mb = 2000
+memory_max_size_mb = 1024
 
 {{{rbuilder.builders}}}
 
 {{{rbuilder.relays}}}
+
+{{{rbuilder.relay_bid_scrapers}}}
