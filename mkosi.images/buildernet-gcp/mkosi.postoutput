@@ -3,6 +3,7 @@
 set -eu -o pipefail
 
 export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
+export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="-i 12345678"
 mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
 cp ${OUTPUTDIR}/${IMAGE_ID}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI
 rm -f ${OUTPUTDIR}/${IMAGE_ID}.raw
@@ -14,6 +15,7 @@ systemd-repart --empty=create \
   --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \
   --dry-run=no \
   ${OUTPUTDIR}/${IMAGE_ID}.raw
+sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" ${OUTPUTDIR}/${IMAGE_ID}.raw
 
 rm -rf ${OUTPUTDIR}/esp
 

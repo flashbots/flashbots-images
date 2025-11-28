@@ -14,7 +14,6 @@ ExecStart=/usr/bin/lighthouse bn \
     --suggested-fee-recipient 0x000000000000000000000000000000000000dead \
     --always-prepare-payload \
     --prepare-payload-lookahead 8000 \
-    --disable-deposit-contract-sync \
     --http \
     --port 9000 \
     --http-port 3500 \
