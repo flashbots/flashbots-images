@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload to R2
         run: |
-          for file in mkosi.output/*.{efi,tar.gz,vhd,minisign,checksums.sha256}; do
+          for file in mkosi.output/*.{efi,tar.gz,vhd,minisig,sha256}; do
             rclone copy "$file" r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#v}/$file
           done
 
