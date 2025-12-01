@@ -30,6 +30,10 @@ jobs:
           pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
       - name: Create rclone config
+        env:
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT }}
         run: |
           mkdir -p ~/.config/rclone
           cat << EOF > ~/.config/rclone/rclone.conf
@@ -60,16 +64,10 @@ jobs:
           umask 022
           mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: buildernet-images
-          path: |
-            mkosi.output/*.efi
-            mkosi.output/*.tar.gz
-            mkosi.output/*.vhd
-
       - name: Sign artifacts
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_SECRET_KEY_PASSWORD: ${{ secrets.MINISIGN_SECRET_KEY_PASSWORD }}
         run: |
           mkdir -p ~/.minisign
           echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
