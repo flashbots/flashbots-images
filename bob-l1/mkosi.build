@@ -5,26 +5,20 @@ source scripts/make_git_package.sh
 
 # Compile lighthouse
 LIGHTHOUSE_BUILD_CMD="
-    # Switch from jemalloc to the system allocator to fix reproducibility issues
-    sed -i 's/malloc_utils = { workspace = true, features = \[\"jemalloc\"\] }/malloc_utils = { workspace = true }/' lighthouse/Cargo.toml
-    sed -i 's/#\[cfg(target_os = \"windows\")\]/#[cfg(not(feature = \"jemalloc\"))]/' lighthouse/src/main.rs
-    sed -i 's/#\[cfg(not(target_os = \"windows\"))\]/#[cfg(feature = \"jemalloc\")]/' lighthouse/src/main.rs
+    export CARGO_INCREMENTAL=0
+    export LC_ALL=C
+    export TZ=UTC
+    export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
-    # Reproducibility flags
-    export RUSTFLAGS='-C target-cpu=generic -C link-arg=-Wl,--build-id=none -C symbol-mangling-version=v0 -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
-    export CARGO_PROFILE_RELEASE_LTO='thin'
-    export CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1'
-    export CARGO_PROFILE_RELEASE_PANIC='unwind'
-    export CARGO_PROFILE_RELEASE_STRIP='none'
-    export CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
-    export CARGO_TERM_COLOR='never'
-
-    cargo fetch
-    DESTDIR=$BUILDROOT cargo build --release --frozen --bin lighthouse --no-default-features --features portable
+    cargo build --bin lighthouse \
+        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,sysmalloc \
+        --profile reproducible \
+        --locked \
+        --target x86_64-unknown-linux-gnu
 "
 make_git_package \
     "lighthouse" \
     "v8.0.0" \
     "https://github.com/sigp/lighthouse.git" \
-	"$LIGHTHOUSE_BUILD_CMD" \
-    "target/release/lighthouse:/usr/bin/lighthouse"
+    "$LIGHTHOUSE_BUILD_CMD" \
+    "target/x86_64-unknown-linux-gnu/reproducible/lighthouse:/usr/bin/lighthouse"
