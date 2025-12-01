@@ -100,6 +100,12 @@ jobs:
         run: |
           sha256sum mkosi.output/*.{efi,tar.gz,vhd} | tee mkosi.output/checksums.sha256
 
+      - name: Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true
+          limit-access-to-users: bakhtin
+
       - name: Upload to R2
         run: |
           for file in mkosi.output/*.{efi,tar.gz,vhd,minisig,sha256}; do
