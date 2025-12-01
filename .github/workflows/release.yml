@@ -13,13 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # - name: Restore cache
-      #   id: restore-cache
-      #   uses: actions/cache/restore@v4
-      #   with:
-      #     path: |
-      #       cache.tar
-      #     key: mkosi-buildernet-
+      - name: Restore cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache.tar
+          key: mkosi-buildernet-
+
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar ]]; then
+            sudo tar -xf cache.tar
+            sudo rm -f cache.tar
+          fi
 
       - name: Install tools
         run: |
@@ -48,34 +55,25 @@ jobs:
           acl = private
           EOF
 
-          grep endpoint ~/.config/rclone/rclone.conf
-
-      # - name: Extract cache
-      #   run: |
-      #     if [[ -f cache.tar ]]; then
-      #       sudo tar -xf cache.tar
-      #       sudo rm -f cache.tar
-      #     fi
-
       - name: Enable user namespaces
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # - name: Build image
-      #   run: |
-      #     umask 022
-      #     mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
+      - name: Build image
+        run: |
+          umask 022
+          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
 
-      # - name: Prepare cache
-      #   run: |
-      #     sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-      #       sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+      - name: Prepare cache
+        run: |
+          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
 
-      # - uses: actions/cache/save@v4
-      #   id: save-cache
-      #   with:
-      #     path: cache.tar
-      #     key: mkosi-buildernet-${{ github.run_id }}
+      - uses: actions/cache/save@v4
+        id: save-cache
+        with:
+          path: cache.tar
+          key: mkosi-buildernet-${{ github.run_id }}
 
       - name: Generate fake artifacts
         run: |
@@ -99,12 +97,6 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           sha256sum mkosi.output/*.{efi,tar.gz,vhd} | tee mkosi.output/checksums.sha256
-
-      - name: Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-actor: true
-          limit-access-to-users: bakhtin
 
       - name: Upload to R2
         run: |
