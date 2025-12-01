@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Restore cache
-        id: restore-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            cache.tar
-          key: mkosi-buildernet-
+      # - name: Restore cache
+      #   id: restore-cache
+      #   uses: actions/cache/restore@v4
+      #   with:
+      #     path: |
+      #       cache.tar
+      #     key: mkosi-buildernet-
 
       - name: Install tools
         run: |
@@ -41,28 +41,48 @@ jobs:
           type = s3
           provider = Cloudflare
 
-          access_key_id = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY"
-          secret_access_key = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY"
+          access_key_id = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY
+          secret_access_key = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY
           region = auto
-          endpoint = "$R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT"
+          endpoint = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT
           acl = private
           EOF
 
-      - name: Extract cache
-        run: |
-          if [[ -f cache.tar ]]; then
-            sudo tar -xf cache.tar
-            sudo rm -f cache.tar
-          fi
+          grep endpoint ~/.config/rclone/rclone.conf
+
+      # - name: Extract cache
+      #   run: |
+      #     if [[ -f cache.tar ]]; then
+      #       sudo tar -xf cache.tar
+      #       sudo rm -f cache.tar
+      #     fi
 
       - name: Enable user namespaces
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Build image
+      # - name: Build image
+      #   run: |
+      #     umask 022
+      #     mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
+
+      # - name: Prepare cache
+      #   run: |
+      #     sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+      #       sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+
+      # - uses: actions/cache/save@v4
+      #   id: save-cache
+      #   with:
+      #     path: cache.tar
+      #     key: mkosi-buildernet-${{ github.run_id }}
+
+      - name: Generate fake artifacts
         run: |
-          umask 022
-          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
+          mkdir -p mkosi.output
+          echo "fake efi content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.efi
+          echo "fake tar.gz content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}-import.tar.gz
+          echo "fake vhd content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.vhd
 
       - name: Sign artifacts
         env:
@@ -83,16 +103,5 @@ jobs:
       - name: Upload to R2
         run: |
           for file in mkosi.output/*.{efi,tar.gz,vhd,minisig,sha256}; do
-            rclone copy "$file" r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#v}/$file
+            rclone copy -P "$file" r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME}/
           done
-
-      - name: Prepare cache
-        run: |
-          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
-
-      - uses: actions/cache/save@v4
-        id: save-cache
-        with:
-          path: cache.tar
-          key: mkosi-buildernet-${{ github.run_id }}
