@@ -23,16 +23,15 @@ jobs:
 
       - name: Install tools
         run: |
-          # mkosi
-          sudo apt-get update && sudo apt-get install -y debian-archive-keyring rclone
-          sudo -H pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
-
-          # minisign
-          curl -sSfL https://github.com/jedisct1/minisign/releases/download/0.12/minisign-0.12-linux.tar.gz | \
-            sudo tar xzf - -C /usr/bin --strip-components=2 minisign-linux/x86_64/minisign
+          sudo apt-get update && sudo apt-get install -y \
+            debian-archive-keyring \
+            minisign\
+            rclone
+          pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
       - name: Create rclone config
         run: |
+          mkdir -p ~/.config/rclone
           cat << EOF > ~/.config/rclone/rclone.conf
           [r2-flashbots-public-artifacts]
           type = s3
@@ -52,9 +51,13 @@ jobs:
             sudo rm -f cache.tar
           fi
 
+      - name: Enable user namespaces
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Build image
         run: |
-          sudo mkosi --force -I buildernet.conf
+          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -64,6 +67,25 @@ jobs:
             mkosi.output/*.efi
             mkosi.output/*.tar.gz
             mkosi.output/*.vhd
+
+      - name: Sign artifacts
+        run: |
+          mkdir -p ~/.minisign
+          echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
+          chmod 600 ~/.minisign/minisign.key
+          for file in mkosi.output/*.{efi,tar.gz,vhd}; do
+            echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm "$file" -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          done
+
+      - name: Generate SHA256 checksums
+        run: |
+          sha256sum mkosi.output/*.{efi,tar.gz,vhd} | tee mkosi.output/checksums.sha256
+
+      - name: Upload to R2
+        run: |
+          for file in mkosi.output/*.{efi,tar.gz,vhd,minisign,checksums.sha256}; do
+            rclone copy "$file" r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#v}/$file
+          done
 
       - name: Prepare cache
         run: |

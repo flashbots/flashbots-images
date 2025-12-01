@@ -18,3 +18,5 @@ for p in "${remove_paths[@]}"; do
   echo "Removing $p"
   rm -rf $BUILDROOT$p
 done
+
+echo "IMAGE_VERSION=${IMAGE_VERSION:-latest}" >> $BUILDROOT/usr/lib/os-release
