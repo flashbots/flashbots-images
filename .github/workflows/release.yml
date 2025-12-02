@@ -94,6 +94,6 @@ jobs:
       - name: Upload to R2
         run: |
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
-            --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd}" \
+            --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd,minisig,sha256}" \
             mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME}/
 
