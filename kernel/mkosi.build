@@ -54,9 +54,6 @@ else
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
 
-    echo "# kernel config:"
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" cat .config
-
     # Cache result
     mkdir -p "$cache_dir"
     cp arch/x86_64/boot/bzImage "$cache_dir/"
