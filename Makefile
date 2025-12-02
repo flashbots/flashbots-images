@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 VERSION := $(shell git describe --tags --always --dirty="-dev")
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
 ##@ Help
