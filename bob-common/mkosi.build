@@ -21,7 +21,7 @@ make_git_package \
 # Build delay-pipe
 build_rust_package \
     "delay-pipe" \
-    "0743ae183525edbd0340d81f215d7546e90f080b" \
+    "v0.0.1" \
     "https://github.com/flashbots/delay-pipe"
 
 # Build tdx-init
