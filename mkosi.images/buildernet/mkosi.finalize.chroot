@@ -13,5 +13,6 @@ systemctl mask apt-daily.timer \
                systemd-sysext.service
 
 # Unlock system accounts that run commands via sudo
-chage -E -1 config-watchdog
-chage -E -1 operator-api
+chage --expiredate -1 config-watchdog
+chage --expiredate -1 operator-api
+chage --lastday 1 bnet
