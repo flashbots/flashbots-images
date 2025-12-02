@@ -78,7 +78,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd mkosi.output
-          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee checksums.sha256
+          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.sha256
 
       - name: Sign artifacts
         env:
@@ -88,7 +88,7 @@ jobs:
           mkdir -p ~/.minisign
           echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
           chmod 600 ~/.minisign/minisign.key
-          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/checksums.sha256 -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.sha256 -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
       - name: Upload to R2
         run: |
