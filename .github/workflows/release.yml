@@ -75,12 +75,10 @@ jobs:
           path: cache.tar
           key: mkosi-buildernet-${{ github.run_id }}
 
-      - name: Generate fake artifacts
+      - name: Generate SHA256 checksums
         run: |
-          mkdir -p mkosi.output
-          echo "fake efi content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.efi
-          echo "fake tar.gz content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}-import.tar.gz
-          echo "fake vhd content" > mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.vhd
+          cd mkosi.output
+          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee checksums.sha256
 
       - name: Sign artifacts
         env:
@@ -90,16 +88,10 @@ jobs:
           mkdir -p ~/.minisign
           echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
           chmod 600 ~/.minisign/minisign.key
-          for file in mkosi.output/*.{efi,tar.gz,vhd}; do
-            echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm "$file" -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-          done
-
-      - name: Generate SHA256 checksums
-        run: |
-          sha256sum mkosi.output/*.{efi,tar.gz,vhd} | tee mkosi.output/checksums.sha256
+          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/checksums.sha256 -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
       - name: Upload to R2
         run: |
-          for file in mkosi.output/*.{efi,tar.gz,vhd,minisig,sha256}; do
+          for file in mkosi.output/buildernet-*.{efi,tar.gz,vhd,minisig,sha256}; do
             rclone copy -P "$file" r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME}/
           done
