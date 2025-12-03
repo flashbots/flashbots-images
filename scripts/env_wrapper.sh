@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LIMA_VM="${LIMA_VM:-tee-builder}"
+# Check for dangling old-style tee-builder VM
+if command -v limactl &>/dev/null && limactl list 2>/dev/null | grep -q '^tee-builder '; then
+    echo "WARNING: FOUND 'tee-builder' VM FROM BEFORE COMMIT 2b44885."
+    echo "THIS VM IS NO LONGER USED. TO CLEAN IT UP, RUN:"
+    echo "  limactl stop tee-builder && limactl delete tee-builder"
+    echo ""
+fi
+
+# Generate a unique VM name based on the absolute path of this repo
+# This prevents conflicts when the same repo is cloned to multiple locations
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_HASH="$(echo -n "$REPO_DIR" | sha256sum | cut -c1-8)"
+LIMA_VM="${LIMA_VM:-tee-builder-$REPO_HASH}"
 
 # Check if Lima should be used
 should_use_lima() {
@@ -35,15 +47,15 @@ setup_lima() {
             args+=("--disk" "$LIMA_DISK")
         fi
 
-        echo -e "Creating $LIMA_VM VM..."
+        echo -e "Creating Lima VM '$LIMA_VM' for $REPO_DIR..."
         # Portable way to expand array on bash 3 & 4
-        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} lima.yaml
+        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} "$REPO_DIR/lima.yaml"
     fi
 
     # Start VM if not running
     status=$(limactl list "$LIMA_VM" --format "{{.Status}}")
     if [ "$status" != "Running" ]; then
-        echo -e "Starting $LIMA_VM VM..."
+        echo -e "Starting Lima VM '$LIMA_VM'..."
         limactl start -y "$LIMA_VM"
 
         rm -f NvVars # Remove stray file created by QEMU
@@ -111,7 +123,7 @@ if should_use_lima; then
         echo
         fi
 
-    echo "Note: Lima VM is still running. To stop it, run: limactl stop $LIMA_VM"
+    echo "Note: Lima VM '$LIMA_VM' is still running. To stop it, run: limactl stop $LIMA_VM"
 else
     if in_nix_env; then
         exec "${cmd[@]}"

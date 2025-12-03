@@ -58,8 +58,11 @@ measure-gcp: ## Export TDX measurements for GCP
 # Clean build artifacts
 clean: ## Remove cache and build artifacts
 	rm -rf build/ mkosi.builddir/ mkosi.cache/ lima-nix/
-	@if command -v limactl >/dev/null 2>&1 && limactl list | grep -q '^tee-builder'; then \
-		echo "Stopping and deleting lima VM 'tee-builder'..."; \
-		limactl stop tee-builder || true; \
-		limactl delete tee-builder || true; \
+	@REPO_DIR="$$(pwd)"; \
+	REPO_HASH="$$(echo -n "$$REPO_DIR" | sha256sum | cut -c1-8)"; \
+	LIMA_VM="tee-builder-$$REPO_HASH"; \
+	if command -v limactl >/dev/null 2>&1 && limactl list | grep -q "^$$LIMA_VM"; then \
+		echo "Stopping and deleting Lima VM '$$LIMA_VM'..."; \
+		limactl stop "$$LIMA_VM" || true; \
+		limactl delete "$$LIMA_VM" || true; \
 	fi
