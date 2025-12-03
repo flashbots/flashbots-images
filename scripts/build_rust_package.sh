@@ -50,7 +50,7 @@ build_rust_package() {
                CARGO_TERM_COLOR='never'
         cd '/build/$package'
         cargo fetch
-        cargo build --release --frozen ${extra_features:+--features $extra_features}
+        cargo build -p $package --release --frozen ${extra_features:+--features $extra_features}
     "
 
     # Cache and install the built binary
