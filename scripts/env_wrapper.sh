@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# Check for dangling old-style tee-builder VM
+if command -v limactl &>/dev/null && limactl list 2>/dev/null | grep -q '^tee-builder '; then
+    echo "WARNING: FOUND 'tee-builder' VM FROM BEFORE COMMIT 2b44885."
+    echo "THIS VM IS NO LONGER USED. TO CLEAN IT UP, RUN:"
+    echo "  limactl stop tee-builder && limactl delete tee-builder"
+    echo ""
+fi
+
 # Generate a unique VM name based on the absolute path of this repo
 # This prevents conflicts when the same repo is cloned to multiple locations
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
