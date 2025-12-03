@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
-EFI="${OUTPUTDIR}/tdx-debian.efi"
-TAR="${OUTPUTDIR}/tdx-debian.tar.gz"
+EFI="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
+TAR="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.tar.gz"
 TMP="${OUTPUTDIR}/gcp-tmp"
 
 [ ! -f "$EFI" ] && echo "Error: $EFI not found" && exit 1
