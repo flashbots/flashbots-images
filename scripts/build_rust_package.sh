@@ -4,7 +4,7 @@ build_rust_package() {
     local package="$1"
     local version="$2"
     local git_url="$3"
-    local provided_binary="$4"
+    local provided_binary="${4:-}"
     local extra_features="${5:-}"
     local extra_rustflags="${6:-}"
 
