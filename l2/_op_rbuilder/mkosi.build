@@ -23,7 +23,7 @@ source scripts/build_rust_package.sh
 
 # build op-rbuilder
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/op-rbuilder" ]; then
+if [ -f "$SRCDIR/l2/_op_rbuilder/mkosi.extra/usr/bin/op-rbuilder" ]; then
     echo "Using pre-built op-rbuilder binary"
 else
     build_rust_package \
@@ -35,7 +35,7 @@ fi
 
 # build tdx-quote-provider
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/tdx-quote-provider" ]; then
+if [ -f "$SRCDIR/l2/_op_rbuilder/mkosi.extra/usr/bin/tdx-quote-provider" ]; then
     echo "Using pre-built tdx-quote-provider binary"
 else
     build_rust_package \
@@ -47,7 +47,7 @@ fi
 
 # build rproxy
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/rproxy" ]; then
+if [ -f "$SRCDIR/l2/_op_rbuilder/mkosi.extra/usr/bin/rproxy" ]; then
     echo "Using pre-built rproxy binary"
 else
     make_git_package \
@@ -61,7 +61,7 @@ fi
 
 # build node-healthchecker
 
-if [ -f "l2/mkosi.extra/usr/bin/node-healthchecker" ]; then
+if [ -f "$SRCDIR/l2/mkosi.extra/usr/bin/node-healthchecker" ]; then
     echo "Using pre-built node-healthchecker binary"
 else
     make_git_package \
