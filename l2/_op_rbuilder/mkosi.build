@@ -4,12 +4,13 @@ set -euxo pipefail
 
 ENV_YAML="$SRCDIR/l2/_op_rbuilder/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
 
-RUST_VERSION=$(mkosi-chroot yq -r .rust.version < "$ENV_YAML")
+RUST_VERSION=$(mkosi-chroot yq -r '.rust.version' < "$ENV_YAML")
 
-OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
-TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
-RPROXY_REF=$(mkosi-chroot yq -r .rproxy.git_reference < "$ENV_YAML")
-NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
+OP_RBUILDER_REF=$(mkosi-chroot yq -r '.op_rbuilder.git_reference' < "$ENV_YAML")
+TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r '.tdx_quote_provider.git_reference' < "$ENV_YAML")
+RPROXY_REF=$(mkosi-chroot yq -r '.rproxy.git_reference' < "$ENV_YAML")
+RPROXY_FEATURES=$(mkosi-chroot yq -r '.rproxy.features // ["default"] | sort | join(",")' < "$ENV_YAML")
+NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r '.node_healthchecker.git_reference' < "$ENV_YAML")
 
 export RUSTUP_HOME="/rustup"
 export CARGO_HOME="/cargo"
@@ -53,7 +54,7 @@ else
         "rproxy" \
         "${RPROXY_REF}" \
         "https://github.com/flashbots/rproxy.git" \
-        'TARGET=x86_64-unknown-linux-gnu ./build.sh' \
+        "FEATURES=${RPROXY_FEATURES} TARGET=x86_64-unknown-linux-gnu ./build.sh" \
         "target/x86_64-unknown-linux-gnu/release/rproxy:/usr/bin/rproxy"
     chmod +x $DESTDIR/usr/bin/rproxy
 fi

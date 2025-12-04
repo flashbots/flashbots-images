@@ -4,9 +4,9 @@ set -euxo pipefail
 
 ENV_YAML="$SRCDIR/l2/mkosi.extra/etc/flashbots/l2.yaml"
 
-VAULT_REF=$(mkosi-chroot yq -r .vault.git_reference < "$ENV_YAML")
-GOMPLATE_REF=$(mkosi-chroot yq -r .gomplate.git_reference < "$ENV_YAML")
-GCP_OPS_AGENT_REF=$(mkosi-chroot yq -r .gcp_ops_agent.git_reference < "$ENV_YAML")
+VAULT_REF=$(mkosi-chroot yq -r '.vault.git_reference' < "$ENV_YAML")
+GOMPLATE_REF=$(mkosi-chroot yq -r '.gomplate.git_reference' < "$ENV_YAML")
+GCP_OPS_AGENT_REF=$(mkosi-chroot yq -r '.gcp_ops_agent.git_reference' < "$ENV_YAML")
 
 source scripts/make_git_package.sh
 
