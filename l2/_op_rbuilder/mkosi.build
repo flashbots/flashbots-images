@@ -60,7 +60,7 @@ fi
 
 # build node-healthchecker
 
-if [ -f "$SRCDIR/l2/_op_rbuilder/mkosi.extra/usr/bin/node-healthchecker" ]; then
+if [ -f "$SRCDIR/l2/mkosi.extra/usr/bin/node-healthchecker" ]; then
     echo "Using pre-built node-healthchecker binary"
 else
     make_git_package \
