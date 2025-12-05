@@ -11,7 +11,7 @@ find "$BUILDROOT/var/log" -type f -delete
 find "$BUILDROOT/var/cache" -type f -delete
 
 debloat_paths=(
-    ".cache"
+    "/.cache"
     "/etc/*-"
     "/etc/credstore"
     "/etc/machine-id"
