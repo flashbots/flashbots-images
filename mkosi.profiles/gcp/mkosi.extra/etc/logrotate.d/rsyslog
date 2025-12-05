@@ -1,6 +1,5 @@
 /var/log/syslog {
-    hourly
-    rotate 2
+    rotate 1
     notifempty
     create
     nocompress
