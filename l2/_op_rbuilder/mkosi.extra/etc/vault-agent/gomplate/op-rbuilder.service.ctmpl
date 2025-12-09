@@ -114,4 +114,4 @@ ExecStart=/usr/bin/op-rbuilder node \
 
 ExecStop=+/usr/bin/sh -c "kill -1 $( pgrep node-health ) | true"
 ExecStop=+/usr/bin/sleep 15
-ExecStop=+/usr/bin/sh -c "PID=$( pgrep op-rbuilder ); if [ \"0${PID}\" -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"
+ExecStop=+/usr/bin/sh -c "PID=$( pgrep op-rbuilder ); if [ 0${PID} -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"
