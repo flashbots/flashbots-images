@@ -31,3 +31,11 @@ mkosi-chroot chmod 0770 /vault/secrets
 mkosi-chroot chmod        0750 /etc/vault-agent
 mkosi-chroot chmod        0750 /etc/vault-agent/gomplate
 mkosi-chroot sh -c "chmod 0640 /etc/vault-agent/gomplate/*"
+
+# Create /etc/sysconfig for vault-agent
+
+mkosi-chroot mkdir -p /etc/sysconfig
+
+# Limit root filesystem size to 4GB
+
+mkosi-chroot sed -i '1a mount -o remount,size=4G /' /init
