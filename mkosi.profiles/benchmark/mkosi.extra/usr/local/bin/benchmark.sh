@@ -56,9 +56,9 @@ for i in $(seq 1 "$ITERATIONS"); do
     --verify=0 --verify_fatal=0 --numjobs=1 --rw=randwrite --blocksize=4k \
     --group_reporting --norandommap 2>&1 | tee -a "$REPORT"
 
-  echo "=== NETWORK TEST ===" | tee -a "$REPORT"
-  # Run iperf3 server on another host: iperf3 -s -p $IPERF_PORT
-  iperf3 -c "$IPERF_SERVER" -p "$IPERF_PORT" -t 30 | tee -a "$REPORT"
+  # echo "=== NETWORK TEST ===" | tee -a "$REPORT"
+  # # Run iperf3 server on another host: iperf3 -s -p $IPERF_PORT
+  # iperf3 -c "$IPERF_SERVER" -p "$IPERF_PORT" -t 30 | tee -a "$REPORT"
 
   echo "=== STRESS TEST (CPU, memory, I/O) ===" | tee -a "$REPORT"
   stress-ng --cpu 4 --io 2 --vm 2 --vm-bytes 1G --timeout 60s --metrics-brief 2>&1 | tee -a "$REPORT"
