@@ -62,7 +62,7 @@ jobs:
       - name: Build image
         run: |
           umask 022
-          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}
+          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
 
       - name: Prepare cache
         run: |
@@ -78,7 +78,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd mkosi.output
-          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.sha256
+          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
 
       - name: Sign artifacts
         env:
@@ -88,12 +88,12 @@ jobs:
           mkdir -p ~/.minisign
           echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
           chmod 600 ~/.minisign/minisign.key
-          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#v}-${GITHUB_SHA::8}.sha256 \
+          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256 \
             -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
       - name: Upload to R2
         run: |
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd,minisig,sha256}" \
-            mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME}/
+            mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#buildernet-}/
 
