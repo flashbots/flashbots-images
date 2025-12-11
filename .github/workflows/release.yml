@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - v*
+      - buildernet-v*
   workflow_dispatch: {}
 
 jobs:
