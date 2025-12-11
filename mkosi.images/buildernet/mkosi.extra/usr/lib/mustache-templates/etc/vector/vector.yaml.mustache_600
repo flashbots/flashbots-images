@@ -22,7 +22,7 @@ sources:
     type: prometheus_scrape
     endpoints:
       - http://localhost:6060/debug/metrics/prometheus
-  metrics_orderflow_proxy:
+  metrics_flowproxy:
     type: prometheus_scrape
     endpoints:
       - http://localhost:8090/metrics
@@ -64,12 +64,12 @@ transforms:
       - metrics_rbuilder
     source: |-
       .tags.job = "rbuilder"
-  metrics_job_orderflow_proxy:
+  metrics_job_flowproxy:
     type: remap
     inputs:
-      - metrics_orderflow_proxy
+      - metrics_flowproxy
     source: |-
-      .tags.job = "orderflow-proxy"
+      .tags.job = "flowproxy"
   metrics_job_haproxy:
     type: remap
     inputs:
