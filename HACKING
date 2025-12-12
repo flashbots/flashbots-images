@@ -77,9 +77,8 @@ then run
 ```
 rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock*
 dpkg --configure -a
+apt-get update
 ```
-
-DO NOT RUN `apt update`!
 
 # GCP TDX custom image requirements
 https://cloud.google.com/confidential-computing/confidential-vm/docs/create-custom-confidential-vm-images

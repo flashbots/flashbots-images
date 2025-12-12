@@ -2,4 +2,4 @@
 You don't need to explicitly depend on mounting/encrypting persistent storage because for every service a default dependency contains sysinit.target which in turn depends on local-fs.target which we pull in as Before= in persistent-setup.service. https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Default%20Dependencies
 
 ## ExecStartPre chown
-Doing `ExecStartPre=+/bin/bash -c 'cd ${CONFIGURATION_DIRECTORY} && chown -R $USER .'` in bunch of places because systemd does not change ownership of files inside ConfigurationDirectory as well as it does not change the parent directory mode the directory already exists. https://www.freedesktop.org/software/systemd/man/257/systemd.exec.html#RuntimeDirectory=
+Doing `ExecStartPre=+/bin/bash -c 'cd ${CONFIGURATION_DIRECTORY} && chown -R $USER .'` in a bunch of places because systemd does not change ownership of files inside `ConfigurationDirectory` as well as it does not change the parent directory mode if the directory already exists. https://www.freedesktop.org/software/systemd/man/257/systemd.exec.html#RuntimeDirectory=
