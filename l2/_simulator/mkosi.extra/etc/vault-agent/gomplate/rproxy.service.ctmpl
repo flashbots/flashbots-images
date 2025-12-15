@@ -1,0 +1,55 @@
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=L2 builder proxy
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=rproxy
+User=simulator
+Group=optimism
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+ExecStartPre=+/usr/bin/mkdir -p /etc/rproxy
+ExecStartPre=+/usr/bin/chown -R simulator:optimism /etc/rproxy
+
+((- $service := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_common[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data ))
+((- $tls_crt := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_tls[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data.tls_crt ))
+((- $tls_key := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_tls[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data.tls_key ))
+
+ExecStart=/usr/bin/rproxy \
+    --metrics-listen-address '0.0.0.0:6786' \
+    --rpc-backend 'http://127.0.0.1:18645' \
+    --rpc-enabled \
+    --rpc-listen-address '0.0.0.0:8645' \
+    --rpc-log-proxied-requests \
+    --rpc-log-proxied-responses \
+    --rpc-log-sanitise \
+    --rpc-max-request-size-mb '150' \
+    --rpc-max-response-size-mb '1150' \
+    ((- if $service.rpc_peers ))
+    --rpc-mirror-errored-requests \
+    ((- range $idx, $enode := $service.rpc_peers ))
+    --rpc-mirroring-peer '(( printf "%s" $enode ))' \
+    ((- end ))
+    --rpc-remove-backend-from-mirroring-peers \
+    ((- end ))
+    ((- if $tls_crt ))
+    --tls-certificate '/etc/rproxy/tls.crt' \
+    ((- end ))
+    ((- if $tls_key ))
+    --tls-key '/etc/rproxy/tls.key' \
+    ((- end ))
+    ((- if $service.rproxy_custom_flags ))(( range $idx, $flag := $service.rproxy_custom_flags ))
+    (( printf "%s" $flag )) \
+    ((- end ))(( end ))
+
+ExecStop=+/usr/bin/sh -c "kill -1 $( pgrep node-health ) | true"
+ExecStop=+/usr/bin/sleep 15
+ExecStop=+/usr/bin/sh -c "PID=$( pgrep rproxy ); if [ 0${PID} -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"

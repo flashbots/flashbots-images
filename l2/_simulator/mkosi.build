@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+ENV_YAML="$SRCDIR/l2/_simulator/mkosi.extra/etc/flashbots/simulator.yaml"
+
+RUST_VERSION=$(mkosi-chroot yq -r '.rust.version' < "$ENV_YAML")
+
+SIMULATOR_REF=$(mkosi-chroot yq -r '.simulator.git_reference' < "$ENV_YAML")
+TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r '.tdx_quote_provider.git_reference' < "$ENV_YAML")
+RPROXY_REF=$(mkosi-chroot yq -r '.rproxy.git_reference' < "$ENV_YAML")
+RPROXY_FEATURES=$(mkosi-chroot yq -r '.rproxy.features // ["default"] | sort | join(",")' < "$ENV_YAML")
+NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r '.node_healthchecker.git_reference' < "$ENV_YAML")
+
+export RUSTUP_HOME="/rustup"
+export CARGO_HOME="/cargo"
+mkosi-chroot rustup toolchain install $RUST_VERSION
+mkosi-chroot rustup default $RUST_VERSION
+export PATH="$CARGO_HOME/bin:$PATH"
+
+source scripts/make_git_package.sh
+source scripts/build_rust_package.sh
+
+# build simulator
+
+build_rust_package \
+    "simulator" \
+    "${SIMULATOR_REF}" \
+    "https://github.com/flashbots/simulator.git" \
+    "" "" "-g"
+
+# build rproxy
+
+make_git_package \
+    "rproxy" \
+    "${RPROXY_REF}" \
+    "https://github.com/flashbots/rproxy.git" \
+    "FEATURES=${RPROXY_FEATURES} TARGET=x86_64-unknown-linux-gnu ./build.sh" \
+    "target/x86_64-unknown-linux-gnu/release/rproxy:/usr/bin/rproxy"
+chmod +x $DESTDIR/usr/bin/rproxy
+
+# build node-healthchecker
+
+make_git_package \
+    "node-healthchecker" \
+    "${NODE_HEALTHCHECKER_REF}" \
+    "https://github.com/flashbots/node-healthchecker.git" \
+    'go build -trimpath -ldflags "-s -w -X main.version=${NODE_HEALTHCHECKER_REF} -buildid=" -o ./bin/node-healthchecker github.com/flashbots/node-healthchecker/cmd' \
+    "bin/node-healthchecker:/usr/bin/node-healthchecker"
+chmod +x $DESTDIR/usr/bin/node-healthchecker

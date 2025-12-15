@@ -29,7 +29,13 @@ build_rust_package() {
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
     mkdir -p "$build_dir"
-    git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        set +x
+        git clone --depth 1 --branch "$version" "${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}" "$build_dir"
+        set -x
+    else
+        git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    fi
 
     # Define Rust flags for reproducibility
     local rustflags=(
