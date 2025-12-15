@@ -24,14 +24,10 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure clean check-perms check-module
+.PHONY: all build build-dev setup measure clean check-module
 
 # Default target
 all: build
-
-# Ensure repo was cloned with correct permissions
-check-perms: ## Check repository permissions
-	@scripts/check_perms.sh
 
 # Setup dependencies (Linux only)
 setup: ## Install dependencies (Linux only)
@@ -41,11 +37,11 @@ preflight:
 	@$(WRAPPER) echo "Ready to build"
 
 # Build module
-build: check-perms setup ## Build the specified module
+build: setup ## Build the specified module
 	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
 
 # Build module with devtools profile
-build-dev: check-perms setup ## Build module with development tools
+build-dev: setup ## Build module with development tools
 	time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
 
 ##@ Utilities
