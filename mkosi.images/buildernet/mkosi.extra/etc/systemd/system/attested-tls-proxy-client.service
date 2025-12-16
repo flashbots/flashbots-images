@@ -1,0 +1,22 @@
+[Unit]
+DefaultDependencies=no
+Description=Attested TLS Proxy client
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=exec
+DynamicUser=yes
+SupplementaryGroups=tss
+Environment=BUILDERNET_BUILDERHUB_URL=__BUILDERNET_BUILDERHUB_URL
+ExecStart=/usr/bin/attested-tls-proxy client \
+  --listen-addr=127.0.0.1:7937 \
+  --allowed-remote-attestation-type none \
+  --tls-private-key-path var/lib/persistent/operator-api/key.pem \
+  --tls-certificate-path var/lib/persistent/operator-api/cert.pem \
+  --client-attestation-type auto \
+  ${BUILDERNET_BUILDERHUB_URL}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
