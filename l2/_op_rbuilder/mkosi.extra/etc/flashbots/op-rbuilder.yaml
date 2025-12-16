@@ -1,5 +1,3 @@
-rust:
-  version: 1.91.1
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
