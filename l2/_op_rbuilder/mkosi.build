@@ -4,18 +4,10 @@ set -euxo pipefail
 
 ENV_YAML="$SRCDIR/l2/_op_rbuilder/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
 
-RUST_VERSION=$(mkosi-chroot yq -r .rust.version < "$ENV_YAML")
-
 OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
 TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
 BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
-
-export RUSTUP_HOME="/rustup"
-export CARGO_HOME="/cargo"
-mkosi-chroot rustup toolchain install $RUST_VERSION
-mkosi-chroot rustup default $RUST_VERSION
-export PATH="$CARGO_HOME/bin:$PATH"
 
 source scripts/make_git_package.sh
 source scripts/build_rust_package.sh
