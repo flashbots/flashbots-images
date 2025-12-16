@@ -31,7 +31,13 @@ make_git_package() {
 
     # Build from source
     local build_dir="$BUILDROOT/build/$package"
-    git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    if [ -f "$cache_dir/.ghtoken" ]; then
+        set +x
+        git clone --depth 1 --branch "$version" "${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $cache_dir/.ghtoken )@github.com}" "$build_dir"
+        set -x
+    else
+        git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    fi
     mkosi-chroot bash -c "cd '/build/$package' && $build_cmd"
 
     # Copy artifacts to image and cache
