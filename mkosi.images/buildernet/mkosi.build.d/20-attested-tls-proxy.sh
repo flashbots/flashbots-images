@@ -4,7 +4,7 @@ set -euo pipefail
 REF=06aafe43335a5d228a3ea2d3b871d15d2d06e855
 CARGO_HOME="$BUILDDIR/.cargo"
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
-BUILDDIR="$BUILDDIR/vector"
+BUILDDIR="$BUILDDIR/attested-tls-proxy"
 export CARGO_HOME="$SRCDIR/mkosi.images/buildernet/mkosi.cache/cargo"
 
 echo "Installing attested-tls-proxy..."
