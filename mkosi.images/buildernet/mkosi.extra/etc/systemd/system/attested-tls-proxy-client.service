@@ -10,10 +10,10 @@ DynamicUser=yes
 SupplementaryGroups=tss
 Environment=BUILDERNET_BUILDERHUB_URL=__BUILDERNET_BUILDERHUB_URL
 ExecStart=/usr/bin/attested-tls-proxy client \
-  --listen-addr=127.0.0.1:7937 \
+  --listen-addr 127.0.0.1:7937 \
   --allowed-remote-attestation-type none \
-  --tls-private-key-path var/lib/persistent/operator-api/key.pem \
-  --tls-certificate-path var/lib/persistent/operator-api/cert.pem \
+  --tls-private-key-path %S/persistent/attested-tls-proxy/key.pem \
+  --tls-certificate-path %S/persistent/attested-tls-proxy/cert.pem \
   --client-attestation-type auto \
   ${BUILDERNET_BUILDERHUB_URL}
 Restart=on-failure
