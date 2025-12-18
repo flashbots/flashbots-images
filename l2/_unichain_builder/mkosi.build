@@ -33,7 +33,7 @@ build_rust_package \
 build_rust_package \
     "tdx-quote-provider" \
     "${TDX_QUOTE_PROVIDER_REF}" \
-    "https://github.com/flashbots/unichain-builder.git" \
+    "https://github.com/flashbots/op-rbuilder.git" \
     "" "" "-g"
 
 # build rproxy
