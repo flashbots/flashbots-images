@@ -10,7 +10,25 @@ make_git_package() {
     # All remaining arguments are artifact mappings in src:dest format
 
     mkdir -p "$DESTDIR/usr/bin"
-    local cache_dir="$BUILDDIR/${package}-${version}"
+
+    # Clone the repository
+    local build_dir="$BUILDROOT/build/$package"
+    set +x
+    echo "Cloning ${git_url}"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}"
+    fi
+    git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
+        echo "Could not clone branch/tag, attempting to checkout the commit by sha"
+        git clone -"$git_url" "$build_dir" &&
+        git -C "$build_dir" checkout "$version"
+    )
+    set -x
+
+    # Get the git reference
+    local git_describe=$( git -C "$build_dir" describe --tags --always )
+
+    local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}"
 
     # Use cached artifacts if available
     if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
@@ -30,14 +48,6 @@ make_git_package() {
     fi
 
     # Build from source
-    local build_dir="$BUILDROOT/build/$package"
-    if [ -f "$cache_dir/.ghtoken" ]; then
-        set +x
-        git clone --depth 1 --branch "$version" "${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $cache_dir/.ghtoken )@github.com}" "$build_dir"
-        set -x
-    else
-        git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
-    fi
     mkosi-chroot bash -c "cd '/build/$package' && $build_cmd"
 
     # Copy artifacts to image and cache

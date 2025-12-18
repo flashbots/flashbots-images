@@ -18,23 +18,30 @@ build_rust_package() {
         return
     fi
 
-    # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${version#${package}/}/${package}"
+    # Clone the repository
+    local build_dir="$BUILDROOT/build/$package"
+    mkdir -p "$build_dir"
+    set +x
+    echo "Cloning ${git_url}"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}"
+    fi
+    git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
+        echo "Could not clone branch/tag, attempting to checkout the commit by sha"
+        git clone "$git_url" "$build_dir" && \
+        git -C "$build_dir" checkout "$version"
+    )
+    set -x
+
+    # Get the git reference
+    local git_describe=$( git -C "$build_dir" describe --tags --always )
+
+   # If binary is cached, skip compilation
+    local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         cp "$cached_binary" "$dest_path"
         return
-    fi
-
-    # Clone the repository
-    local build_dir="$BUILDROOT/build/$package"
-    mkdir -p "$build_dir"
-    if [ -f "$BUILDDIR/.ghtoken" ]; then
-        set +x
-        git clone --depth 1 --branch "$version" "${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}" "$build_dir"
-        set -x
-    else
-        git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
     fi
 
     # Define Rust flags for reproducibility
