@@ -1,24 +1,17 @@
 [Unit]
-Description=Fetch rbuilder-bidding and top-bid-source binary
+Description=Fetch rbuilder-bidding
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_BIDDING_SHA256SUM=d70a05eef77894c816f0f71c54ed362cb80d70fe4e34cc66efbd98c9ab1cbce8 \
-            RBUILDER_BIDDING_TAG=v1.2.29 \
-            TOP_BID_SOURCE_SHA256SUM=1d6a60fc0c176506e58b7db357ed0d479b41c86c746f8f03f18df8ea49f2468c \
-            TOP_BID_SOURCE_TAG=v1.2.29
+Environment=RBUILDER_BIDDING_SHA256SUM=60a52b4b33a76b3f3eb66ddb02c20435340a577da04d0bcc2ebc82122410b29b \
+            RBUILDER_BIDDING_TAG=v1.3.1
 EnvironmentFile=%E/rbuilder-bidding/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-bidding ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo rbuilder-bidding-service --tag "$RBUILDER_BIDDING_TAG" \
   --artifact-name bidding-service --output-file /usr/bin/rbuilder-bidding'
-ExecStart=/bin/bash -c '[[ -f /usr/bin/top-bid-source ]] || /usr/bin/fetch-gh-release-artifact fetch \
-  --repo rbuilder-bidding-service --tag "$TOP_BID_SOURCE_TAG" \
-  --artifact-name top-bid-source --output-file /usr/bin/top-bid-source'
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-bidding ]] || \
   echo "$RBUILDER_BIDDING_SHA256SUM" /usr/bin/rbuilder-bidding | sha256sum --check'
-ExecStart=/bin/bash -c '[[ -f /usr/bin/top-bid-source ]] || \
-  echo "$TOP_BID_SOURCE_SHA256SUM" /usr/bin/top-bid-source | sha256sum --check'
-ExecStart=/bin/chmod +x /usr/bin/rbuilder-bidding /usr/bin/top-bid-source
+ExecStart=/bin/chmod +x /usr/bin/rbuilder-bidding
 RemainAfterExit=yes
