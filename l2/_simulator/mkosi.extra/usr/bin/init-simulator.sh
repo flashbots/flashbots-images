@@ -2,13 +2,20 @@
 
 set -eu
 
-mkdir -p /home/simulator
-chown -R simulator:optimism /home/simulator
-chmod 0750 /home/simulator
+if [ ! -d /home/simulator ]; then
+  mkdir -p /home/simulator
+  chown -R simulator:optimism /home/simulator
+  chmod 0750 /home/simulator
+fi
 
 if [ ! -d /var/opt/optimism/simulator ]; then
-  mkdir -p /var/opt/optimism/simulator
-  chown simulator:optimism /var/opt/optimism/simulator
+  if [ -d /var/opt/optimism/rbuilder ]; then
+    mv /var/opt/optimism/rbuilder /var/opt/optimism/simulator
+  else
+    mkdir -p /var/opt/optimism/simulator
+  fi
+
+  chown -R simulator:optimism /var/opt/optimism/simulator
   chmod 0750 /var/opt/optimism/simulator
 fi
 

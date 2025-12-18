@@ -1,0 +1,25 @@
+[Unit]
+Description=Blockchain node healthchecker
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=node-healthchecker
+User=unichain-builder
+Group=optimism
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+ExecStart=/usr/bin/node-healthchecker serve \
+    --healthcheck-block-age-threshold 10s \
+    --healthcheck-timeout 500ms \
+    --healthcheck-reth-base-url http://127.0.0.1:18645 \
+    --healthcheck-unconditional-fail-duration 1m \
+    --http-status-warning 200 \
+    --server-listen-address 0.0.0.0:8080
+
+[Install]
+WantedBy=default.target
