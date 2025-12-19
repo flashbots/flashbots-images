@@ -26,13 +26,14 @@ make_git_package() {
     set -x
 
     # Get the git reference
-    local git_describe=$( git -C "$build_dir" describe --tags --always )
+    local git_describe=$( git -C "$build_dir" describe --always --long --tags )
 
     local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}"
 
     # Use cached artifacts if available
     if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
         echo "Using cached artifacts for $package version $version"
+        echo "| \`$package\` | \`$version\` (\`$git_describe\`) | reused from cache |" >> $BUILDDIR/manifest.md
         for artifact_map in "${@:5}"; do
             local src="${artifact_map%%:*}"
             local dest="${artifact_map#*:}"
@@ -74,4 +75,6 @@ make_git_package() {
             cp "$build_dir/$src" "$cache_dir/$src"
         fi
     done
+
+    echo "| \`$package\` | \`$version\` (\`$git_describe\`) | built |" >> $BUILDDIR/manifest.md
 }
