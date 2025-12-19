@@ -45,15 +45,15 @@ ExecStart=/usr/bin/simulator node \
     --chain '(( $service.network_name ))' \
     ((- end ))(( end ))
     --color 'never' \
-    ((- if .Data.data.feat_clickhouse ))(( if .Data.data.feat_clickhouse | parseBool ))
-    ((- if .Data.data.feat_clickhouse_database ))
-    --clickhouse.database '(( .Data.data.feat_clickhouse_database ))' \
+    ((- if $service.feat_clickhouse ))(( if $service.feat_clickhouse | parseBool ))
+    ((- if $service.feat_clickhouse_database ))
+    --clickhouse.database '(( $service.feat_clickhouse_database ))' \
     ((- end ))
-    ((- if .Data.data.feat_clickhouse_url ))
-    --clickhouse.url '(( .Data.data.feat_clickhouse_url ))' \
+    ((- if $service.feat_clickhouse_url ))
+    --clickhouse.url '(( $service.feat_clickhouse_url ))' \
     ((- end ))
-    ((- if .Data.data.feat_clickhouse_user ))
-    --clickhouse.user '(( .Data.data.feat_clickhouse_user ))' \
+    ((- if $service.feat_clickhouse_user ))
+    --clickhouse.user '(( $service.feat_clickhouse_user ))' \
     ((- end ))
     ((- end ))(( end ))
     --datadir '/var/opt/optimism/simulator' \
