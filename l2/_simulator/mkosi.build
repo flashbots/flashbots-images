@@ -13,6 +13,13 @@ TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r '.tdx_quote_provider.git_reference' 
 source scripts/make_git_package.sh
 source scripts/build_rust_package.sh
 
+export CARGO_HOME="/cargo"
+export RUSTUP_HOME="/rustup"
+export PATH="$CARGO_HOME/bin:$PATH"
+RUST_VERSION=$(mkosi-chroot yq -r '.rust.version' < "$ENV_YAML")
+mkosi-chroot rustup toolchain install $RUST_VERSION
+mkosi-chroot rustup default $RUST_VERSION
+
 # build simulator
 
 build_rust_package \
