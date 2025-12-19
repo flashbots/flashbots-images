@@ -20,6 +20,7 @@ build_rust_package \
     "${OP_RBUILDER_REF}" \
     "https://github.com/flashbots/op-rbuilder.git" \
     "" "" "-g"
+chmod +x $DESTDIR/usr/bin/op-rbuilder
 
 # build tdx-quote-provider
 
@@ -28,6 +29,7 @@ build_rust_package \
     "${TDX_QUOTE_PROVIDER_REF}" \
     "https://github.com/flashbots/op-rbuilder.git" \
     "" "" "-g"
+chmod +x $DESTDIR/usr/bin/tdx-quote-provider
 
 # build rproxy
 

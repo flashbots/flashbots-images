@@ -20,6 +20,7 @@ build_rust_package \
     "${SIMULATOR_REF}" \
     "https://github.com/flashbots/simulator.git" \
     "" "" "-g"
+chmod +x $DESTDIR/usr/bin/simulator
 
 # build rproxy
 

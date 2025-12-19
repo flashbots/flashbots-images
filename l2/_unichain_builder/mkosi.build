@@ -27,6 +27,7 @@ build_rust_package \
     "${UNICHAIN_BUILDER_REF}" \
     "https://github.com/flashbots/unichain-builder.git" \
     "" "" "-g"
+chmod +x $DESTDIR/usr/bin/unichain-builder
 
 # build tdx-quote-provider
 
@@ -35,6 +36,7 @@ build_rust_package \
     "${TDX_QUOTE_PROVIDER_REF}" \
     "https://github.com/flashbots/op-rbuilder.git" \
     "" "" "-g"
+chmod +x $DESTDIR/usr/bin/tdx-quote-provider
 
 # build rproxy
 
