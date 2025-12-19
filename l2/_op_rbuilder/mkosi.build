@@ -4,62 +4,48 @@ set -euxo pipefail
 
 ENV_YAML="$SRCDIR/l2/_op_rbuilder/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
 
-OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
-TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
 BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
+OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
+TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
 
 source scripts/make_git_package.sh
 source scripts/build_rust_package.sh
 
 # build op-rbuilder
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/op-rbuilder" ]; then
-    echo "Using pre-built op-rbuilder binary"
-else
-    build_rust_package \
-        "op-rbuilder" \
-        "${OP_RBUILDER_REF}" \
-        "https://github.com/flashbots/op-rbuilder.git" \
-        "" "" "-g"
-fi
+build_rust_package \
+    "op-rbuilder" \
+    "${OP_RBUILDER_REF}" \
+    "https://github.com/flashbots/op-rbuilder.git" \
+    "" "" "-g"
+chmod +x $DESTDIR/usr/bin/op-rbuilder
 
 # build tdx-quote-provider
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/tdx-quote-provider" ]; then
-    echo "Using pre-built tdx-quote-provider binary"
-else
-    build_rust_package \
-        "tdx-quote-provider" \
-        "${TDX_QUOTE_PROVIDER_REF}" \
-        "https://github.com/flashbots/op-rbuilder.git" \
-        "" "" "-g"
-fi
+build_rust_package \
+    "tdx-quote-provider" \
+    "${TDX_QUOTE_PROVIDER_REF}" \
+    "https://github.com/flashbots/op-rbuilder.git" \
+    "" "" "-g"
+chmod +x $DESTDIR/usr/bin/tdx-quote-provider
 
 # build bproxy
 
-if [ -f "l2/_op_rbuilder/mkosi.extra/usr/bin/bproxy" ]; then
-    echo "Using pre-built bproxy binary"
-else
-    make_git_package \
-        "bproxy" \
-        "${BPROXY_REF}" \
-        "https://github.com/flashbots/bproxy.git" \
-        'make build' \
-        "bin/bproxy:/usr/bin/bproxy"
-    chmod +x $DESTDIR/usr/bin/bproxy
-fi
+make_git_package \
+    "bproxy" \
+    "${BPROXY_REF}" \
+    "https://github.com/flashbots/bproxy.git" \
+    'make build' \
+    "bin/bproxy:/usr/bin/bproxy"
+chmod +x $DESTDIR/usr/bin/bproxy
 
 # build node-healthchecker
 
-if [ -f "l2/mkosi.extra/usr/bin/node-healthchecker" ]; then
-    echo "Using pre-built node-healthchecker binary"
-else
-    make_git_package \
-        "node-healthchecker" \
-        "${NODE_HEALTHCHECKER_REF}" \
-        "https://github.com/flashbots/node-healthchecker.git" \
-        'go build -trimpath -ldflags "-s -w -X main.version=${NODE_HEALTHCHECKER_REF} -buildid=" -o ./bin/node-healthchecker github.com/flashbots/node-healthchecker/cmd' \
-        "bin/node-healthchecker:/usr/bin/node-healthchecker"
-    chmod +x $DESTDIR/usr/bin/node-healthchecker
-fi
+make_git_package \
+    "node-healthchecker" \
+    "${NODE_HEALTHCHECKER_REF}" \
+    "https://github.com/flashbots/node-healthchecker.git" \
+    'go build -trimpath -ldflags "-s -w -X main.version=${NODE_HEALTHCHECKER_REF} -buildid=" -o ./bin/node-healthchecker github.com/flashbots/node-healthchecker/cmd' \
+    "bin/node-healthchecker:/usr/bin/node-healthchecker"
+chmod +x $DESTDIR/usr/bin/node-healthchecker

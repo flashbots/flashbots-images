@@ -56,6 +56,7 @@ make_git_package \
     "out/libexec:/opt/google-cloud-ops-agent/libexec" \
     "systemd/google-cloud-ops-agent-fluent-bit.service:/usr/lib/systemd/system/google-cloud-ops-agent-fluent-bit.service" \
     "systemd/google-cloud-ops-agent.service:/usr/lib/systemd/system/google-cloud-ops-agent.service"
+chmod +x $DESTDIR/opt/google-cloud-ops-agent/libexec/*
 mkdir -p "$DESTDIR/opt/google-cloud-ops-agent/subagents"
 ln -s /opt/fluent-bit "$DESTDIR/opt/google-cloud-ops-agent/subagents/fluent-bit"
 sed -i 's|@PREFIX@|/opt/google-cloud-ops-agent|g; s|@SYSCONFDIR@|/etc|g' "$DESTDIR/usr/lib/systemd/system/google-cloud-ops-agent"*.service
