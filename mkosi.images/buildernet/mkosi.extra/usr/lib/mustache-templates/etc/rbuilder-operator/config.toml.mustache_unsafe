@@ -46,6 +46,7 @@ password = "{{rbuilder.clickhouse_password}}"
 disk_database_path = "/persistent/rbuilder/failed_clickhouse.db"
 disk_max_size_mb = 2000
 memory_max_size_mb = 1024
+builder_name = "{{instance_name}}"
 
 {{{rbuilder.builders}}}
 
