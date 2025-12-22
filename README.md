@@ -13,11 +13,11 @@ mkosi -I buildernet.conf
 # What is this?
 This repository contains source code and configuration files for building Linux VM images for BuilderNet using [`mkosi`](https://github.com/systemd/mkosi).
 
-The configuration supports building multiple flavors of the image for different platforms: Azure, GCP, and bare metal (see `mkosi.images` directory).
+The configuration supports building multiple flavors of the image for different platforms: Azure, GCP, and QEMU (see `mkosi.images` directory).
 
 The entrypoint for the build is the main configuration file `buildernet.conf`. It defines basic parameters shared between the images. Each individual image may extend and override the main configuration (see [`mkosi` manual](https://github.com/systemd/mkosi/blob/main/mkosi/resources/man/mkosi.1.md#building-multiple-images)).
 
-Final images depend on the successful build of the intermediate images. All of Azure, GCP, and bare metal images depend on `buildernet` image which in turn depends on `base` image.
+Final images depend on the successful build of the intermediate images. All of Azure, GCP, and QEMU images depend on `buildernet` image which in turn depends on `base` image.
 
 BuilderNet images use Debian Trixie as a base. The images have low footprint and designed to be run fully in memory. One can still attach a persistent disk if needed (expected to mount at `/var/lib/persistent`).
 
@@ -28,7 +28,7 @@ We build a custom Linux kernel using Debian's source kernel package with a bunch
 ## Base image
 Located in `mkosi.images/base` is the base intermediate image that is shared between all downstream images.
 
-This image builds a custom Linux kernel with configuration and patches overrides. We build two flavors of the same kernel: for the cloud and bare-metal. It uses `linux-config` Debian package for the base kernel configuration: `config.amd64_none_cloud-amd64` for the cloud version and `config.amd64_none_amd64` for bare metal.
+This image builds a custom Linux kernel with configuration and patches overrides. The kernel uses `linux-config` Debian package for the base kernel configuration: (`config.amd64_none_cloud-amd64` configuration file)
 
 We further tweak the base config by disabling unnecessary modules/drivers (see `kernel/configs`). All the configuration fragments are merged and applied on top the default configuration.
 
@@ -41,8 +41,8 @@ If you want to produce a new fragment you can use the tools that come with the L
 ./scripts/kconfig/merge_config.sh -O . <path to config.amd64_none_cloud-amd64> <path to flashbots-images/mkosi.images/base/kernel/configs/*>
 ```
 This will produce a file `.config` that you can tweak using `menuconfig` (e.g., `make nconfig` for the ncurses menuconfig)
-5. After you're done with tweaking, save the config under the new name, e.g., `.config_new`
-6. Produce a fragment by diff'ing the configs
+1. After you're done with tweaking, save the config under the new name, e.g., `.config_new`
+2. Produce a fragment by diff'ing the configs
 ```
 ./scripts/diffconfig -m .config .config_new > <path to flashbots-images/mkosi.images/base/kernel/configs/new-fragment>
 ```

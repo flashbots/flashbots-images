@@ -78,7 +78,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd mkosi.output
-          sha256sum buildernet-*.{efi,tar.gz,vhd} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
+          sha256sum buildernet-*.{efi,tar.gz,vhd,qcow2} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
 
       - name: Sign artifacts
         env:
@@ -94,6 +94,6 @@ jobs:
       - name: Upload to R2
         run: |
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
-            --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd,minisig,sha256}" \
+            --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd,qcow2,minisig,sha256}" \
             mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#buildernet-}/
 
