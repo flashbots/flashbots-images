@@ -74,18 +74,18 @@ jobs:
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # - name: Build image
-      #   run: |
-      #     umask 022
-      #     mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
-
-
-      - name: Create mock paths to test cache
+      - name: Build image
         run: |
-          mkdir -p mkosi.builddir mkosi.cache mkosi.tools
-          echo "mock data" | tee mkosi.builddir/mockfile.txt
-          echo "mock data" | tee mkosi.cache/mockfile.txt
-          echo "mock data" | tee mkosi.tools/mockfile.txt
+          umask 022
+          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
+
+
+      # - name: Create mock paths to test cache
+      #   run: |
+      #     mkdir -p mkosi.builddir mkosi.cache mkosi.tools
+      #     echo "mock data" | tee mkosi.builddir/mockfile.txt
+      #     echo "mock data" | tee mkosi.cache/mockfile.txt
+      #     echo "mock data" | tee mkosi.tools/mockfile.txt
 
       - name: Prepare cache
         run: |
