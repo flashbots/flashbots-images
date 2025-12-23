@@ -19,6 +19,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y \
             debian-archive-keyring \
             minisign\
+            pigz \
             rclone
           pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
@@ -68,7 +69,7 @@ jobs:
       - name: Extract cache
         run: |
           if [[ -f cache.tar.gz ]]; then
-            sudo tar -xzf cache.tar.gz
+            unpigz -c cache.tar.gz | sudo tar -xf -
             sudo rm -f cache.tar.gz
           fi
 
@@ -91,7 +92,7 @@ jobs:
       - name: Prepare cache
         run: |
           sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -czf cache.tar.gz -T - 2>/dev/null || true
+            sudo tar --null -cf - -T - 2>/dev/null | pigz > cache.tar.gz
 
       - name: Upload cache
         run: |
