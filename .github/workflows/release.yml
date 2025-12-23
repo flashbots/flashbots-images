@@ -13,30 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Restore cache
-        id: restore-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            cache.tar
-          key: mkosi-buildernet-
-
-      - name: Extract cache
-        run: |
-          if [[ -f cache.tar ]]; then
-            sudo tar -xf cache.tar
-            sudo rm -f cache.tar
-          fi
-
       - name: Install tools
         run: |
           sudo apt-get update && sudo apt-get install -y \
             debian-archive-keyring \
             minisign\
+            pigz \
             rclone
           pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
-      - name: Create rclone config
+      - name: Create rclone config (artifacts upload)
         env:
           R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
           R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
@@ -55,6 +41,37 @@ jobs:
           acl = private
           EOF
 
+      - name: Create rclone config (cache)
+        env:
+          R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_ENDPOINT: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ENDPOINT }}
+        run: |
+          cat << EOF >> ~/.config/rclone/rclone.conf
+          [r2-mkosi-buildernet-cache]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = $R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY
+          secret_access_key = $R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY
+          region = auto
+          endpoint = $R2_MKOSI_BUILDERNET_CACHE_ENDPOINT
+          acl = private
+          EOF
+
+      - name: Download cache
+        run: |
+          rclone copy -P --retries 3 --retries-sleep 10s \
+            --transfers=2 --multi-thread-streams 10 --contimeout=1m \
+            r2-mkosi-buildernet-cache:mkosi-buildernet-cache/cache.tar.gz .
+
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar.gz ]]; then
+            unpigz -c cache.tar.gz | sudo tar -xf -
+            sudo rm -f cache.tar.gz
+          fi
+
       - name: Enable user namespaces
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -67,13 +84,13 @@ jobs:
       - name: Prepare cache
         run: |
           sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+            sudo tar --null -cf - -T - 2>/dev/null | pigz > cache.tar.gz
 
-      - uses: actions/cache/save@v4
-        id: save-cache
-        with:
-          path: cache.tar
-          key: mkosi-buildernet-${{ github.run_id }}
+      - name: Upload cache
+        run: |
+          rclone copy -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
+            --transfers=2 --s3-upload-concurrency=10 \
+            cache.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/
 
       - name: Generate SHA256 checksums
         run: |
