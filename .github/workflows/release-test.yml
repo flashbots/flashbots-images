@@ -1,0 +1,130 @@
+name: release-test
+
+on:
+  push:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: build image
+    runs-on: warp-ubuntu-latest-x64-32x
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker image name
+        run: |
+          echo "CACHE_IMAGE=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')/mkosi-buildernet-cache:latest" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore cache from GHCR
+        run: |
+          echo "Restoring cache from $CACHE_IMAGE..."
+          if docker pull $CACHE_IMAGE; then
+            container_id=$(docker create $CACHE_IMAGE)
+            docker cp $container_id:/cache.tar .
+            docker rm $container_id
+          else
+            echo "No cache found or failed to pull."
+          fi
+
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar ]]; then
+            sudo tar -xf cache.tar
+            sudo rm -f cache.tar
+          fi
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            debian-archive-keyring \
+            minisign\
+            rclone
+          pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+      - name: Create rclone config
+        env:
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat << EOF > ~/.config/rclone/rclone.conf
+          [r2-flashbots-public-artifacts]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY
+          secret_access_key = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY
+          region = auto
+          endpoint = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT
+          acl = private
+          EOF
+
+      - name: Enable user namespaces
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # - name: Build image
+      #   run: |
+      #     umask 022
+      #     mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
+
+
+      - name: Create mock paths to test cache
+        run: |
+          mkdir -p mkosi.builddir mkosi.cache mkosi.tools
+          echo "mock data" | tee mkosi.builddir/mockfile.txt
+          echo "mock data" | tee mkosi.cache/mockfile.txt
+          echo "mock data" | tee mkosi.tools/mockfile.txt
+
+      - name: Prepare cache
+        run: |
+          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+
+      - name: Save cache to GHCR
+        run: |
+          if [[ -f cache.tar ]]; then
+            echo "Saving cache to $CACHE_IMAGE..."
+            # Ensure we can read the file
+            sudo chown $(id -u):$(id -g) cache.tar
+
+            echo "FROM scratch" > Dockerfile.cache
+            echo "COPY cache.tar /" >> Dockerfile.cache
+
+            docker build -f Dockerfile.cache -t $CACHE_IMAGE .
+            docker push $CACHE_IMAGE
+          fi
+
+      # - name: Generate SHA256 checksums
+      #   run: |
+      #     cd mkosi.output
+      #     sha256sum buildernet-*.{efi,tar.gz,vhd,qcow2} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
+
+      # - name: Sign artifacts
+      #   env:
+      #     MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+      #     MINISIGN_SECRET_KEY_PASSWORD: ${{ secrets.MINISIGN_SECRET_KEY_PASSWORD }}
+      #   run: |
+      #     mkdir -p ~/.minisign
+      #     echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
+      #     chmod 600 ~/.minisign/minisign.key
+      #     echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256 \
+      #       -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+      # - name: Upload to R2
+      #   run: |
+      #     rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
+      #       --s3-upload-concurrency=8 --transfers=8 --include "buildernet-*.{efi,tar.gz,vhd,qcow2,minisig,sha256}" \
+      #       mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/buildernet-images/${GITHUB_REF_NAME#buildernet-}/
+
