@@ -16,7 +16,7 @@ for var in "${!BUILDERNET_@}"; do
       replace_underscore_template "$BUILDROOT/etc/systemd/system/persistent-setup.service" "${!var}"
       ;;
     BUILDERNET_BUILDERHUB_URL)
-      replace_underscore_template "$BUILDROOT/etc/systemd/system/cvm-reverse-proxy-client.service" "${!var}"
+      replace_underscore_template "$BUILDROOT/etc/systemd/system/attested-tls-proxy-client.service" "${!var}"
       ;;
     BUILDERNET_SSH_PUBLIC_KEY)
       replace_underscore_template "$BUILDROOT/home/bnet/.ssh/authorized_keys" "${!var}"
