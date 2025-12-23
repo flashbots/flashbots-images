@@ -14,37 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Docker image name
-        run: |
-          echo "CACHE_IMAGE=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')/mkosi-buildernet-cache:latest" >> $GITHUB_ENV
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Restore cache from GHCR
-        run: |
-          echo "Restoring cache from $CACHE_IMAGE..."
-          if docker pull $CACHE_IMAGE; then
-            # Provide a dummy command (/nop) since scratch has no default command.
-            # We don't start the container, so the command doesn't need to exist.
-            container_id=$(docker create $CACHE_IMAGE /nop)
-            docker cp $container_id:/cache.tar .
-            docker rm $container_id
-          else
-            echo "No cache found or failed to pull."
-          fi
-
-      - name: Extract cache
-        run: |
-          if [[ -f cache.tar ]]; then
-            sudo tar -xf cache.tar
-            sudo rm -f cache.tar
-          fi
-
       - name: Install tools
         run: |
           sudo apt-get update && sudo apt-get install -y \
@@ -53,7 +22,7 @@ jobs:
             rclone
           pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
 
-      - name: Create rclone config
+      - name: Create rclone config (artifacts upload)
         env:
           R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
           R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
@@ -72,36 +41,63 @@ jobs:
           acl = private
           EOF
 
+      - name: Create rclone config (cache)
+        env:
+          R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_ENDPOINT: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ENDPOINT }}
+        run: |
+          cat << EOF >> ~/.config/rclone/rclone.conf
+          [r2-mkosi-buildernet-cache]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = $R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY
+          secret_access_key = $R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY
+          region = auto
+          endpoint = $R2_MKOSI_BUILDERNET_CACHE_ENDPOINT
+          acl = private
+          EOF
+
+      - name: Download cache
+        run: |
+          rclone copy -P --retries 3 --retries-sleep 10s \
+            --transfers=2 --multi-thread-streams 10 --contimeout=1m \
+            r2-mkosi-buildernet-cache:mkosi-buildernet-cache/cache.tar.gz .
+
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar.gz ]]; then
+            sudo tar -xzf cache.tar.gz
+            sudo rm -f cache.tar.gz
+          fi
+
       - name: Enable user namespaces
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Build image
-        run: |
-          umask 022
-          mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
-
-
-      # - name: Create mock paths to test cache
+      # - name: Build image
       #   run: |
-      #     mkdir -p mkosi.builddir mkosi.cache mkosi.tools
-      #     echo "mock data" | tee mkosi.builddir/mockfile.txt
-      #     echo "mock data" | tee mkosi.cache/mockfile.txt
+      #     umask 022
+      #     mkosi --force -I buildernet.conf --image-version=${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}
+
+
+      - name: Create mock paths to test cache
+        run: |
+          mkdir -p mkosi.builddir mkosi.cache mkosi.tools
+          echo "mock data" | tee mkosi.builddir/mockfile.txt
+          echo "mock data" | tee mkosi.cache/mockfile.txt
 
       - name: Prepare cache
         run: |
           sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -rf cache.tar -T - 2>/dev/null || true
+            sudo tar --null -rzf cache.tar.gz -T - 2>/dev/null || true
 
-      - name: Save cache to GHCR
+      - name: Upload cache
         run: |
-          if [[ -f cache.tar ]]; then
-            echo "Saving cache to $CACHE_IMAGE..."
-            sudo chown $(id -u):$(id -g) cache.tar
-            # wrap cache.tar in another tar stream so it appears as a file inside the image.
-            tar -cf - cache.tar | docker import -c 'CMD ["/nop"]' - $CACHE_IMAGE
-            docker push $CACHE_IMAGE
-          fi
+          rclone copy -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
+            --transfers=2 --s3-upload-concurrency=10 \
+            cache.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/
 
       # - name: Generate SHA256 checksums
       #   run: |
