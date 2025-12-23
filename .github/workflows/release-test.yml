@@ -84,14 +84,14 @@ jobs:
 
       - name: Create mock paths to test cache
         run: |
-          mkdir -p mkosi.builddir mkosi.cache mkosi.tools
+          mkdir -p mkosi.builddir mkosi.cache
           echo "mock data" | tee mkosi.builddir/mockfile.txt
           echo "mock data" | tee mkosi.cache/mockfile.txt
 
       - name: Prepare cache
         run: |
           sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -rzf cache.tar.gz -T - 2>/dev/null || true
+            sudo tar --null -czf cache.tar.gz -T - 2>/dev/null || true
 
       - name: Upload cache
         run: |
