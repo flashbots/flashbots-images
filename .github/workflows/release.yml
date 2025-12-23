@@ -19,7 +19,8 @@ jobs:
         with:
           path: |
             cache.tar
-          key: mkosi-buildernet-
+          key: mkosi-buildernet-${{ github.run_id }}
+          restore-keys: mkosi-buildernet-
 
       - name: Extract cache
         run: |
