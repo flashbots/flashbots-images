@@ -87,7 +87,6 @@ jobs:
       #     mkdir -p mkosi.builddir mkosi.cache mkosi.tools
       #     echo "mock data" | tee mkosi.builddir/mockfile.txt
       #     echo "mock data" | tee mkosi.cache/mockfile.txt
-      #     echo "mock data" | tee mkosi.tools/mockfile.txt
 
       - name: Prepare cache
         run: |
@@ -98,13 +97,9 @@ jobs:
         run: |
           if [[ -f cache.tar ]]; then
             echo "Saving cache to $CACHE_IMAGE..."
-            # Ensure we can read the file
             sudo chown $(id -u):$(id -g) cache.tar
-
-            echo "FROM scratch" > Dockerfile.cache
-            echo "COPY cache.tar /" >> Dockerfile.cache
-
-            docker build -f Dockerfile.cache -t $CACHE_IMAGE .
+            # wrap cache.tar in another tar stream so it appears as a file inside the image.
+            tar -cf - cache.tar | docker import -c 'CMD ["/nop"]' - $CACHE_IMAGE
             docker push $CACHE_IMAGE
           fi
 
