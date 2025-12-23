@@ -29,7 +29,9 @@ jobs:
         run: |
           echo "Restoring cache from $CACHE_IMAGE..."
           if docker pull $CACHE_IMAGE; then
-            container_id=$(docker create $CACHE_IMAGE)
+            # Provide a dummy command (/nop) since scratch has no default command.
+            # We don't start the container, so the command doesn't need to exist.
+            container_id=$(docker create $CACHE_IMAGE /nop)
             docker cp $container_id:/cache.tar .
             docker rm $container_id
           else
