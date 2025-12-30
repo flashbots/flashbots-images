@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Fetches devnet configuration files from playground HTTP service.
+# Base URL is injected via mustache from builderhub config.
+#
+
+set -eu -o pipefail
+
+source /usr/bin/helper-functions.sh
+
+# Base URL from BuilderHub config (injected via mustache)
+BASE_URL="{{{playground.artifacts_url}}}"
+
+# Target directory
+PLAYGROUND_DIR="/var/lib/persistent/playground"
+
+# File mappings: source_path -> target_path
+# Source paths are relative to BASE_URL
+declare -A FILES=(
+    ["genesis.json"]="${PLAYGROUND_DIR}/genesis.json"
+    ["testnet/config.yaml"]="${PLAYGROUND_DIR}/testnet/config.yaml"
+    ["testnet/genesis.ssz"]="${PLAYGROUND_DIR}/testnet/genesis.ssz"
+    ["testnet/genesis_validators_root.txt"]="${PLAYGROUND_DIR}/testnet/genesis_validators_root.txt"
+    ["testnet/deploy_block.txt"]="${PLAYGROUND_DIR}/testnet/deploy_block.txt"
+    ["testnet/deposit_contract_block.txt"]="${PLAYGROUND_DIR}/testnet/deposit_contract_block.txt"
+    ["testnet/boot_enr.yaml"]="${PLAYGROUND_DIR}/testnet/boot_enr.yaml"
+)
+
+log "playground-config-fetch: Starting download from ${BASE_URL}"
+
+# Create directories
+mkdir -p "${PLAYGROUND_DIR}/testnet"
+
+# Download each file
+for src in "${!FILES[@]}"; do
+    target="${FILES[$src]}"
+    url="${BASE_URL}/${src}"
+
+    log "playground-config-fetch: Downloading ${url} -> ${target}"
+
+    if ! curl -fsSL --retry 5 --retry-delay 2 -o "${target}" "${url}"; then
+        log "playground-config-fetch: ERROR: Failed to download ${url}"
+        exit 1
+    fi
+done
+
+log "playground-config-fetch: Successfully downloaded all config files"

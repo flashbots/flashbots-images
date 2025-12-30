@@ -1,0 +1,22 @@
+[Service]
+# Clear the default ExecStart and use playground testnet config (no checkpoint sync)
+ExecStart=
+ExecStart=/usr/bin/lighthouse bn \
+    --testnet-dir /var/lib/persistent/playground/testnet \
+    --execution-endpoint http://localhost:8551 \
+    --execution-jwt /run/eth-jwt/jwt \
+    --suggested-fee-recipient 0x690B9A9E9aa1C9dB991C7721a92d351Db4FaC990 \
+    --always-prepare-payload \
+    --prepare-payload-lookahead 8000 \
+    --http \
+    --http-port 3500 \
+    --http-address 127.0.0.1 \
+    --port 9000 \
+    --metrics \
+    --metrics-address 127.0.0.1 \
+    --metrics-port 5054 \
+    --datadir %S/persistent/lighthouse \
+    --enable-private-discovery \
+    --disable-peer-scoring \
+    --disable-packet-filter \
+    --libp2p-addresses "{{{playground.cl_libp2p_addr}}}"
