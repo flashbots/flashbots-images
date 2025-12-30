@@ -1,0 +1,21 @@
+# Playground profile - disables services requiring external dependencies
+#
+# Services can be enabled at runtime with:
+#   systemctl enable --now <service>.service
+
+# Downloads Reth state snapshot from S3
+disable reth-sync.service
+
+# Ships logs to CloudWatch, metrics to Prometheus
+disable vector.service
+
+# ACME services
+# - Issues TLS certs via Let's Encrypt
+disable acme-le.service
+# - Renews Let's Encrypt TLS certs
+disable acme-le-renewal.service
+# - Metrics exporter
+disable acme-le-textfile-collector.service
+
+# Rebalances ETH across builder wallets
+disable rbuilder-rebalancer.service
