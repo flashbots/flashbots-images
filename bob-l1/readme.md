@@ -62,23 +62,23 @@ Firewall Rules
 
 **<u>Host Network Namespace iptables</u>**
 
-| Port | Rule | Source | Destination | Protocol | Production Mode | Maintenance Mode |
-|------|------|--------|-------------|----------|-----------------|------------------|
-| 8080 | Input + Output | SSH Registration | Host | TCP | DISABLED | ENABLED |
-| 22 | Input | Control Plane: Dropbear SSH | Host | TCP | ENABLED | ENABLED |
-| 10022 | Input | Data Plane: Open SSH | Podman | TCP | DISABLED | ENABLED |
-| 27017 | Input | Searcher Input Channel | Podman | UDP | ENABLED | ENABLED |
-| 30303 | Input + Output | Execution Client P2P | Podman | TCP + UDP | DISABLED | ENABLED |
-| 9000 | Input + Output | Consensus Client P2P | Podman | TCP + UDP | ENABLED | ENABLED |
-| 443 | Output **IP WHITELISTED** | Flashbots Protect Tx Stream | Podman | TCP | ENABLED | DISABLED |
-| 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman | TCP | ENABLED | DISABLED |
-| 443 | Output **IP WHITELISTED** | Flashbots Bundle RPC | Flashbots Bundle RPC | TCP | ENABLED | ENABLED |
-| 1338 | Output **IP WHITELISTED** | Titan Bundle RPC | Titan Bundle RPC | TCP | ENABLED | ENABLED |
-| 54 | Output | DNS | DNS | TCP + UDP | DISABLED | ENABLED |
-| 80 | Output | HTTP | HTTP | TCP | DISABLED | ENABLED |
-| 443 | Output | HTTPS | HTTPS | TCP | DISABLED | ENABLED |
-| 8745 | Input | CVM-Reverse-Proxy | Host | TCP | ENABLED | ENABLED |
-| 123 | Output | NTP | Host | UDP | ENABLED | ENABLED |
+| Port  | Rule                      | Source                          | Destination          | Protocol  | Production Mode | Maintenance Mode |
+|-------|---------------------------|---------------------------------|----------------------|-----------|-----------------|------------------|
+| 8080  | Input + Output            | SSH Registration                | Host                 | TCP       | DISABLED        | ENABLED          |
+| 22    | Input                     | Control Plane: Dropbear SSH     | Host                 | TCP       | ENABLED         | ENABLED          |
+| 10022 | Input                     | Data Plane: Open SSH            | Podman               | TCP       | DISABLED        | ENABLED          |
+| 27017 | Input                     | Searcher Input Channel          | Podman               | UDP       | ENABLED         | ENABLED          |
+| 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
+| 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
+| 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
+| 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman               | TCP       | ENABLED         | DISABLED         |
+| 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
+| 1338  | Output **IP WHITELISTED** | Titan Bundle RPC                | Titan Bundle RPC     | TCP       | ENABLED         | ENABLED          |
+| 54    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
+| 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
+| 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
+| 8745  | Input                     | CVM-Reverse-Proxy               | Host                 | TCP       | ENABLED         | ENABLED          |
+| 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
 
