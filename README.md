@@ -30,9 +30,19 @@ In order to build images, you'll need to install [Lima](https://lima-vm.io/) for
 
 ### Building Images
 
+1. Edit `lima.yaml` to specify an absolute mount path:
+
+```bash
+# lima.yaml
+mounts:
+  - location: "/path/to/your/repo"
+```
+
+2. Build the image:
+
 ```bash
 # Build the BOB (searcher sandbox) image
-make build IMAGE=bob
+make build IMAGE=bob-l1
 
 # Build the Buildernet image
 make build IMAGE=buildernet
@@ -41,7 +51,7 @@ make build IMAGE=buildernet
 make build IMAGE=l2-builder
 
 # Build with development tools
-make build-dev IMAGE=bob
+make build-dev IMAGE=bob-l1
 
 # View all available targets
 make help
@@ -137,13 +147,13 @@ This generates measurement files in the `build/` directory for attestation and v
 nix develop -c $SHELL
 
 # Build a specific image
-mkosi --force -I bob.conf
+mkosi --force -I bob-l1.conf
 mkosi --force -I buildernet.conf
 
 # Build with profiles
-mkosi --force -I bob.conf --profile=devtools
-mkosi --force -I bob.conf --profile=azure
-mkosi --force -I bob.conf --profile=azure,devtools
+mkosi --force -I bob-l1.conf --profile=devtools
+mkosi --force -I bob-l1.conf --profile=azure
+mkosi --force -I bob-l1.conf --profile=azure,devtools
 ```
 
 ### Troubleshooting
@@ -178,4 +188,4 @@ try to disable apparmor's restriction:
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
-- [BOB Module Guide](bob-common/readme.md) - Detailed documentation for the MEV searcher environment
+- [BOB Module Guide](bob-l1/README.md) - Detailed documentation for the MEV searcher environment
