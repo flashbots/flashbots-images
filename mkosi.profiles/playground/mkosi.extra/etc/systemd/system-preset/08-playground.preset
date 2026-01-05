@@ -6,24 +6,27 @@
 # Downloads Reth state snapshot from S3
 disable reth-sync.service
 
-# Issues TLS certs via Let's Encrypt
-disable acme-le.service
+# Ships logs to CloudWatch, metrics to Prometheus
+disable vector.service
 
-# Renews Let's Encrypt TLS certs
+# ACME services
+# - Issues TLS certs via Let's Encrypt
+disable acme-le.service
+# - Renews Let's Encrypt TLS certs
 disable acme-le-renewal.service
+# - Metrics exporter
+disable acme-le-textfile-collector.service
+
+# REST API for node operator management
+# Note: keep it enabled, and explore if playground cli can take advantage of it
+# disable operator-api.service
 
 # Fetches rbuilder-bidding from private GitHub
 # (static unit - no [Install] section, cannot be disabled via preset)
 # disable rbuilder-bidding-downloader.service
 
-# Ships logs to CloudWatch, metrics to Prometheus
-disable vector.service
-
 # Rebalances ETH across builder wallets
 disable rbuilder-rebalancer.service
-
-# REST API for node operator management
-disable operator-api.service
 
 # Watches external source, reloads rbuilder config
 disable config-watchdog.service
