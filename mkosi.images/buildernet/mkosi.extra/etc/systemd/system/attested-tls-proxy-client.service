@@ -1,6 +1,6 @@
 [Unit]
 DefaultDependencies=no
-Description=CVM Reverse Proxy client
+Description=Attested TLS Proxy client
 Wants=network-online.target
 After=network.target network-online.target
 
@@ -9,10 +9,11 @@ Type=exec
 DynamicUser=yes
 SupplementaryGroups=tss
 Environment=BUILDERNET_BUILDERHUB_URL=__BUILDERNET_BUILDERHUB_URL
-ExecStart=/usr/bin/cvm-reverse-proxy-client \
-  --listen-addr=localhost:7937 \
-  --target-addr=${BUILDERNET_BUILDERHUB_URL} \
-  --server-attestation-type none
+ExecStart=/usr/bin/attested-tls-proxy client \
+  --listen-addr 127.0.0.1:7937 \
+  --allowed-remote-attestation-type none \
+  --client-attestation-type auto \
+  ${BUILDERNET_BUILDERHUB_URL}
 Restart=on-failure
 
 [Install]
