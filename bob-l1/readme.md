@@ -533,6 +533,9 @@ ssh searcher@<machine ip> tail-the-logs
 
 # restart lighthouse on the host
 ssh searcher@<machine ip> restart-lighthouse
+
+# reboot the host machine
+ssh searcher@<machine ip> reboot
 ```
 
 The data plane is served on port 10022, where searchers can SSH inside their rootless podman container to configure their bot.
