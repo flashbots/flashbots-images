@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
 
     // If command == "reboot", reboot the host machine
     else if (strcmp(command, "reboot") == 0) {
-        execl("/usr/bin/sudo", "sudo", "/usr/bin/systemctl", "reboot", NULL);
+        execl("/usr/bin/sudo", "sudo", "/usr/sbin/reboot", NULL);
 
         perror("execl failed (reboot)");
         free(arg_copy);
