@@ -23,5 +23,5 @@ if [ -e /dev/disk/by-id/google-data ]; then
     echo "Device ${device} is already mounted, skipping..."
   fi
 else
-  echo "Directory /dev/disk/by-id/google-data doesn't exist, skipping..."
+  echo "/dev/disk/by-id/google-data doesn't exist, skipping..."
 fi

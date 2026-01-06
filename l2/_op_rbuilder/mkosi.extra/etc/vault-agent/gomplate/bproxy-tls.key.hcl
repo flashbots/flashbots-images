@@ -13,6 +13,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
+        chown -R op-rbuilder:optimism /etc/bproxy
         systemctl restart bproxy
       EOT
     ]
