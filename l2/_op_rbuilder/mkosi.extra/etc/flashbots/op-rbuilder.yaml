@@ -3,7 +3,7 @@ rust:
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
-  git_reference: d2ed7f7
+  git_reference: op-rbuilder/v0.2.14-dev.1
 rproxy:
   git_reference: v0.0.10-dev.7
 tdx_quote_provider:
