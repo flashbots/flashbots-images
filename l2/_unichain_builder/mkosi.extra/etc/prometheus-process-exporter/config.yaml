@@ -1,0 +1,13 @@
+process_names:
+  - name: bproxy
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*bproxy[-.0-9a-zA-Z]* '
+  - name: node-healthchecker
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*node-healthchecker[-.0-9a-zA-Z]* '
+  - name: unichain-builder
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*unichain-builder[-.0-9a-zA-Z]* '
+  - name: vault-agent
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*vault[-.0-9a-zA-Z]* '

@@ -1,0 +1,10 @@
+bproxy:
+  git_reference: v0.0.92-hf.3
+node_healthchecker:
+  git_reference: v0.1.11
+rust:
+  version: 1.91.1
+tdx_quote_provider:
+  git_reference: tdx-quote-provider/v0.1.0
+unichain_builder:
+  git_reference: v0.0.1-dev.1
