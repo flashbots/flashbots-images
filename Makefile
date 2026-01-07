@@ -1,8 +1,8 @@
 # Makefile for flashbots-images
 # Build VM images using mkosi
 #
-# Also:
-# - manages a Python virtual environment with a pinned version of mkosi.
+# NOTE: Current implementation uses venv with pip for dependency management.
+# TODO: Revisit tooling choice (pip vs uv vs nix) in future PR.
 
 .DEFAULT_GOAL := help
 
