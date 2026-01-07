@@ -21,4 +21,3 @@ rm -rf ${OUTPUTDIR}/esp
 
 cd ${OUTPUTDIR}
 qemu-img convert -f raw -O qcow2 ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.qcow2
-rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
