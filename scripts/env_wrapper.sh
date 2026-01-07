@@ -117,11 +117,17 @@ if should_use_lima; then
     lima_exec "cd ~/mnt && /home/debian/.nix-profile/bin/nix develop -c ${cmd[*]@Q}"
 
     if is_mkosi_cmd; then
-        lima_exec "mkdir -p ~/mnt/build; mv '$mkosi_output'/* ~/mnt/build/ || true"
+        files=$(lima_exec "ls -1 $mkosi_output 2>/dev/null" | tr -d '\r')
+        lima_exec "mkdir -p ~/mnt/build; mv '$mkosi_output'/* ~/mnt/build/" || true
+
+        for f in $files; do
+            ext=${f#*.*.}
+            [[ "$ext" != "$f" ]] && ln -sf "$f" "build/latest.$ext"
+        done
 
         echo "Check ./build/ directory for output files"
         echo
-        fi
+    fi
 
     echo "Note: Lima VM '$LIMA_VM' is still running. To stop it, run: limactl stop $LIMA_VM"
 else

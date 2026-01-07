@@ -82,7 +82,7 @@ This generates measurement files in the `build/` directory for attestation and v
     -nographic \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd \
     -drive file=/usr/share/edk2/x64/OVMF_VARS.4m.fd,if=pflash,format=raw \
-    -kernel build/tdx-debian.efi \
+    -kernel build/latest.efi \
     -netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::8080-:8080 \
     -device virtio-net-pci,netdev=net0 \
     -device virtio-scsi-pci,id=scsi0 \
@@ -99,7 +99,7 @@ This generates measurement files in the `build/` directory for attestation and v
     -cpu host,-kvm-steal-time,-kvmclock \
     -m 16384M \
     -nographic \
-    -kernel build/tdx-debian.efi \
+    -kernel build/latest.efi \
     # ... rest of options same as above
   ```
 
