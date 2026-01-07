@@ -13,8 +13,7 @@ def fetch_status(arch):
 
 def main():
     # Load manifest
-    manifest = next(Path("build").glob("*.manifest"))
-    with open(manifest) as f:
+    with open("build/latest.manifest") as f:
         packages = [p for p in json.load(f)["packages"] if p["type"] == "deb"]
     
     # Fetch status from Debian CI
