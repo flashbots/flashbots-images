@@ -22,7 +22,7 @@ mkdir "$BUILDROOT/etc/dropbear"
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
     network-setup.service \
-    logrotate.service \
+    logrotate.timer \
     delay-pipe.service \
     wait-for-key.service \
     searcher-firewall.service \
