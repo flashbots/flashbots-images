@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Enable systemd services
+
+mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
+mkosi-chroot systemctl unmask sys-kernel-config.mount
+for service in \
+    chrony.service \
+    sys-kernel-config.mount \
+    set-hostname.service
+do
+    mkosi-chroot systemctl enable "$service"
+    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+done
+
+if [ -f /etc/rsyslog.d/50-default.conf ]; then
+    sed -i 's/^.*\/var\/log\/syslog.*$/# &/' /etc/rsyslog.d/50-default.conf
+fi
+
+# Limit root filesystem size to 4GB
+
+mkosi-chroot sed -i '1a mount -o remount,size=4G /' /init
+
+# Remove automatically generated nvme data
+
+rm -rf "$BUILDROOT/etc/nvme/hostid" "$BUILDROOT/etc/nvme/hostnqn"

@@ -13,8 +13,7 @@ install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
 # Enable services
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
-    lighthouse.service \
-    openntpd.service
+    lighthouse.service
 do
     mkosi-chroot systemctl enable "$service"
     ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
