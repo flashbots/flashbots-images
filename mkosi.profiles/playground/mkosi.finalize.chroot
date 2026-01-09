@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+# Mask static units that cannot be disabled via preset
+# (units without [Install] section)
+
+# Fetches rbuilder-bidding from private GitHub
+# Failing to mask with systemctl mask --force
+# systemctl mask --force rbuilder-bidding-downloader.service
+# error: Failed to mask unit: File '/etc/systemd/system/rbuilder-bidding-downloader.service' already exists
+# Remove existing file first, then create mask symlink
+rm -f /etc/systemd/system/rbuilder-bidding-downloader.service
+ln -sf /dev/null /etc/systemd/system/rbuilder-bidding-downloader.service
