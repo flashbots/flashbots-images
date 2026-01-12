@@ -16,3 +16,4 @@ systemctl mask apt-daily.timer \
 chage --expiredate -1 config-watchdog
 chage --expiredate -1 operator-api
 chage --lastday 1 bnet
+chage --lastday 1 operator-api
