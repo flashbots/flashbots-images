@@ -18,19 +18,32 @@ build_rust_package() {
         return
     fi
 
+    # Clone the repository
+    local build_dir="$BUILDROOT/build/$package"
+    mkdir -p "$build_dir"
+    set +x
+    echo "Cloning ${git_url}"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}"
+    fi
+    git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
+        echo "Could not clone branch/tag, attempting to checkout the commit by sha"
+        git clone "$git_url" "$build_dir" && \
+        git -C "$build_dir" checkout "$version"
+    )
+    set -x
+
+    # Get the git reference
+    local git_describe=$( git -C "$build_dir" describe --always --long --tags )
+
     # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${version#${package}/}/${package}"
+    local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         echo "| \`$package\` | \`$version\` (\`$git_describe\`) | reused from cache |   |" >> $BUILDDIR/manifest.md
         cp "$cached_binary" "$dest_path"
         return
     fi
-
-    # Clone the repository
-    local build_dir="$BUILDROOT/build/$package"
-    mkdir -p "$build_dir"
-    git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
 
     # Define Rust flags for reproducibility
     local rustflags=(
