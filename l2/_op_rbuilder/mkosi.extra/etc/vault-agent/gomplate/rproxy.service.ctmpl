@@ -38,6 +38,8 @@ ExecStart=/usr/bin/rproxy \
     ((- end ))
     --authrpc-remove-backend-from-mirroring-peers \
     ((- end ))
+    --circuit-breaker-reset-continuously \
+    --circuit-breaker-url 'http://127.0.0.1:8080' \
     --flashblocks-backend 'ws://127.0.0.1:11111' \
     --flashblocks-enabled \
     --flashblocks-listen-address '0.0.0.0:1111' \

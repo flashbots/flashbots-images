@@ -1,7 +1,7 @@
 node_healthchecker:
   git_reference: v0.1.11
 rproxy:
-  git_reference: v0.0.10-dev.7
+  git_reference: v0.0.10-dev.8
 rust:
   version: 1.91.1
 tdx_quote_provider:
