@@ -40,7 +40,7 @@ build_rust_package() {
     local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
-        echo "| \`$package\` | \`$version\` (\`$git_describe\`) | reused from cache |" >> $BUILDDIR/manifest.md
+        echo "| \`$package\` | \`$version\` (\`$git_describe\`) | reused from cache |   |" >> $BUILDDIR/manifest.md
         cp "$cached_binary" "$dest_path"
         return
     fi
@@ -54,6 +54,7 @@ build_rust_package() {
     )
 
     # Build inside mkosi chroot
+    local ts=$( date +%s )
     mkosi-chroot bash -c "
         export RUSTFLAGS='${rustflags[*]} ${extra_rustflags}' \
                CARGO_PROFILE_RELEASE_LTO='thin' \
@@ -66,11 +67,13 @@ build_rust_package() {
         cargo fetch
         cargo build --release --frozen ${extra_features:+--features $extra_features} --package $package
     "
+    local seconds=$(( $( date +%s ) - ts ))
+    local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
 
     # Cache and install the built binary
     mkdir -p "$( dirname $cached_binary )"
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
 
-    echo "| \`$package\` | \`$version\` (\`$git_describe\`) | built |" >> $BUILDDIR/manifest.md
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
 }
