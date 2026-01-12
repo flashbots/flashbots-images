@@ -37,7 +37,7 @@ full_telemetry_server_ip = "127.0.0.1"
 full_telemetry_server_port = 6060
 ignore_blobs = {{rbuilder.ignore_blobs}}
 ignore_cancellable_orders = false
-jsonrpc_server_ip = "127.0.0.1"
+jsonrpc_server_ip = "0.0.0.0"
 jsonrpc_server_port = 8645
 # key_registration_url - disabled, no key registration with builderhub?
 # key_registration_url = "http://127.0.0.1:7937"
