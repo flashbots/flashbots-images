@@ -30,8 +30,6 @@ for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
     done
 done
 
-bash -i
-
 # Calculate cache key and paths
 config_hash=$(sha256sum "$config_file" | cut -d' ' -f1 | cut -c1-12)
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${config_hash}"
