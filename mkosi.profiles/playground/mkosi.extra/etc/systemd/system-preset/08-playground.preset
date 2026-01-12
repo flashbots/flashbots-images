@@ -17,16 +17,5 @@ disable acme-le-renewal.service
 # - Metrics exporter
 disable acme-le-textfile-collector.service
 
-# REST API for node operator management
-# Note: keep it enabled, and explore if playground cli can take advantage of it
-# disable operator-api.service
-
-# Fetches rbuilder-bidding from private GitHub
-# (static unit - no [Install] section, cannot be disabled via preset)
-# disable rbuilder-bidding-downloader.service
-
 # Rebalances ETH across builder wallets
 disable rbuilder-rebalancer.service
-
-# Watches external source, reloads rbuilder config
-disable config-watchdog.service
