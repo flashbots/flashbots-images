@@ -8,7 +8,7 @@ Before=local-fs.target
 Type=oneshot
 RemainAfterExit=yes
 Environment=BUILDERNET_PERSISTENT_DEVICE_LUN=__BUILDERNET_PERSISTENT_DEVICE_LUN
-ExecStart=/usr/bin/persistent-setup --device-lun $BUILDERNET_PERSISTENT_DEVICE_LUN --tpm2
+ExecStart=/usr/bin/persistent-setup --device-lun $BUILDERNET_PERSISTENT_DEVICE_LUN --key-file /etc/disk-encryption-key
 TimeoutStartSec=600
 
 [Install]
