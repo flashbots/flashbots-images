@@ -4,6 +4,7 @@ set -euo pipefail
 # Additional systemd units to enable for proper reboot support in bob-common
 # These build on top of base/debloat-systemd.sh
 bob_systemd_additions=(
+    "ctrl-alt-del.target"
     "final.target"
     "shutdown.target"
     "umount.target"
