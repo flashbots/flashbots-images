@@ -7,6 +7,8 @@ bob_systemd_additions=(
     "final.target"
     "shutdown.target"
     "umount.target"
+    "systemd-reboot.service"
+    "reboot.target"
 )
 
 SYSTEMD_DIR="$BUILDROOT/etc/systemd/system"
