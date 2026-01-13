@@ -16,9 +16,6 @@ systemd_svc_whitelist=(
     "systemd-journald-dev-log.socket"
     "systemd-remount-fs.service"
     "systemd-sysctl.service"
-    "reboot.target"
-    "ctrl-alt-del.target"
-    "systemd-reboot.service"
 )
 
 # Keep only essential systemd binaries
