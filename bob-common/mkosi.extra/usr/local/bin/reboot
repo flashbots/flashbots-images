@@ -7,7 +7,7 @@ REBOOT_LOCK="/tmp/.system_rebooting"
 if [[ "$1" == "--force" ]] || [[ "$1" == "-f" ]]; then
     rm -f "$REBOOT_LOCK"
     echo "Force rebooting system..."
-    /usr/bin/systemctl reboot --force 2> /var/log/reboot.log
+    /usr/bin/systemctl reboot --force 2>/dev/null
     exit 0
 fi
 
@@ -22,5 +22,5 @@ touch "$REBOOT_LOCK"
 
 echo "Rebooting system..."
 # systemctl reboot handles graceful shutdown of all services in reverse dependency order
-/usr/bin/systemctl reboot 2> /var/log/reboot.log
+/usr/bin/systemctl reboot 2>/dev/null
 exit 0
