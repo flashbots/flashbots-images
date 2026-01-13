@@ -1,0 +1,26 @@
+#!/bin/bash
+# Reboot wrapper with lock file protection
+
+REBOOT_LOCK="/tmp/.system_rebooting"
+
+# Check for force flag
+if [[ "$1" == "--force" ]] || [[ "$1" == "-f" ]]; then
+    rm -f "$REBOOT_LOCK"
+    echo "Force rebooting system..."
+    /usr/bin/systemctl reboot --force 2>/dev/null
+    exit 0
+fi
+
+# Check if reboot is already in progress
+if [[ -f "$REBOOT_LOCK" ]]; then
+    echo "System is already rebooting. Use 'reboot --force' to force."
+    exit 1
+fi
+
+# Create lock file
+touch "$REBOOT_LOCK"
+
+echo "Rebooting system..."
+# systemctl reboot handles graceful shutdown of all services in reverse dependency order
+/usr/bin/systemctl reboot 2>/dev/null
+exit 0
