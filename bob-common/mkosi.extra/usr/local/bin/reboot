@@ -1,5 +1,5 @@
 #!/bin/bash
-# Gracefully shutdown services before rebooting
+# Reboot wrapper with lock file protection
 
 REBOOT_LOCK="/tmp/.system_rebooting"
 
@@ -20,40 +20,7 @@ fi
 # Create lock file
 touch "$REBOOT_LOCK"
 
-echo "Initiating reboot sequence..."
-
-# Stop services gracefully in reverse dependency order
-echo "Stopping services..."
-
-# Stop highest-level services first
-systemctl stop searcher-container.service 2>/dev/null || true
-systemctl stop cvm-reverse-proxy.service 2>/dev/null || true
-systemctl stop ssh-pubkey-server.service 2>/dev/null || true
-
-# Stop blockchain services
-systemctl stop lighthouse.service 2>/dev/null || true
-
-# Stop monitoring/logging
-systemctl stop delay-pipe.service 2>/dev/null || true
-
-# Stop firewall and network
-systemctl stop searcher-firewall.service 2>/dev/null || true
-systemctl stop dropbear.service 2>/dev/null || true
-
-# Give services a moment to clean up
-sleep 2
-
-# Unmount persistent storage
-echo "Unmounting persistent storage..."
-umount /persistent 2>/dev/null || true
-
-# Sync all filesystems
-echo "Syncing filesystems..."
-sync
-
-# Give kernel a moment to finish pending writes
-sleep 1
-
 echo "Rebooting system..."
+# systemctl reboot handles graceful shutdown of all services in reverse dependency order
 /usr/bin/systemctl reboot 2>/dev/null
 exit 0
