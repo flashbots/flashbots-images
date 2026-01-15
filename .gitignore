@@ -11,6 +11,9 @@ mkosi.tools.manifest
 .claudesync/
 .claudeignore
 tmp/
+logs/
 
 !/**/.gitkeep
 .vscode/
+
+.venv/
