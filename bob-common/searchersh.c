@@ -10,41 +10,17 @@
 // Check if initialization is complete (persistent is mounted)
 int is_initialized() {
     struct stat st_mount, st_parent;
-
+    
     if (stat("/persistent", &st_mount) != 0) {
         return 0;
     }
-
+    
     if (stat("/persistent/..", &st_parent) != 0) {
         return 0;
     }
-
+    
     // Different device IDs mean it's a mount point
     return (st_mount.st_dev != st_parent.st_dev);
-}
-
-// Check if system is in maintenance mode
-int is_maintenance_mode() {
-    FILE *file = fopen("/etc/searcher-network.state", "r");
-    if (file == NULL) {
-        // Default to maintenance if file doesn't exist
-        return 1;
-    }
-
-    char state[20];
-    if (fgets(state, sizeof(state), file) == NULL) {
-        fclose(file);
-        return 1;  // Default to maintenance if read fails
-    }
-    fclose(file);
-
-    // Remove trailing newline if present
-    size_t len = strlen(state);
-    if (len > 0 && state[len - 1] == '\n') {
-        state[len - 1] = '\0';
-    }
-
-    return (strcmp(state, "maintenance") == 0);
 }
 
 // argc is the number of command-line arguments
@@ -212,13 +188,6 @@ int main(int argc, char *argv[]) {
 
     // If command == "reboot", reboot the host machine using graceful shutdown wrapper
     else if (strcmp(command, "reboot") == 0) {
-        // Check if system is in maintenance mode
-        if (!is_maintenance_mode()) {
-            fprintf(stderr, "Error: reboot can only be executed in maintenance mode\n");
-            free(arg_copy);
-            return 1;
-        }
-
         // Check if force flag is provided
         if (arg != NULL && (strcmp(arg, "force") == 0 || strcmp(arg, "--force") == 0)) {
             execl("/usr/bin/sudo", "sudo", "/usr/local/bin/reboot", "--force", NULL);

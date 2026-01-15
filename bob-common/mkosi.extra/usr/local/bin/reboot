@@ -1,10 +1,67 @@
 #!/bin/bash
-# Reboot wrapper with lock file protection
+# Reboot wrapper with lock file protection and maintenance mode check
+
+set -eu -o pipefail
 
 REBOOT_LOCK="/tmp/.system_rebooting"
+LOCK_FILE="/etc/searcher-network.lock"
+STATE_FILE="/etc/searcher-network.state"
+TIMESTAMP_FILE="/etc/searcher-network-last-stop.timestamp"
 
-# Check for force flag
-if [[ "$1" == "--force" ]] || [[ "$1" == "-f" ]]; then
+# Function to get current state with proper locking
+get_state() {
+    (
+        flock -x 200
+        if [ ! -f "$STATE_FILE" ]; then
+            echo "maintenance"  # Default state
+        else
+            cat "$STATE_FILE"
+        fi
+    ) 200>"$LOCK_FILE"
+}
+
+# Function to check remaining time until maintenance mode is available
+check_time_remaining() {
+    if [ ! -f "$TIMESTAMP_FILE" ]; then
+        echo "Error: Cannot determine when maintenance mode will be available."
+        return 1
+    fi
+
+    last_stop=$(cat "$TIMESTAMP_FILE")
+    current_time=$(date +%s)
+    delay_seconds=300  # 5 minutes
+
+    elapsed=$((current_time - last_stop))
+    if [ $elapsed -lt $delay_seconds ]; then
+        remaining=$((delay_seconds - elapsed))
+        minutes=$((remaining / 60))
+        seconds=$((remaining % 60))
+        echo "Error: System is not in maintenance mode."
+        echo "Maintenance mode will be available in ${minutes}m ${seconds}s."
+        echo "Use 'toggle' to switch to maintenance mode once available, then retry reboot."
+        return 1
+    fi
+    return 0
+}
+
+# Check current state (required for all reboot operations)
+current_state=$(get_state)
+
+if [ "$current_state" != "maintenance" ]; then
+    echo "Error: Reboot can only be executed in maintenance mode."
+    echo "Current state: $current_state"
+
+    if [ "$current_state" = "stopped" ]; then
+        check_time_remaining
+    elif [ "$current_state" = "production" ]; then
+        echo "Use 'toggle' to disconnect from production first."
+    fi
+
+    exit 1
+fi
+
+# Check for force flag (only bypasses reboot lock, not maintenance mode check)
+if [[ "${1:-}" == "--force" ]] || [[ "${1:-}" == "-f" ]]; then
     rm -f "$REBOOT_LOCK"
     echo "Force rebooting system..."
     /usr/bin/systemctl reboot --force 2>/dev/null
