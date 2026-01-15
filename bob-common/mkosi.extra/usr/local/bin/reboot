@@ -36,7 +36,7 @@ check_time_remaining() {
         remaining=$((delay_seconds - elapsed))
         minutes=$((remaining / 60))
         seconds=$((remaining % 60))
-        echo "Error: System is not in maintenance mode."
+        echo ""
         echo "Maintenance mode will be available in ${minutes}m ${seconds}s."
         echo "Use 'toggle' to switch to maintenance mode once available, then retry reboot."
         return 1
