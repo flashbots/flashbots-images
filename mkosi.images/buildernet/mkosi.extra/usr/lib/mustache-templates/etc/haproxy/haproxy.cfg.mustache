@@ -60,8 +60,8 @@ frontend default
   default_backend user_of
 
 frontend system
-  bind *:5544 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni
-  http-request return status 200 content-type application/json string '{"system_api_port": 5554}' if { path /infoz }
+  mode tcp
+  bind *:5544 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256 ssl-min-ver TLSv1.3
   default_backend system_of
 
 frontend prometheus
@@ -73,25 +73,17 @@ frontend public_cert
   bind 127.0.0.1:14727
   http-request return status 200 content-type text/plain file "/var/lib/persistent/haproxy/static/le.cer"
 
-frontend system2
-  mode tcp
-  bind *:5554 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256 ssl-min-ver TLSv1.3
-  default_backend system2_of
-
 backend user_of
   http-reuse always
-
   option httpchk GET /livez
   http-check expect status 200
   server user_of1 127.0.0.1:5543 check inter 5s fall 3 rise 1
 
 backend system_of
-  http-reuse always
-
-  option httpchk GET /livez
-  http-check expect status 200
-  server system_of1 127.0.0.1:5542 check inter 5s fall 3 rise 1
-
-backend system2_of
   mode tcp
-  server system2_of1 127.0.0.1:5552 check inter 5s fall 3 rise 1
+  option tcp-check
+  # Send: 02 00 00 00 00 00 00 00 00 04 50 49 4E 47
+  # (The final bytes 50 49 4E 47 are ASCII for "PING")
+  tcp-check send-binary 0200000000000000000450494E47
+  tcp-check expect rstring PONG
+  server system_of1 127.0.0.1:5542 check inter 5s fall 3 rise 1

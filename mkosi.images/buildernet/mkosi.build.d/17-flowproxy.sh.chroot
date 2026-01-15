@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "Installing flowproxy..."
 # https://github.com/BuilderNet/FlowProxy/releases
-EXPECTED_SHA256=96ba6f2d3973424b0c7b19b84ab30043f1f520b95e383e9797c281cadd2a24e6
+EXPECTED_SHA256=774494ff677470bd9f4fc2a9f5ca1112d4721f74c9c67b4f76ecef3dca5360ad
 mkdir -p $DESTDIR/usr/bin
 curl -fSsL -o $DESTDIR/usr/bin/flowproxy https://github.com/BuilderNet/FlowProxy/releases/download/v2.0.2/flowproxy
 echo "${EXPECTED_SHA256}" $DESTDIR/usr/bin/flowproxy | sha256sum --check
