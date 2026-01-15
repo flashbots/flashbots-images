@@ -41,6 +41,8 @@ check_time_remaining() {
         echo "Use 'toggle' to switch to maintenance mode once available, then retry reboot."
         return 1
     fi
+
+    echo "Use 'toggle' to switch to maintenance mode"
     return 0
 }
 
