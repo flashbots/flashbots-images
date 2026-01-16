@@ -41,7 +41,7 @@ build_rust_package() {
     local cached_binary="${cached_binary//,/−}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
-        echo "| \`$package\` | \`$version\` (\`$git_describe\`) | reused from cache |   |" >> $BUILDDIR/manifest.md
+        echo "| \`$package\` | \`$version\` (\`$git_describe\`, ${extra_features}) | reused from cache |   |" >> $BUILDDIR/manifest.md
         cp "$cached_binary" "$dest_path"
         return
     fi
@@ -76,5 +76,5 @@ build_rust_package() {
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
 
-    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
 }
