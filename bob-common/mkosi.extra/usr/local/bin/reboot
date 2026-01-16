@@ -11,7 +11,7 @@ TIMESTAMP_FILE="/etc/searcher-network-last-stop.timestamp"
 # Function to get current state with proper locking
 get_state() {
     (
-        flock -x 200
+        flock -s 200
         if [ ! -f "$STATE_FILE" ]; then
             echo "maintenance"  # Default state
         else
