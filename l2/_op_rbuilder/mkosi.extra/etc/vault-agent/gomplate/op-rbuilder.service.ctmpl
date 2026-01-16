@@ -61,6 +61,9 @@ ExecStart=/usr/bin/op-rbuilder node \
     --flashblocks.number-contract-address '(( $service.feat_flashblocks_number_contract_address ))' \
     --flashblocks.number-contract-use-permit \
     ((- end ))
+    ((- if $service.feat_flashblocks_block_time ))
+    --flashblocks.block-time '(( $service.feat_flashblocks_block_time ))' \
+    ((- end ))
     ((- end ))(( end ))
     ((- if $service.feat_flashtestations ))(( if $service.feat_flashtestations | parseBool ))
     ((- if $service.feat_flashtestations_builder_policy_address ))
