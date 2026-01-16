@@ -31,6 +31,7 @@ fi
 LOCK_FILE="/etc/searcher-network.lock"
 STATE_FILE="/etc/searcher-network.state"
 TIMESTAMP_FILE="/etc/searcher-network-last-stop.timestamp"
+REBOOT_LOCK="/tmp/.system_rebooting"
 
 # Tools
 IPTABLES="/usr/sbin/iptables"
@@ -218,6 +219,12 @@ check_searcher_namespace_rules() {
 move_to_production() {
     if [ "$(get_state)" != "maintenance" ]; then
         echo "Error: Can only move to production from maintenance state"
+        return 1
+    fi
+
+    # Check if reboot is in progress
+    if [ -f "$REBOOT_LOCK" ]; then
+        echo "Error: Cannot move to production while system reboot is in progress"
         return 1
     fi
 
