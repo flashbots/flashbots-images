@@ -7,6 +7,7 @@ ENV_YAML="$SRCDIR/l2/_unichain_builder/mkosi.extra/etc/flashbots/unichain-builde
 BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r '.node_healthchecker.git_reference' < "$ENV_YAML")
 TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r '.tdx_quote_provider.git_reference' < "$ENV_YAML")
+UNICHAIN_BUILDER_FEATURES=$(mkosi-chroot yq -r '.unichain_builder.features // "default"' < "$ENV_YAML")
 UNICHAIN_BUILDER_REF=$(mkosi-chroot yq -r '.unichain_builder.git_reference' < "$ENV_YAML")
 
 source scripts/make_git_package.sh
@@ -25,7 +26,7 @@ build_rust_package \
     "unichain-builder" \
     "${UNICHAIN_BUILDER_REF}" \
     "https://github.com/flashbots/unichain-builder.git" \
-    "" "" "-g"
+    "" "${UNICHAIN_BUILDER_FEATURES}" "-g"
 chmod +x $DESTDIR/usr/bin/unichain-builder
 
 # build tdx-quote-provider

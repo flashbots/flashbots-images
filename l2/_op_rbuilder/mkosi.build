@@ -6,6 +6,7 @@ ENV_YAML="$SRCDIR/l2/_op_rbuilder/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
 
 BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
+OP_RBUILDER_FEATURES=$(mkosi-chroot yq -r '.op_rbuilder.features // "default"' < "$ENV_YAML")
 OP_RBUILDER_REF=$(mkosi-chroot yq -r .op_rbuilder.git_reference < "$ENV_YAML")
 TDX_QUOTE_PROVIDER_REF=$(mkosi-chroot yq -r .tdx_quote_provider.git_reference < "$ENV_YAML")
 
@@ -18,7 +19,7 @@ build_rust_package \
     "op-rbuilder" \
     "${OP_RBUILDER_REF}" \
     "https://github.com/flashbots/op-rbuilder.git" \
-    "" "" "-g"
+    "" "${OP_RBUILDER_FEATURES}" "-g"
 chmod +x $DESTDIR/usr/bin/op-rbuilder
 
 # build tdx-quote-provider
