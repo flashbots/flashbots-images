@@ -27,6 +27,7 @@ su -s /bin/sh searcher -c "cd ~ && podman run -d \
     -v /persistent/searcher:/persistent:rw \
     -v /etc/searcher/ssh_hostkey:/etc/searcher/ssh_hostkey:rw \
     -v /persistent/searcher_logs:/var/log/searcher:rw \
+    -v /persistent/input:/persistent/input:ro \
     -v /etc/searcher-logrotate.conf:/tmp/searcher.conf:ro \
     $BOB_SEARCHER_EXTRA_PODMAN_FLAGS \
     docker.io/library/ubuntu:24.04 \
