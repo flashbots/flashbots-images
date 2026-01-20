@@ -44,7 +44,7 @@ build: $(VENV_MARKER) ## Build VM image
 .PHONY: build-playground
 build-playground: $(VENV_MARKER) ## Build VM image for playground
 	@mkdir -p $(LOGS_DIR)
-	$(MKOSI) --force -I buildernet.conf --profile="devtools,playground" 2>&1 | tee $(LOGS_DIR)/build-playground-$(TIMESTAMP).log
+	$(MKOSI) -I buildernet.conf --profile="devtools,playground" 2>&1 | tee $(LOGS_DIR)/build-playground-$(TIMESTAMP).log
 
 ##@ Setup
 

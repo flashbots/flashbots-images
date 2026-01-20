@@ -24,10 +24,10 @@ bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
 # blocklist = "{{rbuilder.blocklist}}"
 # blocks_processor_url - disabled, no block archiving
 # blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
-chain = "mainnet"
+chain = "/var/lib/persistent/playground/genesis.json"
 cl_node_url = ["http://127.0.0.1:3500"]
 # coinbase_secret_key - omitted, rbuilder generates random key with warning
-# coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
+coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
 el_node_ipc_path = "/run/reth/reth.ipc"
 error_storage_path = "/run/rbuilder-operator/rbuilder_errors.sqlite"
 evm_caching_enable = {{rbuilder.evm_caching_enable}}
@@ -51,8 +51,8 @@ max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duratio
 # optimistic_v3_server_port = 6000
 # optimistic_v3_public_url = "{{rbuilder.optimistic_v3_public_url}}"
 # optimistic_v3_relay_pubkeys = {{{rbuilder.optimistic_v3_relay_pubkeys}}}
-# relay_secret_key - omitted, disables signed relay submissions
-# relay_secret_key = "{{rbuilder.relay_secret_key}}"
+# BLS secret key for signing relay submissions
+relay_secret_key = "{{rbuilder.relay_secret_key}}"
 require_non_empty_blocklist = {{rbuilder.require_non_empty_blocklist}}
 reth_db_path = "/var/lib/persistent/reth/db"
 reth_static_files_path = "/var/lib/persistent/reth/static_files"

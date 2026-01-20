@@ -3,6 +3,9 @@
 # Services can be enabled at runtime with:
 #   systemctl enable --now <service>.service
 
+# Fetches genesis.json and testnet config from playground host
+enable playground-config-fetch.service
+
 # Downloads Reth state snapshot from S3
 disable reth-sync.service
 
