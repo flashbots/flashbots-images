@@ -90,7 +90,11 @@
     devShells = builtins.listToAttrs (map (system: {
       name = system;
       value.default = pkgs.mkShell {
-        nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
+        nativeBuildInputs = [
+          (mkosi system)
+          measured-boot
+          measured-boot-gcp
+        ];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
           touch mkosi.builddir/debian-backports.sources

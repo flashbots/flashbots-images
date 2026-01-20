@@ -68,6 +68,12 @@ This generates measurement files in the `build/` directory for attestation and v
 
 ### Running Images
 
+**Add yourself to the kvm group** (to run QEMU without sudo):
+```bash
+sudo usermod -aG kvm $USER
+# Log out and back in for the change to take effect
+```
+
 **Create persistent storage** (for stateful applications):
    ```bash
    qemu-img create -f qcow2 persistent.qcow2 2048G
@@ -75,7 +81,7 @@ This generates measurement files in the `build/` directory for attestation and v
 
 **Run QEMU**:
   ```bash
-  sudo qemu-system-x86_64 \
+  qemu-system-x86_64 \
     -enable-kvm \
     -machine type=q35,smm=on \
     -m 16384M \
@@ -92,7 +98,7 @@ This generates measurement files in the `build/` directory for attestation and v
 
 **With TDX confidential computing** (requires TDX-enabled hardware/hypervisor):
   ```bash
-  sudo qemu-system-x86_64 \
+  qemu-system-x86_64 \
     -accel kvm \
     -machine type=q35,kernel_irqchip=split,confidential-guest-support=tdx0 \
     -object tdx-guest,id=tdx0 \
