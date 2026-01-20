@@ -16,7 +16,6 @@ ExecStart=/usr/bin/lighthouse bn \
 		--execution-endpoint http://localhost:8551 \
 		--execution-jwt /tmp/jwt.hex \
         --checkpoint-sync-url https://mainnet.checkpoint.sigp.io \
-		--disable-deposit-contract-sync \
 		--datadir "/persistent/lighthouse" \
         --disable-optimistic-finalized-sync \
         --disable-quic \

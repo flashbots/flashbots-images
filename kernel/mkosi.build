@@ -15,9 +15,20 @@ if [[ -n "${KERNEL_CONFIG_SNIPPETS:-}" ]]; then
     IFS=',' read -ra snippets <<< "$KERNEL_CONFIG_SNIPPETS"
     for snippet in "${snippets[@]}"; do
         snippet_file="$SRCDIR/$snippet"
-        [[ -f "$snippet_file" ]] && cat "$snippet_file" >> "$config_file"
+        if [[ -f "$snippet_file" ]]; then
+            cat "$snippet_file" >> "$config_file" || true
+        fi
     done
 fi
+for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
+    IFS=',' read -ra snippets <<< "${!snippets_var}"
+    for snippet in "${snippets[@]}"; do
+        snippet_file="$SRCDIR/$snippet"
+        if [[ -f "$snippet_file" ]]; then
+            cat "$snippet_file" >> "$config_file" || true
+        fi
+    done
+done
 
 # Calculate cache key and paths
 config_hash=$(sha256sum "$config_file" | cut -d' ' -f1 | cut -c1-12)
@@ -37,7 +48,7 @@ else
     # Build kernel
     cd "$build_dir"
     cp "$config_file" .config
-    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @${SOURCE_DATE_EPOCH:-$(date +%s)})"
+    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @$(git log -1 --pretty=%ct))"
     export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
 
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig

@@ -1,1 +1,1 @@
-searcher ALL=(root) NOPASSWD: /usr/bin/toggle, /usr/bin/tdx-init set-passphrase, /usr/bin/systemctl restart lighthouse
+searcher ALL=(root) NOPASSWD: /usr/bin/toggle, /usr/bin/tdx-init set-passphrase, /usr/bin/systemctl restart lighthouse, /usr/local/bin/reboot

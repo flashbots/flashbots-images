@@ -62,23 +62,23 @@ Firewall Rules
 
 **<u>Host Network Namespace iptables</u>**
 
-| Port | Rule | Source | Destination | Protocol | Production Mode | Maintenance Mode |
-|------|------|--------|-------------|----------|-----------------|------------------|
-| 8080 | Input + Output | SSH Registration | Host | TCP | DISABLED | ENABLED |
-| 22 | Input | Control Plane: Dropbear SSH | Host | TCP | ENABLED | ENABLED |
-| 10022 | Input | Data Plane: Open SSH | Podman | TCP | DISABLED | ENABLED |
-| 27017 | Input | Searcher Input Channel | Podman | UDP | ENABLED | ENABLED |
-| 30303 | Input + Output | Execution Client P2P | Podman | TCP + UDP | DISABLED | ENABLED |
-| 9000 | Input + Output | Consensus Client P2P | Podman | TCP + UDP | ENABLED | ENABLED |
-| 443 | Output **IP WHITELISTED** | Flashbots Protect Tx Stream | Podman | TCP | ENABLED | DISABLED |
-| 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman | TCP | ENABLED | DISABLED |
-| 443 | Output **IP WHITELISTED** | Flashbots Bundle RPC | Flashbots Bundle RPC | TCP | ENABLED | ENABLED |
-| 1338 | Output **IP WHITELISTED** | Titan Bundle RPC | Titan Bundle RPC | TCP | ENABLED | ENABLED |
-| 54 | Output | DNS | DNS | TCP + UDP | DISABLED | ENABLED |
-| 80 | Output | HTTP | HTTP | TCP | DISABLED | ENABLED |
-| 443 | Output | HTTPS | HTTPS | TCP | DISABLED | ENABLED |
-| 8745 | Input | CVM-Reverse-Proxy | Host | TCP | ENABLED | ENABLED |
-| 123 | Output | NTP | Host | UDP | ENABLED | ENABLED |
+| Port  | Rule                      | Source                          | Destination          | Protocol  | Production Mode | Maintenance Mode |
+|-------|---------------------------|---------------------------------|----------------------|-----------|-----------------|------------------|
+| 8080  | Input + Output            | SSH Registration                | Host                 | TCP       | DISABLED        | ENABLED          |
+| 22    | Input                     | Control Plane: Dropbear SSH     | Host                 | TCP       | ENABLED         | ENABLED          |
+| 10022 | Input                     | Data Plane: Open SSH            | Podman               | TCP       | DISABLED        | ENABLED          |
+| 27017 | Input                     | Searcher Input Channel          | Podman               | UDP       | ENABLED         | ENABLED          |
+| 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
+| 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
+| 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
+| 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman               | TCP       | ENABLED         | DISABLED         |
+| 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
+| 1338  | Output **IP WHITELISTED** | Titan Bundle RPC                | Titan Bundle RPC     | TCP       | ENABLED         | ENABLED          |
+| 54    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
+| 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
+| 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
+| 8745  | Input                     | CVM-Reverse-Proxy               | Host                 | TCP       | ENABLED         | ENABLED          |
+| 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
 
@@ -147,7 +147,7 @@ git clone https://github.com/flashbots/flashbots-images.git
 cd flashbots-images
 
 # build the BOB (TEE searcher sandbox) image
-make build IMAGE=bob
+make build IMAGE=bob-l1
 ```
 
 ### 2. audit the VM image
@@ -216,31 +216,28 @@ Flashbots has adapted Edgeless Constellation’s [measured-boot](https://github.
 Only [PCR 4, 9, and 11](https://constellation-docs.netlify.app/constellation/2.2/architecture/attestation#runtime-measurements) are meaningful, since the other PCR’s in Azure’s vTPM are not reproducible due to their proprietary closed-source implementations. But, these 3 measurements are enough to ensure Flashbots does not have access to the searcher VM, as any change in the image will generate different PCR 4, 9, and 11 measurements! You can test and verify this claim yourself by changing a line of code, building the new image, and running the measurement software again.
 
 ```bash
-# clone and build
-git clone https://github.com/flashbots/measured-boot
-cd measured-boot
-go build
+cd flashbots-images
 
-# measure
-./measured-boot /path/to/flashbots-images/build/tdx-debian-azure.efi output.json --direct-uki
+# assuming you've run make build IMAGE=bob-l1
+make measure
 ```
 
 <details>
 <summary>Expected Output</summary>
 
     ```
-    ubuntu@schmangelina-bob-mkosi-builder:~/measured-boot$ ./measured-boot /home/ubuntu/flashbots-images/build/tdx-debian.efi output.json --direct-uki
-        EFI Boot Stages:
-      Stage 1 - Unified Kernel Image (UKI): f04271b7b053dde1741e103c8d64aa0e2c5042cdfb7c08ea25bf64ae005b6381
+    ubuntu@builder:~/flashbots-images$ make measure
+    EFI Boot Stages:
+      Stage 1 - Unified Kernel Image (UKI): 320af1bf8257b6fd1a47b8fa865bdde7bdfdbf235894804b6b15b676296b1ba4
       Stage 2 - Linux                     : eb1a69b12b47b6b3d4716bad94323d27173cba5f4285b918a2bf59ea5cb3c9ea
     Linux LOAD_FILE2 protocol:
       cmdline: "console=tty0 console=ttyS0,115200n8 mitigations=auto,nosmt spec_store_bypass_disable=on nospectre_v2\x00"
-      initrd (digest aebd8d9d0db231daf59ccc069b2a0cd82f825e849317344d417ff1730ec0779e)
+      initrd (digest 0cc531c70b473425e513310dfb4cbcfd5161444a07d318b4d5b816f557d589a6)
     UKI sections:
       Section  1 - .linux   (   5829632 bytes):     0da293e37ad5511c59be47993769aacb91b243f7d010288e118dc90e95aaef5a, 7439b377dbba898b0db23928be49fb906aa5551cfc01395bc37b8bd50d8f5530
       Section  2 - .osrel   (       308 bytes):     3fb9e4e3cc810d4326b5c13cef18aee1f9df8c5f4f7f5b96665724fa3b846e08, 94e5e922dec19c3ab3e3c85b5d30dbb563098a430418a70c11a5b729721fae39
       Section  3 - .cmdline (       101 bytes):     461203a89f23e36c3a4dc817f905b00484d2cf7e7d9376f13df91c41d84abe46, 5b20d03fb990ccafdcfa1ddb37feff37141e728776ed89f335798f3c3899a135
-      Section  4 - .initrd  ( 163161430 bytes):     15ee37e75f1e8d42080e91fdbbd2560780918c81fe3687ae6d15c472bbdaac75, aebd8d9d0db231daf59ccc069b2a0cd82f825e849317344d417ff1730ec0779e
+      Section  4 - .initrd  ( 166037465 bytes):     15ee37e75f1e8d42080e91fdbbd2560780918c81fe3687ae6d15c472bbdaac75, 0cc531c70b473425e513310dfb4cbcfd5161444a07d318b4d5b816f557d589a6
       Section  5 - .uname   (         7 bytes):     da7a6d941caa9d28b8a3665c4865c143db8f99400ac88d883370ae3021636c30, 2200d673ad92228af377b9573ed86e7a4e36a87a2a9a08d8c1134aca3ddb021c
       Section  6 - .sbat    (       309 bytes):     ff552fd255be18a3d61c0da88976fc71559d13aad12d1dfe1708cf950cc4b74c, eae67f3a8f5614d71bd75143feeecbb3c12cd202192e2830f0fb1c6df0f4a139
       Section  7 - .data   :        not measured
@@ -248,9 +245,9 @@ go build
       Section  9 - .rodata :        not measured
       Section 10 - .sdmagic:        not measured
       Section 11 - .text   :        not measured
-    PCR[ 4]: 52f267b72dc8a06a2aa50281aa49539c3ea08e1fd1e037bc84e00f12abd38071
-    PCR[ 9]: a0b3cce18e7e3073ae6332bebb23d4438873f3e73f68f882627bee5c798e03c4
-    PCR[11]: 04b26f0af2bffab1d37442f5e73974660578b891a0ef2f3697bc3d06b0317978
+    PCR[ 4]: 176543f594059b26292565a3c07b5eaa34122cf2ce7f53b149b6fb85c3046d30
+    PCR[ 9]: 817c80c72f0a42bd72d4c7130f0d48c39a6d3ac6def92da085dec16feb822518
+    PCR[11]: 46a1b5dd625d967205699242a2de2815e539424c3132306b91f31bcda442693f
     PCR[12]: 0000000000000000000000000000000000000000000000000000000000000000
     PCR[13]: 0000000000000000000000000000000000000000000000000000000000000000
     PCR[15]: 0000000000000000000000000000000000000000000000000000000000000000
@@ -267,18 +264,22 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
       "attestation_type": "azure-tdx",
       "measurements": {
           "4": {
-              "expected": "52f267b72dc8a06a2aa50281aa49539c3ea08e1fd1e037bc84e00f12abd38071"
+              "expected": "176543f594059b26292565a3c07b5eaa34122cf2ce7f53b149b6fb85c3046d30"
           },
           "9": {
-              "expected": "a0b3cce18e7e3073ae6332bebb23d4438873f3e73f68f882627bee5c798e03c4"
+              "expected": "817c80c72f0a42bd72d4c7130f0d48c39a6d3ac6def92da085dec16feb822518"
           },
           "11": {
-              "expected": "04b26f0af2bffab1d37442f5e73974660578b891a0ef2f3697bc3d06b0317978"
+              "expected": "46a1b5dd625d967205699242a2de2815e539424c3132306b91f31bcda442693f"
           }
       }
   }
 ]
 ```
+
+> Note: at the time of the writing, those measurements were acquired by building from commit ef5dd2727ba4569d530c67822dc96778f54a295a, if you're viewing this from main branch please ensure to build from the same commit to get the same measurements.
+
+> Note: at the time of the writing, compiling bob-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
 ### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
 
@@ -532,6 +533,9 @@ ssh searcher@<machine ip> tail-the-logs
 
 # restart lighthouse on the host
 ssh searcher@<machine ip> restart-lighthouse
+
+# reboot the host virtual machine. Optional: --force
+ssh searcher@<machine ip> reboot [--force] 
 ```
 
 The data plane is served on port 10022, where searchers can SSH inside their rootless podman container to configure their bot.
