@@ -51,11 +51,3 @@ touch -d "2024-01-01 00:00:00 UTC" "$TMP/disk.raw" 2>/dev/null || true
 tar --format=oldgnu -Sczf "$TAR" -C "$TMP" disk.raw
 
 rm -rf "$TMP"
-
-IMAGE_NAME="bob-l2-poc-ilya-tmp-$(date +%s)"
-GS_PATH="gs://flashbots-artifacts-us-east5/${IMAGE_NAME}.tar.gz"
-
-echo export CLOUDSDK_CORE_PROJECT=flashbots-artifacts
-echo gcloud storage cp ./build/tdx-debian.tar.gz "${GS_PATH}"
-echo gcloud beta compute images create --guest-os-features TDX_CAPABLE,UEFI_COMPATIBLE --source-uri "${GS_PATH}" "${IMAGE_NAME}"
-echo "This will create GCP image: projects/flashbots-artifacts/global/images/${IMAGE_NAME}"
