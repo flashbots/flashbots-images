@@ -1,3 +1,7 @@
+[Unit]
+Wants=playground-config-fetch.service
+After=playground-config-fetch.service
+
 [Service]
 # Clear the default ExecStart and use playground genesis
 ExecStart=
