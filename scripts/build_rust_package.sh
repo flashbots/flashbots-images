@@ -54,6 +54,11 @@ build_rust_package() {
         "-L /usr/lib/x86_64-linux-gnu"
     )
 
+    if [[ -f $build_dir/.cargo/config.toml ]] && local cargoflags=$( mkosi-chroot dasel -f /build/$package/.cargo/config.toml -r toml 'build.rustflags' --pretty=false -w json ); then
+        local cargoflags=$( echo $cargoflags | jq -r '. | join(" ")' )
+        local rustflags+=( "$cargoflags" )
+    fi
+
     # Build inside mkosi chroot
     local ts=$( date +%s )
     mkosi-chroot bash -c "
