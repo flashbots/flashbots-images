@@ -3,6 +3,5 @@
 - Change After=render-config.service to Requisite=render-config.service
 - sysctl -w net.core.default_qdisc=fq, sysctl -w net.ipv4.tcp_congestion_control=bbr
 - operator-api 100% CPU usage!?!?!?
-- tar gz GCP image
 - cargo cache
 - try c3-standard-8, fix disk guid,fat serial, PARTITION_GUID

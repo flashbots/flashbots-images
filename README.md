@@ -85,15 +85,17 @@ go build
 ```
 ./measured-boot image.efi /dev/null --direct-uki
 ```
-3. Clone github.com/flashbots/cvm-reverse-proxy repo and build the `attested-get` tool
+3. Clone https://github.com/flashbots/attested-tls-proxy.git repo and run the `attested-get` tool
 ```
-go build cmd/attested-get/main.go
+git clone https://github.com/flashbots/attested-tls-proxy.git
+cd attested-tls-proxy
+curl -fSsL https://measurements.buildernet.org > /tmp/measurements-buildernet.json
+
+cargo run -- attested-get \
+  --measurements-file /tmp/measurements-buildernet.json \
+  https://_BUILDERNET_INSTANCE_:7936
 ```
-4. Measure the deployed image
-```
-./attested-get --addr=https://<instance IP>:7936
-```
-5. Compare PCRs 4 and 11 of the offline image and the deployed one, they should match.
+1. Compare PCRs 4 and 11 of the offline image and the deployed one, they should match.
 
 To measure a GCP image:
 1. Clone github.com/flashbots/dstack-mr-gcp repo and build the `dstack-mr` tool

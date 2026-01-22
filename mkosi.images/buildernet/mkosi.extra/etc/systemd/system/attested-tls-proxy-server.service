@@ -1,0 +1,16 @@
+[Unit]
+Description=Attested TLS proxy server (https://github.com/flashbots/attested-tls-proxy)
+Wants=network-online.target acme-le.service
+After=network.target network-online.target acme-le.service
+
+[Service]
+Type=exec
+User=tss
+ExecStart=/bin/bash -c 'exec /usr/bin/attested-tls-proxy server \
+  --listen-addr 0.0.0.0:7936 \
+  --server-attestation-type none \
+  --tls-private-key-path %S/persistent/acme.sh/key.pem \
+  --tls-certificate-path "$(find /var/lib/persistent/acme.sh -name fullchain.cer -print -quit)" \
+  --allowed-remote-attestation-type none \
+  localhost:14727'
+Restart=on-failure

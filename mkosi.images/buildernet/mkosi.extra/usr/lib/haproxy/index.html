@@ -159,14 +159,15 @@
             </p>
 
             <pre># Install attested-get tool
-go install github.com/flashbots/cvm-reverse-proxy/cmd/attested-get
+git clone https://github.com/flashbots/attested-tls-proxy.git
+cd attested-tls-proxy
+curl -fSsL https://measurements.buildernet.org > /tmp/measurements-buildernet.json
 
-# Get the builder certificate over an attested channel
-attested-get \
-    --addr=https://_BUILDERNET_INSTANCE_:7936/cert \
-    --expected-measurements=https://measurements.buildernet.org \
-    --out-response=builder-cert.pem</pre>
-            <p>See more details about <span class="code-tag">attested-get</span> in the <a href="https://github.com/flashbots/cvm-reverse-proxy/blob/main/cmd/attested-get/main.go">cvm-reverse-proxy repository</a>.</p>
+cargo run -- attested-get \
+  --measurements-file /tmp/measurements-buildernet.json \
+  https://_BUILDERNET_INSTANCE_:7936
+</pre>
+            <p>See more details about <span class="code-tag">attested-get</span> in the <a href="https://github.com/flashbots/attested-tls-proxy">attested-tls-proxy repository</a>.</p>
         </section>
     </div>
 </body>

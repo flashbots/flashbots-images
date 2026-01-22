@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+echo "Installing rbuilder..."
+
 # rbuilder-operator
 EXPECTED_SHA256=b8997821cbe9e1144c36b54c5090a89aa75b1ecb578dcbbce5f0c3b731cc5457
 curl -sSfL https://github.com/flashbots/rbuilder/releases/download/v1.3.4/rbuilder-operator_1.v1.3.4_amd64.deb -o $PACKAGEDIR/rbuilder-operator.deb

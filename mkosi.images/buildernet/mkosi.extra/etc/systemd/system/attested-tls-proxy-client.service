@@ -1,0 +1,19 @@
+[Unit]
+DefaultDependencies=no
+Description=Attested TLS proxy client (https://github.com/flashbots/attested-tls-proxy)
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=exec
+User=tss
+Environment=BUILDERNET_BUILDERHUB_URL=__BUILDERNET_BUILDERHUB_URL
+ExecStart=/usr/bin/attested-tls-proxy client \
+  --listen-addr 127.0.0.1:7937 \
+  --client-attestation-type none \
+  --allowed-remote-attestation-type none \
+  --log-json ${BUILDERNET_BUILDERHUB_URL}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
