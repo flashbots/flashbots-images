@@ -2,6 +2,10 @@
 
 set -euxo pipefail
 
+# Configure tdx-init disk glob for GCP
+mkdir -p "$BUILDROOT/etc/tdx-init"
+echo "/dev/disk/by-id/google-data" >> "$BUILDROOT/etc/tdx-init/disk-glob"
+
 # Enable systemd services
 
 mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
