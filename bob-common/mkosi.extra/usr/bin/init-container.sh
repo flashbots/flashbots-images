@@ -5,7 +5,6 @@ NAME=searcher-container
 
 # PORT FORWARDS
 SEARCHER_SSH_PORT=10022
-EL_P2P_PORT=30303
 SEARCHER_INPUT_CHANNEL=27017
 
 # Run extra commands which are customized per image,
@@ -21,8 +20,6 @@ su -s /bin/sh searcher -c "cd ~ && podman run -d \
     --name $NAME --replace \
     --init \
     -p ${SEARCHER_SSH_PORT}:22 \
-    -p ${EL_P2P_PORT}:${EL_P2P_PORT} \
-    -p ${EL_P2P_PORT}:${EL_P2P_PORT}/udp \
     -p ${SEARCHER_INPUT_CHANNEL}:${SEARCHER_INPUT_CHANNEL}/udp \
     -v /persistent/searcher:/persistent:rw \
     -v /etc/searcher/ssh_hostkey:/etc/searcher/ssh_hostkey:rw \

@@ -1,0 +1,2 @@
+/dev/disk/by-path/*nvme-2
+/dev/disk/by-path/*:10
