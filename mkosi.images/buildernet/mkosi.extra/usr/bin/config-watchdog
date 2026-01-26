@@ -8,21 +8,30 @@ RBUILDER_PERSISTENT_DIR="/var/lib/persistent/rbuilder-operator"
 RBUILDER_STATUS_FLAG_FILE="${RBUILDER_PERSISTENT_DIR}/rbuilder.enabled"
 # locally exposed BuilderHub API proxied through CVM proxy
 RBUILDER_BIDDING_CONFIG_DIR="/etc/rbuilder-bidding"
-BHUB_URL_PROXIED="http://localhost:7937/api/l1-builder/v1/configuration"
+BHUB_URL_PROXIED_CONFIGURATION="http://localhost:7937/api/l1-builder/v1/configuration"
+BHUB_URL_PROXIED_ACTIVE_BUILDERS="http://localhost:7937/api/l1-builder/v1/builders"
 BHUB_CONFIG_FILE="$RUNTIME_DIRECTORY/init-config-watchdog.json"
+BHUB_ACTIVE_BUILDERS_FILE="$RUNTIME_DIRECTORY/active-builders.json"
 
 function cleanup() {
-  rm -f "${BHUB_CONFIG_FILE}"
+  rm -f "${BHUB_CONFIG_FILE}" "${BHUB_ACTIVE_BUILDERS_FILE}"
 }
 
 trap cleanup EXIT
 
 function check_rbuilder_enabled() {
   local bhub_config_file="$1"
-  local rbuilder_enabled
-  rbuilder_enabled="$(jq -r '.rbuilder.enabled' "$bhub_config_file")"
+  local bhub_active_builders_file="$2"
+  local instance_name
+  instance_name=$(jq -r '.instance_name' "$bhub_config_file" | tr '-' '_')
 
-  if [[ $rbuilder_enabled == true ]]; then
+  if jq --exit-status --arg instance_name "$instance_name" '.[] | select(.name==$instance_name)' "$bhub_active_builders_file" &> /dev/null; then
+    local instance_enabled=true
+  else
+    local instance_enabled=false
+  fi
+
+  if [[ $instance_enabled == true ]]; then
     if [[ ! -f "$RBUILDER_STATUS_FLAG_FILE" ]]; then
       : > "$RBUILDER_STATUS_FLAG_FILE"
       sudo systemctl --no-pager --no-ask-password restart rbuilder-operator
@@ -48,12 +57,19 @@ function check_subsidies_config_update() {
   fi
 }
 
-curl -fsSL -o "$BHUB_CONFIG_FILE" --retry 3 --retry-delay 5 --retry-connrefused "$BHUB_URL_PROXIED"
+ACTIVE_BUILDERS_HTTP_CODE=$(curl -sS -o "$BHUB_ACTIVE_BUILDERS_FILE" -w "%{http_code}" --retry 3 --retry-delay 5 --retry-connrefused "$BHUB_URL_PROXIED_ACTIVE_BUILDERS" || true)
 
-if [[ ! -s "$BHUB_CONFIG_FILE" ]]; then
-  log "rbuilder-status-watchdog: Failed to fetch configuration."
+if [[ "$ACTIVE_BUILDERS_HTTP_CODE" == "403" ]]; then
+  echo "[]" > "$BHUB_ACTIVE_BUILDERS_FILE"
+  echo "{}" > "$BHUB_CONFIG_FILE"
+  check_rbuilder_enabled "$BHUB_CONFIG_FILE" "$BHUB_ACTIVE_BUILDERS_FILE"
+  exit 0
+elif [[ "$ACTIVE_BUILDERS_HTTP_CODE" != "200" ]]; then
+  log "rbuilder-status-watchdog: Failed to fetch active builders (HTTP $ACTIVE_BUILDERS_HTTP_CODE)"
   exit 1
 fi
 
-check_rbuilder_enabled "$BHUB_CONFIG_FILE"
+curl -fsSL -o "$BHUB_CONFIG_FILE" --retry 3 --retry-delay 5 --retry-connrefused "$BHUB_URL_PROXIED_CONFIGURATION"
+
+check_rbuilder_enabled "$BHUB_CONFIG_FILE" "$BHUB_ACTIVE_BUILDERS_FILE"
 check_subsidies_config_update "$BHUB_CONFIG_FILE"
