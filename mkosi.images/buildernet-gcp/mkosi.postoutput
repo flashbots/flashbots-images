@@ -3,13 +3,15 @@
 set -eu -o pipefail
 
 export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
-export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="-i 12345678"
+export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="-i 12345678 --invariant"
 mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
 cp ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI
+# Set fixed timestamps for reproducibility (FAT uses file mtime for directory entries)
+find ${OUTPUTDIR}/esp -exec touch -d "@${SOURCE_DATE_EPOCH}" {} +
 rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
 
 systemd-repart --empty=create \
-  --size=1073741824 \
+  --size=1G \
   --definitions=mkosi.images/buildernet/repart.d \
   --copy-source=${OUTPUTDIR} \
   --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \
@@ -21,6 +23,6 @@ rm -rf ${OUTPUTDIR}/esp
 
 cd ${OUTPUTDIR}
 ln -sf ${IMAGE_ID}_${IMAGE_VERSION}.raw disk.raw
-tar --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}-import.tar.gz disk.raw
+tar --mtime="@${SOURCE_DATE_EPOCH}" --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}-import.tar.gz disk.raw
 unlink disk.raw
 rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
