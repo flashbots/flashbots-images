@@ -1,0 +1,15 @@
+[Unit]
+Description=Searcher Input FIFO Setup
+After=persistent-mount.service
+Requires=persistent-mount.service
+Before=searcher-container.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/setup-input-fifo.sh
+RemainAfterExit=yes
+User=root
+Group=root
+
+[Install]
+WantedBy=minimal.target

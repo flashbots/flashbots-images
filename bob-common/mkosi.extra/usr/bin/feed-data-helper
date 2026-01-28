@@ -1,0 +1,78 @@
+#!/bin/bash
+# Safely pipes authenticated data from searcher into container
+# Security-hardened version with strict FIFO validation
+# Supports continuous streaming without timeout
+set -eu -o pipefail
+
+FIFO_PATH="/persistent/input/data.fifo"
+LOG_DIR="/persistent/delayed_logs"
+LOG_FILE="$LOG_DIR/output.log"
+MAX_RATE="100M"  # 100MB/s rate limit to prevent accidental DoS
+
+# Create log directory if it doesn't exist
+mkdir -p "$LOG_DIR"
+
+log_error() {
+    echo "[$(date -Iseconds)] feed-data ERROR: $1" >> "$LOG_FILE"
+    echo "Error: $1" >&2
+}
+
+log_info() {
+    echo "[$(date -Iseconds)] feed-data INFO: $1" >> "$LOG_FILE"
+}
+
+# Check system is initialized
+if [ ! -f /etc/searcher-network.state ]; then
+    log_error "System not initialized. Run 'initialize' first."
+    exit 1
+fi
+
+# CRITICAL SECURITY VALIDATION: Verify FIFO exists and is not a symlink
+if [ -L "$FIFO_PATH" ]; then
+    log_error "SECURITY VIOLATION: $FIFO_PATH is a symlink!"
+    exit 1
+fi
+
+if [ ! -e "$FIFO_PATH" ]; then
+    log_error "Input FIFO does not exist at $FIFO_PATH."
+    exit 1
+fi
+
+if [ ! -p "$FIFO_PATH" ]; then
+    log_error "SECURITY VIOLATION: $FIFO_PATH is not a FIFO!"
+    exit 1
+fi
+
+# Security: Verify ownership MUST be root (no exceptions in production)
+FIFO_OWNER=$(stat -c %u "$FIFO_PATH")
+if [ "$FIFO_OWNER" -ne 0 ]; then
+    log_error "SECURITY VIOLATION: FIFO not owned by root!"
+    exit 1
+fi
+
+# Verify we can write to the FIFO
+if [ ! -w "$FIFO_PATH" ]; then
+    log_error "Cannot write to FIFO at $FIFO_PATH."
+    exit 1
+fi
+
+# Log start of data feed
+log_info "Starting secure data feed to container (continuous stream)"
+
+# Rate limit and pipe stdin to FIFO
+# No timeout - this is a continuous stream that runs until:
+# - The sender closes the connection (EOF)
+# - The container stops reading (SIGPIPE)
+# - The SSH connection drops
+if pv -q -L "$MAX_RATE" > "$FIFO_PATH" 2>/dev/null; then
+    log_info "Data feed completed successfully"
+    exit 0
+else
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 141 ]; then
+        log_info "Container disconnected (SIGPIPE)"
+    else
+        log_error "Feed terminated with exit code $EXIT_CODE"
+    fi
+    exit $EXIT_CODE
+fi

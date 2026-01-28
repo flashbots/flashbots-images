@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     if (command == NULL) {
         // If there's no token at all (e.g., empty or whitespace-only string),
         // we print an error and quit.
-        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize\n");
+        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, feed-data, reboot [force], initialize\n");
         free(arg_copy); // free the memory
         return 1;       // return error code 1
     }
@@ -186,6 +186,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // If command == "feed-data", pipe stdin to container's input FIFO
+    else if (strcmp(command, "feed-data") == 0) {
+        // Pipes authenticated data from searcher into container
+        // Security: SSH authenticates searcher, sudo escalates to write to root-owned FIFO
+        // FIFO is root-owned (only root can write) and mounted read-only in container
+        execl("/usr/bin/sudo", "sudo", "/usr/bin/feed-data-helper", "feed-data-helper", NULL);
+        
+        perror("execl failed (feed-data)");
+        free(arg_copy);
+        return 1;
+    }
+
     // If command == "reboot", reboot the host machine using graceful shutdown wrapper
     else if (strcmp(command, "reboot") == 0) {
         // Check if force flag is provided
@@ -201,7 +213,7 @@ int main(int argc, char *argv[]) {
     }
 
     // If we reach here, the command didn't match any of the valid commands
-    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize\n");
+    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, feed-data, reboot [force], initialize\n");
     free(arg_copy); // Clean up allocated memory
     return 1;       // Return error code 1
 }
