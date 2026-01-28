@@ -89,10 +89,18 @@ transforms:
     source: |-
       .tags.job = "acme-le"
 
+  metrics_cardinality_limit:
+    type: tag_cardinality_limit
+    inputs:
+      - metrics_job_*
+    mode: exact
+    value_limit: 149
+    limit_exceeded_action: drop_tag
+
   metrics_relabel:
     type: remap
     inputs:
-      - metrics_job_*
+      - metrics_cardinality_limit
     source: |-
       .tags.instance_name = "<%instance_name%>"
       .tags.instance = .tags.instance_name
