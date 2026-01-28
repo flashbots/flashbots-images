@@ -1,3 +1,10 @@
+# AWS managed Prometheus limits:
+# - Request size: 1MB
+# - Labels per metric series: 150
+# - Label size: 7KB
+# - RemoteWrite API tps per workspace: 3000
+# For more see: https://docs.aws.amazon.com/prometheus/latest/userguide/AMP_quotas.html
+
 # Switch to erb style tags to avoid conflict with vectors's use of curly braces
 {{=<% %>=}}
 data_dir: /var/lib/persistent/vector
@@ -89,10 +96,18 @@ transforms:
     source: |-
       .tags.job = "acme-le"
 
+  metrics_cardinality_limit:
+    type: tag_cardinality_limit
+    inputs:
+      - metrics_job_*
+    mode: exact
+    value_limit: 149
+    limit_exceeded_action: drop_tag
+
   metrics_relabel:
     type: remap
     inputs:
-      - metrics_job_*
+      - metrics_cardinality_limit
     source: |-
       .tags.instance_name = "<%instance_name%>"
       .tags.instance = .tags.instance_name
@@ -148,7 +163,7 @@ sinks:
     aws:
       region: <%aws_credentials.region%>
     batch:
-      max_bytes: 750000
+      max_bytes: 500000
     <%/sigv4%>
     <%#basic_auth%>
     auth:

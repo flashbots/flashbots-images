@@ -29,7 +29,7 @@ CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
 CARGO_TARGET_DIR="$BUILDDIR/target"
 
 cargo build --release --locked --no-default-features \
-  --features unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-aws_cloudwatch_logs,transforms-filter,transforms-throttle,transforms-remap
+  --features unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-aws_cloudwatch_logs,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics
 
 mkdir -p $DESTDIR/usr/bin
 cp $CARGO_TARGET_DIR/release/vector $DESTDIR/usr/bin/vector
