@@ -9,7 +9,7 @@ cp ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX
 rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
 
 systemd-repart --empty=create \
-  --size=auto \
+  --size=1073741824 \
   --definitions=mkosi.images/buildernet/repart.d \
   --copy-source=${OUTPUTDIR} \
   --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \

@@ -3,3 +3,7 @@ set -euo pipefail
 
 # GCP images run without TPM
 systemctl mask dev-tpmrm0.device
+
+ln -sf /usr/bin/echo /usr/lib/systemd/systemd-pcrextend
+ln -sf /usr/bin/echo /usr/bin/tpm2
+ln -sf /usr/bin/echo /usr/bin/tss2
