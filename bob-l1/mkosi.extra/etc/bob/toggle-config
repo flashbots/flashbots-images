@@ -1,0 +1,71 @@
+#!/bin/bash
+# Bob-L1 Toggle Configuration
+# This file is sourced by the common toggle script to provide image-specific behavior
+
+# Image identifier for logging
+IMAGE_TYPE="bob-l1"
+
+# Production endpoints (format: "IP:Description")
+PRODUCTION_ENDPOINTS=(
+    "52.207.17.217:Titan state diff"
+    "3.136.107.142:Flashbots protect tx"
+    "3.149.14.12:Flashbots protect tx"
+)
+
+# Maintenance ports (format: "protocol:port:description")
+MAINTENANCE_ENDPOINTS=(
+    "tcp:10022:SSH data port"
+    "tcp:53:DNS"
+    "udp:53:DNS"
+    "tcp:80:HTTP"
+    "tcp:443:HTTPS"
+    "tcp:30303:EL P2P"
+    "udp:30303:EL P2P"
+)
+
+# Function to display production endpoints being killed
+display_production_endpoints() {
+    echo "Killing leftover production flows:"
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        local name="${endpoint#*:}"
+        echo "     - $name ($ip)"
+    done
+}
+
+# Function to kill production connections
+kill_production_connections_custom() {
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        $CONNTRACK -D -d "$ip" 2>/dev/null || true
+    done
+}
+
+# Function to display maintenance endpoints being killed
+display_maintenance_endpoints() {
+    echo "Killing leftover maintenance flows:"
+    local displayed_ports=""
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        local name="${rest#*:}"
+        
+        # Only display unique port descriptions
+        if [[ ! "$displayed_ports" =~ ":$port:" ]]; then
+            echo "     - $name ($port)"
+            displayed_ports="$displayed_ports:$port:"
+        fi
+    done
+}
+
+# Function to kill maintenance connections
+kill_maintenance_connections_custom() {
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        
+        $CONNTRACK -D -p "$protocol" --dport "$port" 2>/dev/null || true
+    done
+}

@@ -1,0 +1,81 @@
+#!/bin/bash
+# Bob-L2 Toggle Configuration
+# This file is sourced by the common toggle script to provide image-specific behavior
+
+# Image identifier for logging
+IMAGE_TYPE="bob-l2"
+
+# Source the dynamic configuration if available
+if [ -f "/etc/bob/config.env" ]; then
+    . /etc/bob/config.env
+fi
+
+# Build production endpoints dynamically (format: "IP:Description")
+PRODUCTION_ENDPOINTS=()
+if [ -n "$CONFIG_SIMULATOR_IP" ]; then
+    PRODUCTION_ENDPOINTS+=("${CONFIG_SIMULATOR_IP}:Simulator endpoint")
+fi
+
+# Maintenance ports (format: "protocol:port:description")
+MAINTENANCE_ENDPOINTS=(
+    "tcp:10022:SSH data port"
+    "tcp:53:DNS"
+    "udp:53:DNS"
+    "tcp:80:HTTP"
+    "tcp:443:HTTPS"
+    "tcp:40404:OP-Geth P2P"
+    "udp:40404:OP-Geth P2P"
+)
+
+# Function to display production endpoints being killed
+display_production_endpoints() {
+    if [ ${#PRODUCTION_ENDPOINTS[@]} -eq 0 ]; then
+        echo "Killing leftover production flows:"
+        echo "     - No production endpoints configured"
+        return
+    fi
+    
+    echo "Killing leftover production flows:"
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        local name="${endpoint#*:}"
+        echo "     - $name ($ip)"
+    done
+}
+
+# Function to kill production connections
+kill_production_connections_custom() {
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        $CONNTRACK -D -d "$ip" 2>/dev/null || true
+    done
+}
+
+# Function to display maintenance endpoints being killed
+display_maintenance_endpoints() {
+    echo "Killing leftover maintenance flows:"
+    local displayed_ports=""
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        local name="${rest#*:}"
+        
+        # Only display unique port descriptions
+        if [[ ! "$displayed_ports" =~ ":$port:" ]]; then
+            echo "     - $name ($port)"
+            displayed_ports="$displayed_ports:$port:"
+        fi
+    done
+}
+
+# Function to kill maintenance connections
+kill_maintenance_connections_custom() {
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        
+        $CONNTRACK -D -p "$protocol" --dport "$port" 2>/dev/null || true
+    done
+}
