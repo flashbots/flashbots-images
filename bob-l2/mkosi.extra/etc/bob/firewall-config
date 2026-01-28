@@ -59,10 +59,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
 
-# Block simulator endpoints during maintenance
-# Both RPC (8645) and WebSocket (8646) are production-only
-drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_RPC_PORT "Simulator RPC (blocked in maintenance)"
-drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_WS_PORT "Simulator WebSocket (blocked in maintenance)"
+# Block ALL traffic to simulator during maintenance
+# Simulator endpoints (8645, 8646) are production-only
+drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in maintenance)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
