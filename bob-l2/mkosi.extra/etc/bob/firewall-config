@@ -45,11 +45,6 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 
-# Bundle submission endpoints (always allowed for searcher container traffic)
-# The searcher container's outbound traffic NATs through the host
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "Simulator bundle HTTP"
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator bundle RPC"
-
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
 ###########################################################################
@@ -64,9 +59,10 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
 
-# Block simulator tx stream WebSocket during maintenance
-# Bundle submission on ports 80, 8645 still works via ALWAYS_OUT
-drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_WS_PORT "Simulator tx stream (DROP before accept-all rules)"
+# Block simulator endpoints during maintenance
+# Both RPC (8645) and WebSocket (8646) are production-only
+drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_RPC_PORT "Simulator RPC (blocked in maintenance)"
+drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_WS_PORT "Simulator WebSocket (blocked in maintenance)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -87,4 +83,6 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator tx stream WebSocket"
+# Allow simulator endpoints in production mode
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator RPC (sendBackrun)"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator WebSocket (tx stream)"
