@@ -40,9 +40,11 @@ make_git_package \
     'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
-make_git_package \
-    "cvm-reverse-proxy" \
-    "v0.1.8" \
-    "https://github.com/flashbots/cvm-reverse-proxy" \
-    "make build-proxy-server" \
-    "build/proxy-server:/usr/bin/cvm-reverse-proxy"
+# Build attested-tls-proxy
+build_rust_package \
+    "attested-tls-proxy" \
+    "bob-test-00" \
+    "https://github.com/flashbots/attested-tls-proxy.git" \
+    "" \
+    "" \
+    "-l z -l zstd"
