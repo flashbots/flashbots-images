@@ -145,6 +145,17 @@ drop_dst_ip() {
                          -m comment --comment "$comment"
 }
 
+drop_dst_ip_port() {
+    chain="$1"
+    ip="$2"
+    protocol="$3"
+    port="$4"
+    comment="$5"
+
+    iptables -A "$chain" -p "$protocol" -d "$ip" --dport "$port" -j DROP \
+                         -m comment --comment "$comment"
+}
+
 ###########################################################################
 # (5) Load firewall rules in {MAINTENANCE,PRODUCTION}_{IN,OUT} chains.
 # Those are customized per image, see bob*/mkosi.extra/etc/bob/firewall-config

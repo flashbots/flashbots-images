@@ -17,6 +17,10 @@ OP_NODE_P2P_PORT=9222
 OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
 
+# Simulator ports (production only)
+SIMULATOR_RPC_PORT=8645
+SIMULATOR_WS_PORT=8646
+
 ###########################################################################
 # (1) ALWAYS_IN: Inbound rules that are always applied
 ###########################################################################
@@ -41,10 +45,10 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "bundle"
-
-# TODO: this is temporary for tests
-iptables -A $CHAIN_ALWAYS_OUT -j ACCEPT
+# Bundle submission endpoints (always allowed for searcher container traffic)
+# The searcher container's outbound traffic NATs through the host
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "Simulator bundle HTTP"
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator bundle RPC"
 
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
@@ -60,8 +64,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
 
-# Block tx endpoint during maintenance
-drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "tx stream (DROP before accept-all rules)"
+# Block simulator tx stream WebSocket during maintenance
+# Bundle submission on ports 80, 8645 still works via ALWAYS_OUT
+drop_dst_ip_port $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" tcp $SIMULATOR_WS_PORT "Simulator tx stream (DROP before accept-all rules)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -82,4 +87,4 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "tx stream"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator tx stream WebSocket"
