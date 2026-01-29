@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# mkosi doesn't support customizing version script path in config files,
-# so we store it in the root of repo / cwd of running mkosi commands.
-
-# careful: this script is executed on host, and not in any of sandboxes
+# This script generates the image version string for mkosi images.
+# Check: https://github.com/systemd/mkosi/blob/main/mkosi/resources/man/mkosi.1.md
+#
+# Note: This script executes on the host, not inside any mkosi sandbox.
 
 # Add current directory to git safe directories if not already present
 if ! git config --global --get-all safe.directory | grep -Fxq "$PWD"; then
