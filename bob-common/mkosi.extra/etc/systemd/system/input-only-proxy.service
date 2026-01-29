@@ -1,0 +1,21 @@
+[Unit]
+Description=Input Only Proxy - Timing-isolated data forwarding
+After=wait-for-key.service persistent-mount.service
+Requires=wait-for-key.service persistent-mount.service
+Before=searcher-container.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/setup-input-directory.sh
+ExecStart=/usr/bin/input-only-proxy \
+    --listen 127.0.0.1:27018 \
+    --unix-socket /persistent/input/input.sock \
+    --pubkey-file /etc/searcher_key \
+    --log-level info
+Restart=always
+RestartSec=5s
+User=root
+Group=root
+
+[Install]
+WantedBy=minimal.target
