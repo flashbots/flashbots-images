@@ -197,11 +197,14 @@ check_searcher_namespace_rules() {
 
     # 3) Check if the DROP rules on critical ports are present in OUTPUT chain
     #    -C (check) returns 0 if a matching rule is found, 1 otherwise
-    if nsenter --target "$pid" --net $IPTABLES -C OUTPUT --dport 9000 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT --sport 27017 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT --sport 27018 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT --dport 123 -j DROP 2>/dev/null; then
-        echo "OK: searcher-container firewall rules (DROP all protocols dport 9000/123, sport 27017/27018) are ACTIVE."
+    if nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 9000 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 9000 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --sport 27017 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27017 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27018 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 123 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 123 -j DROP 2>/dev/null; then
+        echo "OK: searcher-container firewall rules (DROP tcp/udp dport 9000/123, tcp/udp sport 27017, tcp sport 27018) are ACTIVE."
         return 0
     else
         echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/27018/123) are NOT found."

@@ -73,15 +73,18 @@ ns_iptables() {
 
 ns_iptables -A OUTPUT -d 169.254.169.254 -j DROP
 
-# Block all protocols to consensus layer P2P port
-ns_iptables -A OUTPUT --dport 9000 -j DROP
+# Block consensus layer P2P port (TCP and UDP)
+ns_iptables -A OUTPUT -p tcp --dport 9000 -j DROP
+ns_iptables -A OUTPUT -p udp --dport 9000 -j DROP
 
-# Block all protocols to NTP port (prevent time manipulation)
-ns_iptables -A OUTPUT --dport 123 -j DROP
+# Block NTP port (UDP, rarely TCP)
+ns_iptables -A OUTPUT -p udp --dport 123 -j DROP
+ns_iptables -A OUTPUT -p tcp --dport 123 -j DROP
 
-# Block container from sending responses on input channels (all protocols)
-ns_iptables -A OUTPUT --sport $SEARCHER_INPUT_UDP_PORT -j DROP
-ns_iptables -A OUTPUT --sport $SEARCHER_INPUT_TCP_PORT -j DROP
+# Block container from sending responses on input channels
+ns_iptables -A OUTPUT -p udp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
+ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
+ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_TCP_PORT -j DROP
 
 # Helper, only used in sourced script below
 exec_in_container() {
