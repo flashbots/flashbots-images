@@ -8,7 +8,7 @@ Before=searcher-container.service
 Type=simple
 ExecStartPre=/usr/bin/setup-input-directory.sh
 ExecStart=/usr/bin/input-only-proxy \
-    --listen 127.0.0.1:27018 \
+    --listen 0.0.0.0:27018 \
     --unix-socket /persistent/input/input.sock \
     --pubkey-file /etc/searcher_key \
     --log-level info
