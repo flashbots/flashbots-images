@@ -1,26 +1,53 @@
 #!/bin/bash
+set -euxo pipefail
 
-set -eu -o pipefail
+EFI="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
+TAR="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}-import.tar.gz"
+TMP="${OUTPUTDIR}/gcp-tmp"
 
-export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
-export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="-i 12345678"
-mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
-cp ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI
-rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
+[ ! -f "$EFI" ] && echo "Error: $EFI not found" && exit 1
 
-systemd-repart --empty=create \
-  --size=1073741824 \
-  --definitions=mkosi.images/buildernet/repart.d \
-  --copy-source=${OUTPUTDIR} \
-  --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \
-  --dry-run=no \
-  ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
-sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
+mkdir -p "$TMP"
 
-rm -rf ${OUTPUTDIR}/esp
+# Fixed GUIDs and IDs
+DISK_GUID="12345678-1234-5678-1234-567812345678"
+PARTITION_GUID="87654321-4321-8765-4321-876543218765"
+FAT_SERIAL="12345678"
 
-cd ${OUTPUTDIR}
-ln -sf ${IMAGE_ID}_${IMAGE_VERSION}.raw disk.raw
-tar --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}-import.tar.gz disk.raw
-unlink disk.raw
-rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
+# Create 500MB ESP
+dd if=/dev/zero of="$TMP/esp.img" bs=1M count=500
+
+# Format with fixed volume serial number and label
+mformat -i "$TMP/esp.img" -F -v "ESP" -N "$FAT_SERIAL" ::
+
+# Create directory structure
+mmd -i "$TMP/esp.img" ::EFI ::EFI/BOOT
+
+# Copy files with deterministic timestamps
+# -D o sets file times to 1980-01-01 (DOS epoch)
+mcopy -D o -i "$TMP/esp.img" "$EFI" ::EFI/BOOT/BOOTX64.EFI
+
+# Create 1GB disk with GPT
+dd if=/dev/zero of="$TMP/disk.raw" bs=1M count=1024
+sgdisk --disk-guid="$DISK_GUID" "$TMP/disk.raw"
+
+# Create ESP partition
+# -n creates partition (number:start:end)
+# -t sets type (1:ef00 for ESP)
+# -u sets partition GUID
+# -c sets partition name
+sgdisk -n 1:2048:1026047 \
+        -t 1:ef00 \
+        -u 1:"$PARTITION_GUID" \
+        -c 1:"ESP" \
+        -A 1:set:0 \
+        "$TMP/disk.raw"
+
+# Write ESP image to partition area
+dd if="$TMP/esp.img" of="$TMP/disk.raw" bs=512 seek=2048 conv=notrunc
+touch -d "2024-01-01 00:00:00 UTC" "$TMP/disk.raw" 2>/dev/null || true
+
+# Create GCP tar.gz
+tar --format=oldgnu -Sczf "$TAR" -C "$TMP" disk.raw
+
+rm -rf "$TMP"
