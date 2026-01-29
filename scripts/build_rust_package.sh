@@ -37,11 +37,19 @@ build_rust_package() {
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
 
     # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}-${extra_features}/${package}"
+    if [ -n "${extra_features}" ]; then
+        local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}-${extra_features}/${package}"
+    else
+        local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
+    fi
     local cached_binary="${cached_binary//,/−}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
-        echo "| \`$package\` | \`$version\` (\`$git_describe\`, ${extra_features}) | reused from cache |   |" >> $BUILDDIR/manifest.md
+        if [ -n "${extra_features}" ]; then
+            echo "| \`$package\` | \`$version\` (\`$git_describe\`, features: ${extra_features}) | reused from cache |   |" >> $BUILDDIR/manifest.md
+        else
+            echo "| \`$package\` | \`$version\` (\`$git_describe\` | reused from cache |   |" >> $BUILDDIR/manifest.md
+        fi
         cp "$cached_binary" "$dest_path"
         return
     fi

@@ -73,7 +73,7 @@ else
     cp arch/x86_64/boot/bzImage "$cache_dir/"
     cp .config "$cache_dir/config"
 
-    echo "| kernel  | \`${KERNEL_VERSION}\` (config hash \`${config_hash}\`)  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${config_hash}\`)  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
 fi
 
 # Install kernel
