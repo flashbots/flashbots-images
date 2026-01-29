@@ -11,12 +11,13 @@ if ! git config --global --get-all safe.directory | grep -Fxq "$PWD"; then
     git config --global --add safe.directory "$PWD"
 fi
 
-commit_date=$(TZ=UTC0 git show -s --date=format:'%Y-%m-%d' --format='%ad')
+commit_timestamp=$(git show -s --format=%ct)
 commit_hash=$(git rev-parse --short=6 HEAD)
 dirty_suffix=""
 if [ -n "$(git status --porcelain)" ]; then
-    dirty_suffix="-dirty"
+    dirty_suffix="_dirty"
 fi
 
-# example value: 2025-06-26.a1b2c3d-dirty
-echo "${commit_date}.${commit_hash}${dirty_suffix}"
+# Example: 1720636800_a1b2c3d_dirty
+# Resulting image name: <IMAGE_ID>_1720636800_a1b2c3d_dirty
+echo "${commit_timestamp}_${commit_hash}${dirty_suffix}"
