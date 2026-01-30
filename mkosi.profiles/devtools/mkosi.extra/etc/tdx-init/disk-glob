@@ -1,0 +1,2 @@
+/dev/disk/by-path/*:10
+/dev/disk/by-id/google-data
