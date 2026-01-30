@@ -1,0 +1,130 @@
+# GitHub Actions workflow for building mkosi images using Nix.
+#
+# Triggers on:
+# - Pushes to main branch: Builds all images (bob-l1, bob-l2) in parallel
+#
+# - Manual dispatch: Allows specifying:
+#   - Branch to build from (default: main)
+#   - Images to build (default: bob-l1)
+#     - "all" → builds bob-l1 and bob-l2
+#     - "bob-l1" → builds only bob-l1
+#     - "bob-l2" → builds only bob-l2
+#     - "bob-l1,bob-l2" → builds both
+
+name: Build mkosi images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+        type: string
+      images:
+        description: 'Images to build (comma-separated: bob-l1,bob-l2 or "all")'
+        required: false
+        default: 'bob-l1'
+        type: string
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Validate images
+        id: set-matrix
+        run: |
+          # Allowlist of valid images
+          valid_images=("bob-l1" "bob-l2")
+          all_images='["bob-l1","bob-l2"]'
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.images }}" != "all" ]; then
+            # Convert comma-separated string to array
+            IFS=',' read -ra requested_images <<< "${{ inputs.images }}"
+
+            # Validate each requested image
+            invalid_images=()
+            for img in "${requested_images[@]}"; do
+              img=$(echo "$img" | xargs)  # Trim whitespace
+              if [[ ! " ${valid_images[@]} " =~ " ${img} " ]]; then
+                invalid_images+=("$img")
+              fi
+            done
+
+            # Fail if any invalid images
+            if [ ${#invalid_images[@]} -gt 0 ]; then
+              echo "❌ Error: Invalid image(s): ${invalid_images[*]}"
+              echo "Valid images are: ${valid_images[*]}"
+              exit 1
+            fi
+
+            # Convert to JSON array
+            json_array=$(printf '%s\n' "${requested_images[@]}" | jq -R . | jq -s -c 'map(select(length > 0))')
+            echo "matrix=$json_array" >> $GITHUB_OUTPUT
+            echo "✓ Building images: $json_array"
+          else
+            echo "matrix=$all_images" >> $GITHUB_OUTPUT
+            echo "✓ Building all images: $all_images"
+          fi
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.validate.outputs.matrix) }}
+
+    name: build ${{ matrix.image }} image
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Enable user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build ${{ matrix.image }} image
+        run: |
+          umask 022
+          nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
+
+      - name: Show build artifacts
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Image: ${{ matrix.image }}"
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ -d "build" ]; then
+            echo ""
+            # Show only filename and size for matching files
+            ls -lh build/ | grep -E "${{ matrix.image }}" | awk '{print $9, "(" $5 ")"}'
+          else
+            echo "⚠️  Build directory not found"
+          fi
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd build/
+          TIMESTAMP=$(git show -s --format=%ct HEAD)
+          SHORT_SHA="${GITHUB_SHA::8}"
+          CHECKSUM_FILE="${{ matrix.image }}_${TIMESTAMP}_${SHORT_SHA}.sha256"
+          sha256sum ${{ matrix.image }}_* > "$CHECKSUM_FILE"
+          cat "$CHECKSUM_FILE"
