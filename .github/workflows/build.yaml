@@ -104,6 +104,10 @@ jobs:
           umask 022
           nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
 
+      - name: Fix permissions
+        run: |
+            sudo chown -R $(id -u):$(id -g) build/
+
       - name: Show build artifacts
         if: always()
         run: |
