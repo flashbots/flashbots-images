@@ -1,10 +1,6 @@
 #!/bin/bash
 set -euxo pipefail
 
-# Install chrony config
-mkdir -p "$BUILDROOT/etc/chrony/"
-install -m 644 services/chrony.conf "$BUILDROOT/etc/chrony/"
-
 # Enable services
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 
