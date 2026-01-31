@@ -21,10 +21,6 @@ CONFIG_SIMULATOR_WS_URL='ws://192.168.1.100:8546'
 CONFIG_SIMULATOR_IP='192.168.1.100'
 EOF
 
-    # Ideally, this logic should be somewhere else, but it's fine for now
-    chattr -i /etc/resolv.conf || true
-    echo "nameserver 1.1.1.1" > /etc/resolv.conf
-
     exit 0
 fi
 
