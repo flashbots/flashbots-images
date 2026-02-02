@@ -18,6 +18,10 @@ OP_NODE_P2P_PORT=9222
 OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
 
+# Simulator ports (production only)
+SIMULATOR_RPC_PORT=8645
+SIMULATOR_WS_PORT=8646
+
 ###########################################################################
 # (1) ALWAYS_IN: Inbound rules that are always applied
 ###########################################################################
@@ -43,11 +47,6 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "bundle"
-
-# TODO: this is temporary for tests
-iptables -A $CHAIN_ALWAYS_OUT -j ACCEPT
-
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
 ###########################################################################
@@ -62,8 +61,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
 ###########################################################################
 
-# Block tx endpoint during maintenance
-drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "tx stream (DROP before accept-all rules)"
+# Block ALL traffic to simulator during maintenance
+# Simulator endpoints (8645, 8646) are production-only
+drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in maintenance)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -84,4 +84,6 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $HTTP_PORT "tx stream"
+# Allow simulator endpoints in production mode
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator RPC (sendBackrun)"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator WebSocket (tx stream)"

@@ -105,33 +105,47 @@ check_delay() {
 ###############################################################################
 # Kill established connections via conntrack
 ###############################################################################
+kill_production_connections() {
+    if [ ${#PRODUCTION_ENDPOINTS[@]} -eq 0 ]; then
+        echo "Killing leftover production flows:"
+        echo "     - No production endpoints configured"
+        return
+    fi
+
+    echo "Killing leftover production flows:"
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        local name="${endpoint#*:}"
+        echo "     - $name ($ip)"
+        $CONNTRACK -D -d "$ip" 2>/dev/null || true
+    done
+}
+
+kill_maintenance_connections() {
+    echo "Killing leftover maintenance flows:"
+    local displayed_ports=""
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        local name="${rest#*:}"
+
+        # Only display unique port descriptions
+        if [[ ! "$displayed_ports" =~ ":$port:" ]]; then
+            echo "     - $name ($port)"
+            displayed_ports="$displayed_ports:$port:"
+        fi
+
+        $CONNTRACK -D -p "$protocol" --dport "$port" 2>/dev/null || true
+    done
+}
+
 kill_established_connections() {
     local old_mode="$1"
     if [ "$old_mode" = "production" ]; then
-        # Use image-specific function if available, otherwise use default
-        if type display_production_endpoints >/dev/null 2>&1; then
-            display_production_endpoints
-        else
-            echo "Killing leftover production flows:"
-            echo "     - No production endpoints configured"
-        fi
-        
-        if type kill_production_connections_custom >/dev/null 2>&1; then
-            kill_production_connections_custom
-        fi
-
+        kill_production_connections
     elif [ "$old_mode" = "maintenance" ]; then
-        # Use image-specific function if available, otherwise use default
-        if type display_maintenance_endpoints >/dev/null 2>&1; then
-            display_maintenance_endpoints
-        else
-            echo "Killing leftover maintenance flows:"
-            echo "     - No maintenance endpoints configured"
-        fi
-        
-        if type kill_maintenance_connections_custom >/dev/null 2>&1; then
-            kill_maintenance_connections_custom
-        fi
+        kill_maintenance_connections
     fi
     # if old_mode="stopped", nothing to kill
 }
