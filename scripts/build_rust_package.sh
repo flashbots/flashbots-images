@@ -35,6 +35,7 @@ build_rust_package() {
 
     # Get the git reference
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
+    printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
 
     # If binary is cached, skip compilation
     if [ -n "${extra_features}" ]; then
@@ -46,9 +47,9 @@ build_rust_package() {
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         if [ -n "${extra_features}" ]; then
-            echo "| \`$package\` | \`$version\` (\`$git_describe\`, features: ${extra_features}) | reused from cache |   |" >> $BUILDDIR/manifest.md
+            echo "| \`$package\` | \`$version\` (\`$git_describe\`, features: ${extra_features}) | reused from cache |   |" ">> $BUILDDIR/manifest.md"
         else
-            echo "| \`$package\` | \`$version\` (\`$git_describe\` | reused from cache |   |" >> $BUILDDIR/manifest.md
+            echo "| \`$package\` | \`$version\` (\`$git_describe\` | reused from cache |   |" >> "$BUILDDIR/manifest.md"
         fi
         cp "$cached_binary" "$dest_path"
         return
@@ -89,5 +90,5 @@ build_rust_package() {
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
 
-    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }

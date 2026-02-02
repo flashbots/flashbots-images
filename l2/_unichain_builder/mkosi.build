@@ -58,3 +58,7 @@ make_git_package \
     'go build -trimpath -ldflags "-s -w -X main.version=${NODE_HEALTHCHECKER_REF} -buildid=" -o ./bin/node-healthchecker github.com/flashbots/node-healthchecker/cmd' \
     "bin/node-healthchecker:/usr/bin/node-healthchecker"
 chmod +x $DESTDIR/usr/bin/node-healthchecker
+
+# generate version
+
+cp $BUILDDIR/unichain-builder.git $BUILDDIR/workload.git
