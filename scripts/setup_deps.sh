@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "${BASH_SOURCE[0]%/*}/env_wrapper.sh" --source-only 2>/dev/null || true
+
+# Skip if using Lima (deps are handled inside the VM)
+should_use_lima && exit 0
+
 [[ "$OSTYPE" == "linux-gnu"* ]] || exit 0
-[[ "${FORCE_LIMA:-}" == "1" ]] && exit 0
 
 LIMA_MSG="Alternatively, you can install Lima from lima-vm.io and run make with FORCE_LIMA=1"
 
@@ -18,6 +22,7 @@ missing=()
 
 cmd_exists curl || missing+=("curl")
 cmd_exists qemu-img || missing+=("qemu-utils")
+cmd_exists newuidmap || missing+=("uidmap")
 
 ls /usr/share/keyrings/debian-archive* &>/dev/null 2>&1 || missing+=("debian-archive-keyring")
 
@@ -50,7 +55,7 @@ fi
 
 apt_pkgs=()
 for dep in "${missing[@]}"; do
-    [[ "$dep" == "curl" || "$dep" == "debian-archive-keyring" || "$dep" == "qemu-utils" ]] && apt_pkgs+=("$dep")
+    [[ "$dep" == "curl" || "$dep" == "debian-archive-keyring" || "$dep" == "qemu-utils" || "$dep" == "uidmap" ]] && apt_pkgs+=("$dep")
 done
 
 if [ ${#apt_pkgs[@]} -gt 0 ]; then
@@ -66,6 +71,10 @@ fi
 if [[ " ${missing[@]} " =~ " nix " ]]; then
     sh <(curl -L https://nixos.org/nix/install) --no-daemon
     . ~/.nix-profile/etc/profile.d/nix.sh
+    echo ""
+    warn "To use nix in new shells, add this to your shell profile (e.g. ~/.bashrc):"
+    echo "  . ~/.nix-profile/etc/profile.d/nix.sh"
+    echo ""
 fi
 
 success "Dependencies installed successfully!"

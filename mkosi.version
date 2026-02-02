@@ -6,11 +6,6 @@ set -euo pipefail
 
 # careful: this script is executed on host, and not in any of sandboxes
 
-# Add current directory to git safe directories if not already present
-if ! git config --global --get-all safe.directory | grep -Fxq "$PWD"; then
-    git config --global --add safe.directory "$PWD"
-fi
-
 commit_date=$(TZ=UTC0 git show -s --date=format:'%Y-%m-%d' --format='%ad')
 commit_hash=$(git rev-parse --short=6 HEAD)
 dirty_suffix=""
