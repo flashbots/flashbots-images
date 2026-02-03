@@ -109,7 +109,6 @@ jobs:
             sudo chown -R $(id -u):$(id -g) build/
 
       - name: Show build artifacts
-        if: always()
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📦 Image: ${{ matrix.image }}"
