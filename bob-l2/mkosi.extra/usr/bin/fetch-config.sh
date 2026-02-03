@@ -7,18 +7,32 @@ set -eu -o pipefail
 
 CONFIG_PATH=/etc/bob/config.env
 
-if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU"; then
-    echo "Running in local QEMU, using hardcoded metadata values"
+# Don't override if config already exists
+if [ -f "$CONFIG_PATH" ]; then
+    echo "Config already exists at $CONFIG_PATH, skipping"
+    exit 0
+fi
 
-    cat <<EOF >> "$CONFIG_PATH"
+if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
+   [ -f /etc/systemd/system/serial-console.service ]; then
+    echo "Running in local QEMU dev image, using default test values"
+
+    # Get default gateway (host in QEMU user-mode networking)
+    GATEWAY=$(ip route | awk '/default/ {print $3}')
+    if [ -z "$GATEWAY" ]; then
+        echo "Warning: Could not detect gateway, falling back to 10.0.2.2"
+        GATEWAY="10.0.2.2"
+    fi
+
+    cat <<EOF > "$CONFIG_PATH"
 CONFIG_NETWORK_ID='12345'
 CONFIG_NETWORK_NAME='local-testnet'
 CONFIG_JWT_SECRET='1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-CONFIG_EL_STATIC_PEERS='enode://abc123@192.168.1.10:30303'
-CONFIG_EL_PEERS_IPS='192.168.1.10'
-CONFIG_SIMULATOR_RPC_URL='http://192.168.1.100:8545'
-CONFIG_SIMULATOR_WS_URL='ws://192.168.1.100:8546'
-CONFIG_SIMULATOR_IP='192.168.1.100'
+CONFIG_EL_STATIC_PEERS='enode://abc123@${GATEWAY}:30303'
+CONFIG_EL_PEERS_IPS='${GATEWAY}'
+CONFIG_SIMULATOR_RPC_URL='http://${GATEWAY}:8545'
+CONFIG_SIMULATOR_WS_URL='ws://${GATEWAY}:8546'
+CONFIG_SIMULATOR_IP='${GATEWAY}'
 EOF
 
     exit 0
