@@ -15,6 +15,7 @@ This comprehensive guide covers everything you need to know about developing wit
 - [Freezing to Debian Archive Snapshots](#freezing-to-debian-archive-snapshots)
 - [Testing for Reproducibility](#testing-for-reproducibility)
 - [Creating Debian Packages](#creating-debian-packages)
+- [Custom Developer Files](#custom-developer-files)
 - [Debugging and Troubleshooting](#debugging-and-troubleshooting)
 
 ## Project Structure
@@ -634,6 +635,30 @@ For systems without systemd v250+ or where Nix installation isn't feasible, you 
    ```
    > Replace "btrfs" with your chosen storage driver
 5. Run the desired `mkosi` command inside the shell Podman environment
+
+## Custom Developer Files
+
+When building with the `devtools` profile, you can add your own custom files to the image without committing them to git. This is useful for adding personal SSH keys, configuration files, or debugging tools during development.
+
+### Adding Custom Files
+
+Place files in `mkosi.profiles/devtools/custom/` mirroring the filesystem structure you want:
+
+```bash
+# Add your SSH authorized keys
+mkdir -p mkosi.profiles/devtools/custom/root/.ssh
+cp ~/.ssh/id_rsa.pub mkosi.profiles/devtools/custom/root/.ssh/authorized_keys
+
+# Add a custom configuration file
+mkdir -p mkosi.profiles/devtools/custom/etc
+echo "my_setting=value" > mkosi.profiles/devtools/custom/etc/myconfig.conf
+
+# Add a debugging script
+mkdir -p mkosi.profiles/devtools/custom/usr/local/bin
+cp my-debug-script.sh mkosi.profiles/devtools/custom/usr/local/bin/
+```
+
+Files placed here will be copied into the image (like any other `ExtraTrees` directory) but will be ignored by git, so they won't be accidentally committed.
 
 ## Debugging and Troubleshooting
 
