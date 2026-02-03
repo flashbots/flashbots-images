@@ -58,7 +58,6 @@
             dpkg
             gnupg
             debootstrap
-            debian-archive-keyring
             squashfsTools
             dosfstools
             e2fsprogs
