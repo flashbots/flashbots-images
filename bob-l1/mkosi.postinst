@@ -7,9 +7,6 @@ set -euxo pipefail
 mkosi-chroot groupadd -r eth
 mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
 
-# Install lighthouse
-install -m 755 services/bin/lighthouse-init "$BUILDROOT/usr/bin/"
-
 # Enable services
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
