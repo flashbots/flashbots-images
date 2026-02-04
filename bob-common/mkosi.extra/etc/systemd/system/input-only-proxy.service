@@ -11,6 +11,7 @@ ExecStart=/usr/bin/input-only-proxy \
     --listen 0.0.0.0:27018 \
     --unix-socket /persistent/input/input.sock \
     --pubkey-file /etc/searcher_key \
+    --cert-base-path /persistent/input-proxy \
     --log-level info
 Restart=always
 RestartSec=5s
