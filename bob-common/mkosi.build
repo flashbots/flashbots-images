@@ -46,3 +46,9 @@ make_git_package \
     "https://github.com/flashbots/cvm-reverse-proxy" \
     "make build-proxy-server" \
     "build/proxy-server:/usr/bin/cvm-reverse-proxy"
+
+# Build input-only-proxy
+build_rust_package \
+    "input-only-proxy" \
+    "v0.0.2" \
+    "https://github.com/flashbots/input-only-proxy"

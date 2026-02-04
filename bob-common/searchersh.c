@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     if (command == NULL) {
         // If there's no token at all (e.g., empty or whitespace-only string),
         // we print an error and quit.
-        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize\n");
+        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize, input-cert\n");
         free(arg_copy); // free the memory
         return 1;       // return error code 1
     }
@@ -200,8 +200,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // If command == "input-cert", fetch the input-proxy TLS certificate
+    else if (strcmp(command, "input-cert") == 0) {
+        // Return the public certificate that searchers need to verify the server
+        execl("/bin/cat", "cat", "/persistent/input-proxy.crt", NULL);
+
+        perror("execl failed (input-cert)");
+        free(arg_copy);
+        return 1;
+    }
+
     // If we reach here, the command didn't match any of the valid commands
-    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize\n");
+    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize, input-cert\n");
     free(arg_copy); // Clean up allocated memory
     return 1;       // Return error code 1
 }
