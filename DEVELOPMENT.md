@@ -27,6 +27,7 @@ flashboxes/
 │   └── debloat*.sh         # System cleanup scripts
 ├── bob-common/             # TEE Searcher common image
 ├── bob-l1/                 # L1 TEE Searcher sandbox image
+├── bob-l2/                 # L2 TEE Searcher sandbox image
 ├── buildernet/             # BuilderNet
 ├── tdx-dummy/              # TDX test environment
 ├── kernel/                 # Kernel configuration

@@ -11,7 +11,6 @@ echo "/dev/disk/by-id/google-data" >> "$BUILDROOT/etc/tdx-init/disk-glob"
 mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
 mkosi-chroot systemctl unmask sys-kernel-config.mount
 for service in \
-    chrony.service \
     sys-kernel-config.mount \
     set-hostname.service
 do

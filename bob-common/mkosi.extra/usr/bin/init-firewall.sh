@@ -124,6 +124,18 @@ accept_dst_ip_port() {
                          -m comment --comment "$comment"
 }
 
+accept_src_ip_dst_port() {
+    chain="$1"
+    protocol="$2"
+    ip="$3"
+    port="$4"
+    comment="$5"
+
+    iptables -A "$chain" -p "$protocol" -s "$ip" --dport "$port" \
+                         -m conntrack --ctstate NEW -j ACCEPT \
+                         -m comment --comment "$comment"
+}
+
 drop_dst_ip() {
     chain="$1"
     ip="$2"

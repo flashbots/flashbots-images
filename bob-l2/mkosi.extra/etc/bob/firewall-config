@@ -1,0 +1,87 @@
+# This script is sourced from firewall script and contains image-specific rules
+# See also: bob-common/mkosi.extra/usr/bin/init-firewall.sh
+
+# Image-specific ports
+SSH_CONTROL_PORT=22
+SSH_DATA_PORT=10022
+SSH_REGISTER_PORT=8080
+CVM_REVERSE_PROXY_PORT=8745
+SEARCHER_INPUT_PORT=27017
+
+# Well-known ports
+DNS_PORT=53
+HTTP_PORT=80
+HTTPS_PORT=443
+NTP_PORT=123
+OP_NODE_P2P_PORT=9222
+OP_GETH_P2P_PORT=40404
+ENGINE_API_PORT=8651
+
+# Simulator ports (production only)
+SIMULATOR_RPC_PORT=8645
+SIMULATOR_WS_PORT=8646
+
+###########################################################################
+# (1) ALWAYS_IN: Inbound rules that are always applied
+###########################################################################
+
+accept_dst_port $CHAIN_ALWAYS_IN tcp $SSH_CONTROL_PORT "SSH control port"
+accept_dst_port $CHAIN_ALWAYS_IN udp $SEARCHER_INPUT_PORT "Searcher input channel"
+
+# We drive op-geth in the searcher container from external op-node
+# We assume here that static peers in config are only syn nodes
+accept_src_ip_dst_port $CHAIN_ALWAYS_IN tcp "$CONFIG_EL_PEERS_IPS" $ENGINE_API_PORT "Engine API"
+
+# CVM reverse-proxy serves server attestation
+# Also forwards request to ssh pubkey server on localhost:5001,
+#    which serves searcher-container openssh server pubkey
+accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
+
+###########################################################################
+# (2) ALWAYS_OUT: Outbound rules that are always applied
+###########################################################################
+
+# Note: this is accessible only from host, searcher netns has DROP on those
+# See also init-container.sh
+accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+
+###########################################################################
+# (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
+###########################################################################
+
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $SSH_DATA_PORT "SSH data plane"
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $SSH_REGISTER_PORT "SSH register service"
+
+accept_dst_port $CHAIN_MAINTENANCE_IN tcp $OP_GETH_P2P_PORT "op-geth P2P (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
+
+###########################################################################
+# (4) MAINTENANCE_OUT: Outbound rules for Maintenance Mode
+###########################################################################
+
+# Block ALL traffic to simulator during maintenance
+# Simulator endpoints (8645, 8646) are production-only
+drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in maintenance)"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTP_PORT "HTTP"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTPS_PORT "HTTPS"
+
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $OP_GETH_P2P_PORT "op-geth P2P (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
+
+###########################################################################
+# (5) PRODUCTION_IN: Inbound rules for Production Mode
+###########################################################################
+
+# None at the moment
+
+###########################################################################
+# (6) PRODUCTION_OUT: Outbound rules for Production Mode
+###########################################################################
+
+# Allow simulator endpoints in production mode
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator RPC (sendBackrun)"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator WebSocket (tx stream)"

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Bob-L1 Toggle Configuration
+# This file is sourced by the common toggle script to provide image-specific behavior
+
+# Image identifier for logging
+IMAGE_TYPE="bob-l1"
+
+# Production endpoints (format: "IP:Description")
+PRODUCTION_ENDPOINTS=(
+    "52.207.17.217:Titan state diff"
+    "3.136.107.142:Flashbots protect tx"
+    "3.149.14.12:Flashbots protect tx"
+)
+
+# Maintenance ports (format: "protocol:port:description")
+MAINTENANCE_ENDPOINTS=(
+    "tcp:10022:SSH data port"
+    "tcp:53:DNS"
+    "udp:53:DNS"
+    "tcp:80:HTTP"
+    "tcp:443:HTTPS"
+    "tcp:30303:EL P2P"
+    "udp:30303:EL P2P"
+)

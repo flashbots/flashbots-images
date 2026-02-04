@@ -1,0 +1,7 @@
+# This script is sourced from init-container.sh and contains image-specific stuff
+# See also: bob-common/mkosi.extra/usr/bin/init-container.sh
+
+echo "Injecting static hosts into searcher container..."
+exec_in_container '
+    cat <<EOF >> /etc/hosts
+EOF'
