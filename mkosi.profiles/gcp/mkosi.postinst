@@ -10,11 +10,8 @@ echo "/dev/disk/by-id/google-data" >> "$BUILDROOT/etc/tdx-init/disk-glob"
 
 mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
 
-# Enable packaged services
 mkosi-chroot systemctl unmask sys-kernel-config.mount
-mkosi-chroot systemctl add-wants minimal.target \
-    chrony.service \
-    sys-kernel-config.mount
+mkosi-chroot systemctl add-wants minimal.target sys-kernel-config.mount
 
 if [ -f /etc/rsyslog.d/50-default.conf ]; then
     sed -i 's/^.*\/var\/log\/syslog.*$/# &/' /etc/rsyslog.d/50-default.conf

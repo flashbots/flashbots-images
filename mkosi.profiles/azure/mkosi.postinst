@@ -1,7 +1,0 @@
-#!/bin/bash
-
-set -euxo pipefail
-
-# Configure tdx-init disk glob for Azure
-mkdir -p "$BUILDROOT/etc/tdx-init"
-echo '/dev/disk/by-path/*10' >> "$BUILDROOT/etc/tdx-init/disk-glob"

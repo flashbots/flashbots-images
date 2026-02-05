@@ -76,6 +76,9 @@ in_nix_env() {
     [ -n "${IN_NIX_SHELL:-}" ] || [ -n "${NIX_STORE:-}" ]
 }
 
+# Exit here if being sourced (for setup_deps.sh to use should_use_lima)
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0
+
 if [ $# -eq 0 ]; then
     echo "Error: No command specified"
     exit 1
@@ -113,6 +116,9 @@ if should_use_lima; then
             "--output-dir=$mkosi_output"
         )
     fi
+
+    # Trust mounted repo (owned by host user, not debian)
+    lima_exec "git config --global --get-all safe.directory | grep -Fxq ~/mnt || git config --global --add safe.directory ~/mnt"
 
     lima_exec "cd ~/mnt && /home/debian/.nix-profile/bin/nix develop -c ${cmd[*]@Q}"
 

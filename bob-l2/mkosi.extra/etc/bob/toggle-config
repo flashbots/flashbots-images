@@ -1,0 +1,28 @@
+#!/bin/bash
+# Bob-L2 Toggle Configuration
+# This file is sourced by the common toggle script to provide image-specific behavior
+
+# Image identifier for logging
+IMAGE_TYPE="bob-l2"
+
+# Source the dynamic configuration if available
+if [ -f "/etc/bob/config.env" ]; then
+    . /etc/bob/config.env
+fi
+
+# Build production endpoints dynamically (format: "IP:Description")
+PRODUCTION_ENDPOINTS=()
+if [ -n "$CONFIG_SIMULATOR_IP" ]; then
+    PRODUCTION_ENDPOINTS+=("${CONFIG_SIMULATOR_IP}:Simulator endpoint")
+fi
+
+# Maintenance ports (format: "protocol:port:description")
+MAINTENANCE_ENDPOINTS=(
+    "tcp:10022:SSH data port"
+    "tcp:53:DNS"
+    "udp:53:DNS"
+    "tcp:80:HTTP"
+    "tcp:443:HTTPS"
+    "tcp:40404:OP-Geth P2P"
+    "udp:40404:OP-Geth P2P"
+)

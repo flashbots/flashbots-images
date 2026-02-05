@@ -45,21 +45,16 @@ CHAIN_MAINTENANCE_OUT="MAINTENANCE_OUT"
 CHAIN_PRODUCTION_IN="PRODUCTION_IN"
 CHAIN_PRODUCTION_OUT="PRODUCTION_OUT"
 
-# Titan builder IP
-TITAN_BUILDER_IP="52.207.17.217"
-
-# Flashbots IPs
-FLASHBOTS_TX_IP1="3.136.107.142"
-FLASHBOTS_TX_IP2="3.149.14.12"
-FLASHBOTS_BUNDLE_IP1="18.221.59.61"
-FLASHBOTS_BUNDLE_IP2="3.15.88.156"
-
-# Maintenance ports
-SSH_DATA_PORT=10022
-DNS_PORT=53
-HTTP_PORT=80
-HTTPS_PORT=443
-EL_P2P_PORT=30303
+# Source image-specific configuration if available
+TOGGLE_CONFIG="/etc/bob/toggle-config"
+if [ -f "$TOGGLE_CONFIG" ]; then
+    . "$TOGGLE_CONFIG"
+else
+    echo "Warning: No toggle-config found at $TOGGLE_CONFIG, using defaults"
+    IMAGE_TYPE="unknown"
+    PRODUCTION_ENDPOINTS=()
+    MAINTENANCE_ENDPOINTS=()
+fi
 
 ###############################################################################
 # Delay between stopping and starting maintenance
@@ -110,31 +105,47 @@ check_delay() {
 ###############################################################################
 # Kill established connections via conntrack
 ###############################################################################
+kill_production_connections() {
+    if [ ${#PRODUCTION_ENDPOINTS[@]} -eq 0 ]; then
+        echo "Killing leftover production flows:"
+        echo "     - No production endpoints configured"
+        return
+    fi
+
+    echo "Killing leftover production flows:"
+    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+        local ip="${endpoint%%:*}"
+        local name="${endpoint#*:}"
+        echo "     - $name ($ip)"
+        $CONNTRACK -D -d "$ip" 2>/dev/null || true
+    done
+}
+
+kill_maintenance_connections() {
+    echo "Killing leftover maintenance flows:"
+    local displayed_ports=""
+    for endpoint in "${MAINTENANCE_ENDPOINTS[@]}"; do
+        local protocol="${endpoint%%:*}"
+        local rest="${endpoint#*:}"
+        local port="${rest%%:*}"
+        local name="${rest#*:}"
+
+        # Only display unique port descriptions
+        if [[ ! "$displayed_ports" =~ ":$port:" ]]; then
+            echo "     - $name ($port)"
+            displayed_ports="$displayed_ports:$port:"
+        fi
+
+        $CONNTRACK -D -p "$protocol" --dport "$port" 2>/dev/null || true
+    done
+}
+
 kill_established_connections() {
     local old_mode="$1"
     if [ "$old_mode" = "production" ]; then
-        echo "Killing leftover production flows:"
-        echo " - Titan state diff ($TITAN_BUILDER_IP)"
-        echo " - Flashbots protect tx ($FLASHBOTS_TX_IP1, $FLASHBOTS_TX_IP2)"
-        $CONNTRACK -D -d $TITAN_BUILDER_IP 2>/dev/null
-        $CONNTRACK -D -d $FLASHBOTS_TX_IP1 2>/dev/null
-        $CONNTRACK -D -d $FLASHBOTS_TX_IP2 2>/dev/null
-
+        kill_production_connections
     elif [ "$old_mode" = "maintenance" ]; then
-        echo "Killing leftover maintenance flows:"
-        echo " - SSH data port $SSH_DATA_PORT"
-        echo " - DNS $DNS_PORT, HTTP $HTTP_PORT, HTTPS $HTTPS_PORT, EL P2P $EL_P2P_PORT"
-        # SSH data plane
-        $CONNTRACK -D -p tcp --dport $SSH_DATA_PORT 2>/dev/null
-        # DNS
-        $CONNTRACK -D -p tcp --dport $DNS_PORT 2>/dev/null
-        $CONNTRACK -D -p udp --dport $DNS_PORT 2>/dev/null
-        # HTTP/HTTPS
-        $CONNTRACK -D -p tcp --dport $HTTP_PORT 2>/dev/null
-        $CONNTRACK -D -p tcp --dport $HTTPS_PORT 2>/dev/null
-        # EL P2P
-        $CONNTRACK -D -p tcp --dport $EL_P2P_PORT 2>/dev/null
-        $CONNTRACK -D -p udp --dport $EL_P2P_PORT 2>/dev/null
+        kill_maintenance_connections
     fi
     # if old_mode="stopped", nothing to kill
 }
@@ -198,17 +209,19 @@ check_searcher_namespace_rules() {
         return 1
     fi
 
-    # 3) Check if the DROP rule on port 9000, 27107, and 123 is present in OUTPUT chain
+    # 3) Check if the DROP rules on critical ports are present in OUTPUT chain
     #    -C (check) returns 0 if a matching rule is found, 1 otherwise
     if nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 9000 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 9000 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27017 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --sport 27017 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 123 -j DROP 2>/dev/null; then
-        echo "OK: searcher-container firewall rules (DROP tcp/udp port 9000, tcp/udp port 27017, udp port 123) are ACTIVE."
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27017 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27018 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 123 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 123 -j DROP 2>/dev/null; then
+        echo "OK: searcher-container firewall rules (DROP tcp/udp dport 9000/123, tcp/udp sport 27017, tcp sport 27018) are ACTIVE."
         return 0
     else
-        echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/123) are NOT found."
+        echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/27018/123) are NOT found."
         return 1
     fi
 }
