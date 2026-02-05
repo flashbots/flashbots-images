@@ -44,8 +44,8 @@
       src = pkgs.fetchFromGitHub {
         owner = "flashbots";
         repo = "dstack-mr-gcp";
-        rev = "ee95d36c8f18d159f6ada31474555e4a253b3897";
-        sha256 = "sha256-vAYN4zFXHSxd86KP+Toqh1ZDa4+KGLNsQoOuTr45pGg=";
+        rev = "be2d37a610b6afc7b535bdf0d637935f9d4a6e96";
+        sha256 = "sha256-HUs6Swj2e3KyxDjqw9XZfY6HmJ9qY2cd84iRP8xYiJ8=";
       };
       vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
@@ -61,7 +61,6 @@
             squashfsTools
             dosfstools
             e2fsprogs
-            mtools
             mustache-go
             cryptsetup
             gptfdisk
