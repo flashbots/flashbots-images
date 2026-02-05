@@ -13,4 +13,4 @@ ExecStart=/usr/sbin/udhcpc -i eth0 -n
 RemainAfterExit=yes
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=minimal.target

@@ -18,25 +18,13 @@ mkdir -p "$BUILDROOT/etc/searcher/ssh_hostkey"
 rm -r "$BUILDROOT/etc/dropbear"
 mkdir "$BUILDROOT/etc/dropbear"
 
-# Enable services
-mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
-for service in \
-    network-setup.service \
+# Enable packaged services
+mkosi-chroot systemctl add-wants minimal.target \
     logrotate.timer \
     delay-pipe.service \
-    wait-for-key.service \
-    searcher-firewall.service \
-    dropbear.service \
-    searcher-container.service \
-    ssh-pubkey-server.service \
-    cvm-reverse-proxy.service
-do
-    mkosi-chroot systemctl enable "$service"
-    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
-done
+    dropbear.service
 
 # Don't reserve port 22
-mkosi-chroot systemctl disable ssh.service ssh.socket
 mkosi-chroot systemctl mask ssh.service ssh.socket
 
 # Lock the root account

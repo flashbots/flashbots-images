@@ -364,23 +364,13 @@ Requires=persistent-mount.service
 After=basic.target
 ```
 
-### Enabling Services
+### Enabling Packaged Services
 
-**In `mkosi.postinst` script**:
+To enable a service installed with a Debian package, add the following to your `mkosi.postinst` script:
+
 ```bash
-#!/bin/bash
-set -euxo pipefail
-
-# Enable service
-mkosi-chroot systemctl enable myapp.service
-
-# Create symlink for minimal.target
-mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
-ln -sf "/etc/systemd/system/myapp.service" \
-    "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+mkosi-chroot systemctl add-wants minimal.target myapp.service
 ```
-
-For comprehensive systemd options, see: [systemd Service Documentation](https://www.freedesktop.org/software/systemd/man/systemd.service.html)
 
 ## Extending Built-in systemd Services
 
@@ -542,8 +532,7 @@ chown myapp:myapp /etc/myapp/config.conf
 chmod 600 /etc/myapp/config.conf
 
 # Enable systemd service
-systemctl enable myapp.service || true
-systemctl start myapp.service || true
+mkosi-chroot systemctl add-wants minimal.target myapp.service || true
 
 exit 0
 ```

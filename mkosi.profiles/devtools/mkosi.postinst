@@ -13,6 +13,6 @@ if [ -f "$BUILDROOT/etc/default/dropbear" ]; then
 else
     echo "PermitRootLogin yes" >> "$BUILDROOT/etc/ssh/sshd_config"
     echo "PasswordAuthentication yes" >> "$BUILDROOT/etc/ssh/sshd_config"
-    mkosi-chroot systemctl enable ssh.service
     mkosi-chroot systemctl unmask ssh.service ssh.socket
+    mkosi-chroot systemctl add-wants minimal.target ssh.service
 fi

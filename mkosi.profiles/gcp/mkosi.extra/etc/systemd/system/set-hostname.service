@@ -11,4 +11,4 @@ Type=oneshot
 ExecStart=/usr/bin/set-hostname.sh
 
 [Install]
-WantedBy=default.target
+WantedBy=minimal.target

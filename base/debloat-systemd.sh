@@ -40,6 +40,3 @@ mkosi-chroot dpkg-query -L systemd | grep -E '\.service$|\.socket$|\.timer$|\.ta
         ln -sf /dev/null "$SYSTEMD_DIR/$unit"
     fi
 done
-
-# Set default target
-ln -sf minimal.target "$SYSTEMD_DIR/default.target"
