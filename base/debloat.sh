@@ -31,10 +31,8 @@ debloat_paths=(
     "/usr/lib/systemd/catalog"
     "/usr/lib/systemd/user"
     "/usr/lib/systemd/user-generators"
-    "/usr/lib/systemd/network"
     "/usr/lib/pcrlock.d"
     "/usr/lib/tmpfiles.d"
-    "/etc/systemd/network"
     "/etc/credstore"
     "/nix"
 )

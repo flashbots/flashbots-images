@@ -16,6 +16,8 @@ systemd_svc_whitelist=(
     "systemd-journald-dev-log.socket"
     "systemd-remount-fs.service"
     "systemd-sysctl.service"
+    "systemd-networkd.service"
+    "systemd-networkd.socket"
     "chrony.service"
 )
 
@@ -43,4 +45,7 @@ mkosi-chroot dpkg-query -L systemd | grep -E '\.service$|\.socket$|\.timer$|\.ta
 done
 
 # Enable chrony service
-mkosi-chroot systemctl add-wants minimal.target chrony.service
+mkosi-chroot systemctl add-wants minimal.target \
+    chrony.service \
+    systemd-resolved.service \
+    systemd-networkd.service

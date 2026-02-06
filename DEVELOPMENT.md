@@ -276,8 +276,8 @@ systemd services are the primary way to run applications in Flashboxes. Here's h
 ```ini
 [Unit]
 Description=My Application
-After=network.target network-setup.service
-Requires=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -354,8 +354,8 @@ Conflicts=apache2.service
 ```ini
 [Unit]
 # Network is available
-After=network.target network-setup.service
-Requires=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 # Persistent storage is mounted
 After=persistent-mount.service
