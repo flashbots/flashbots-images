@@ -1,0 +1,8 @@
+[Match]
+Name=eth* en*
+
+[Network]
+# GCP internal DNS
+DNS=169.254.169.254
+Domains=~internal ~google.internal
+DNSOverTLS=no

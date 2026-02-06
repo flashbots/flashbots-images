@@ -44,8 +44,8 @@
       src = pkgs.fetchFromGitHub {
         owner = "flashbots";
         repo = "dstack-mr-gcp";
-        rev = "ee95d36c8f18d159f6ada31474555e4a253b3897";
-        sha256 = "sha256-vAYN4zFXHSxd86KP+Toqh1ZDa4+KGLNsQoOuTr45pGg=";
+        rev = "503e7c506f89f9d81be04025c90921778b26f0a4";
+        sha256 = "sha256-z6STTgcOXatiqA2rlpzwRyvAwnXrK30oNDCJqtIp7/8=";
       };
       vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
@@ -90,11 +90,7 @@
     devShells = builtins.listToAttrs (map (system: {
       name = system;
       value.default = pkgs.mkShell {
-        nativeBuildInputs = [
-          (mkosi system)
-          measured-boot
-          measured-boot-gcp
-        ];
+        nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
           touch mkosi.builddir/debian-backports.sources

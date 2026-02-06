@@ -13,5 +13,3 @@ Restart=always
 
 [Install]
 WantedBy=minimal.target
-WantedBy=rescue.target
-WantedBy=emergency.target
