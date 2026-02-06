@@ -1,0 +1,15 @@
+process_names:
+  # Monitor the searcher container cgroup
+  - name: "{{.Matches}}"
+    cmdline:
+    - 'podman'
+
+  # Monitor the container init process
+  - name: "searcher-container"
+    cmdline:
+    - '/usr/bin/catatonit'
+
+  # Monitor all processes in the searcher cgroup
+  - name: "searcher-cgroup"
+    cgroups:
+    - "machine.slice/machine-searcher*"

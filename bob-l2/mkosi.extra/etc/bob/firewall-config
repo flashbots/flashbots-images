@@ -18,6 +18,9 @@ OP_NODE_P2P_PORT=9222
 OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
 
+# Observability endpoints are loaded from /etc/bob/config.env
+# METRICS_ENDPOINT_1 and METRICS_ENDPOINT_2 variables
+
 # Simulator ports (production only)
 SIMULATOR_RPC_PORT=8645
 SIMULATOR_WS_PORT=8646
@@ -46,6 +49,15 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # Note: this is accessible only from host, searcher netns has DROP on those
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+
+# Observability metrics endpoints (always allowed, host-only)
+# These are configured dynamically and only from host namespace
+if [ -n "$METRICS_ENDPOINT_1" ]; then
+    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT_1" $HTTPS_PORT "Metrics endpoint 1 (Flashbots)"
+fi
+if [ -n "$METRICS_ENDPOINT_2" ]; then
+    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT_2" $HTTPS_PORT "Metrics endpoint 2 (Searcher)"
+fi
 
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode

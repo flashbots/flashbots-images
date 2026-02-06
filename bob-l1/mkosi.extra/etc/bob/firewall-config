@@ -17,6 +17,9 @@ NTP_PORT=123
 CL_P2P_PORT=9000
 EL_P2P_PORT=30303
 
+# Observability endpoints are loaded from /etc/bob/config.env
+# METRICS_ENDPOINT_1 and METRICS_ENDPOINT_2 variables
+
 TITAN_IP="52.207.17.217"
 TITAN_BUNDLE_PORT=1338      # bundle submission (always on)
 TITAN_STATE_DIFF_PORT=42203 # state diff stream (production only)
@@ -58,6 +61,15 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 
 # Note: this is accessible only from host, searcher netns has DROP on those
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+
+# Observability metrics endpoints (always allowed, host-only)
+# These are configured dynamically and only from host namespace
+if [ -n "$METRICS_ENDPOINT_1" ]; then
+    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT_1" $HTTPS_PORT "Metrics endpoint 1 (Flashbots)"
+fi
+if [ -n "$METRICS_ENDPOINT_2" ]; then
+    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT_2" $HTTPS_PORT "Metrics endpoint 2 (Searcher)"
+fi
 
 # Titan builder bundle endpoints (always on)
 # Security note: This is a side channel.

@@ -1,0 +1,25 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target fetch-config.service
+Wants=network-online.target
+Requires=fetch-config.service
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStartPre=/usr/bin/gomplate -f /etc/prometheus/prometheus.yml.tmpl -o /etc/prometheus/prometheus.yml -d config=/etc/flashbox/observability-config.json
+ExecStart=/usr/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus/ \
+  --storage.tsdb.retention.time=24h \
+  --web.console.templates=/usr/share/prometheus/consoles \
+  --web.console.libraries=/usr/share/prometheus/console_libraries \
+  --web.listen-address=127.0.0.1:9090
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

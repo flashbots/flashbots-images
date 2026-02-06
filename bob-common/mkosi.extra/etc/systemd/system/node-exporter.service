@@ -1,0 +1,55 @@
+[Unit]
+Description=Prometheus Node Exporter
+Documentation=https://github.com/prometheus/node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/bin/prometheus-node-exporter \
+  --web.listen-address=127.0.0.1:9100 \
+  --collector.cpu \
+  --collector.meminfo \
+  --collector.diskstats \
+  --collector.filesystem \
+  --collector.netdev \
+  --collector.loadavg \
+  --no-collector.arp \
+  --no-collector.bcache \
+  --no-collector.bonding \
+  --no-collector.conntrack \
+  --no-collector.cpufreq \
+  --no-collector.edac \
+  --no-collector.entropy \
+  --no-collector.filefd \
+  --no-collector.hwmon \
+  --no-collector.infiniband \
+  --no-collector.ipvs \
+  --no-collector.mdadm \
+  --no-collector.netclass \
+  --no-collector.netstat \
+  --no-collector.nfs \
+  --no-collector.nfsd \
+  --no-collector.pressure \
+  --no-collector.rapl \
+  --no-collector.schedstat \
+  --no-collector.sockstat \
+  --no-collector.softnet \
+  --no-collector.stat \
+  --no-collector.textfile \
+  --no-collector.thermal_zone \
+  --no-collector.time \
+  --no-collector.timex \
+  --no-collector.udp_queues \
+  --no-collector.uname \
+  --no-collector.vmstat \
+  --no-collector.xfs \
+  --no-collector.zfs \
+  --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker)($|/)
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
