@@ -1,0 +1,10 @@
+rust:
+  version: 1.91.1
+node_healthchecker:
+  git_reference: v0.1.11
+simulator:
+  git_reference: v0.0.1-dev.1
+rproxy:
+  git_reference: v0.0.10-dev.8
+rust:
+  version: 1.91.1

@@ -35,10 +35,18 @@ config_hash=$(sha256sum "$config_file" | cut -d' ' -f1 | cut -c1-12)
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${config_hash}"
 kernel_file="$cache_dir/bzImage"
 
+cat <<EOF > $BUILDDIR/manifest.md
+| component  | version  | built / cached  | duration  |
+| ---------- | -------- | --------------- | --------- |
+EOF
+
 # Use cached kernel if available
 if [[ -f "$kernel_file" ]]; then
     echo "Using cached kernel: $kernel_file"
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${config_hash}\`)  | reused from cache  |   |" >> $BUILDDIR/manifest.md
 else
+    ts=$( date +%s )
+
     echo "Building kernel from source..."
     build_dir="$BUILDROOT/build/kernel-${KERNEL_VERSION}"
 
@@ -54,10 +62,14 @@ else
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
     mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
 
+    seconds=$(( $( date +%s ) - ts ))
+    duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
     # Cache result
     mkdir -p "$cache_dir"
     cp arch/x86_64/boot/bzImage "$cache_dir/"
     cp .config "$cache_dir/config"
+
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${config_hash}\`)  | built  | \`$duration\`  |" >> $BUILDDIR/manifest.md
 fi
 
 # Install kernel

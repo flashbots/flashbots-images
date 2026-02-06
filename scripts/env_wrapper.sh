@@ -30,7 +30,7 @@ setup_lima() {
     else
         LIMA_CPUS="${LIMA_CPUS:-2}"  # Fallback
     fi
-    
+
     # Detect memory (cross-platform)
     if command -v free &>/dev/null; then
         LIMA_MEMORY="${LIMA_MEMORY:-$( free -g | awk '/^Mem:/ {print $2-2 }' )}"

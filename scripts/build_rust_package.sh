@@ -18,18 +18,42 @@ build_rust_package() {
         return
     fi
 
-    # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${version#${package}/}/${package}"
-    if [ -f "$cached_binary" ]; then
-        echo "Using cached binary for $package version $version"
-        cp "$cached_binary" "$dest_path"
-        return
-    fi
-
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
     mkdir -p "$build_dir"
-    git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    set +x
+    echo "Cloning ${git_url}"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}"
+    fi
+    git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
+        echo "Could not clone branch/tag, attempting to checkout the commit by sha"
+        git clone "$git_url" "$build_dir" && \
+        git -C "$build_dir" checkout "$version"
+    )
+    set -x
+
+    # Get the git reference
+    local git_describe=$( git -C "$build_dir" describe --always --long --tags )
+    printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
+
+    # If binary is cached, skip compilation
+    if [ -n "${extra_features}" ]; then
+        local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}-${extra_features}/${package}"
+    else
+        local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
+    fi
+    local cached_binary="${cached_binary//,/−}"
+    if [ -f "$cached_binary" ]; then
+        echo "Using cached binary for $package version $version"
+        if [ -n "${extra_features}" ]; then
+            echo "| \`$package\` | \`$version\` (\`$git_describe\`, features: ${extra_features}) | reused from cache |   |" ">> $BUILDDIR/manifest.md"
+        else
+            echo "| \`$package\` | \`$version\` (\`$git_describe\` | reused from cache |   |" >> "$BUILDDIR/manifest.md"
+        fi
+        cp "$cached_binary" "$dest_path"
+        return
+    fi
 
     # Define Rust flags for reproducibility
     local rustflags=(
@@ -39,7 +63,13 @@ build_rust_package() {
         "-L /usr/lib/x86_64-linux-gnu"
     )
 
+    if [[ -f $build_dir/.cargo/config.toml ]] && local cargoflags=$( mkosi-chroot dasel -f /build/$package/.cargo/config.toml -r toml 'build.rustflags' --pretty=false -w json ); then
+        local cargoflags=$( echo $cargoflags | jq -r '. | join(" ")' )
+        local rustflags+=( "$cargoflags" )
+    fi
+
     # Build inside mkosi chroot
+    local ts=$( date +%s )
     mkosi-chroot bash -c "
         export RUSTFLAGS='${rustflags[*]} ${extra_rustflags}' \
                CARGO_PROFILE_RELEASE_LTO='thin' \
@@ -52,9 +82,13 @@ build_rust_package() {
         cargo fetch
         cargo build --release --frozen ${extra_features:+--features $extra_features} --package $package
     "
+    local seconds=$(( $( date +%s ) - ts ))
+    local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
 
     # Cache and install the built binary
     mkdir -p "$( dirname $cached_binary )"
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
+
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }

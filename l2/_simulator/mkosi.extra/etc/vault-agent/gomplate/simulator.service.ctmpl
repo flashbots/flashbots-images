@@ -1,0 +1,107 @@
+# simulator
+
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=simulator
+After=network-online.target
+Before=rproxy.service node-healthchecker.service
+Requires=automount-data.service vault-agent.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+SyslogIdentifier=simulator
+User=simulator
+Group=optimism
+
+EnvironmentFile=-/etc/sysconfig/simulator.env
+KillMode=control-group
+KillSignal=SIGINT
+OOMScoreAdjust=-500
+Restart=always
+RestartSec=10s
+TimeoutStopSec=600
+
+Environment=HOME=/home/simulator
+Environment=RUST_BACKTRACE=full
+
+ExecStartPre=+/usr/bin/init-simulator.sh
+
+((- $node    := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/[[ gcp.Meta "name" ]]" ).Data.data ))
+((- $service := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_common[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data ))
+
+ExecStart=/usr/bin/simulator node \
+    --authrpc.addr '0.0.0.0' \
+    --authrpc.jwtsecret '/var/opt/optimism/jwtsecret' \
+    --authrpc.port '18651' \
+    ((- if $service.el_bootnodes ))
+    --bootnodes '(( range $i, $e := $service.el_bootnodes ))(( if $i )),(( end ))(( printf "%s" $e ))(( end ))' \
+    ((- end ))
+    ((- if $service.genesis_json ))
+    --chain '/var/opt/optimism/simulator/genesis.json' \
+    ((- else ))(( if $service.network_name ))
+    --chain '(( $service.network_name ))' \
+    ((- end ))(( end ))
+    --color 'never' \
+    ((- if $service.feat_clickhouse ))(( if $service.feat_clickhouse | parseBool ))
+    ((- if $service.feat_clickhouse_database ))
+    --clickhouse.database '(( $service.feat_clickhouse_database ))' \
+    ((- end ))
+    ((- if $service.feat_clickhouse_url ))
+    --clickhouse.url '(( $service.feat_clickhouse_url ))' \
+    ((- end ))
+    ((- if $service.feat_clickhouse_user ))
+    --clickhouse.user '(( $service.feat_clickhouse_user ))' \
+    ((- end ))
+    ((- end ))(( end ))
+    --datadir '/var/opt/optimism/simulator' \
+    --discovery.port '9200' \
+    --enable-discv5-discovery \
+    ((- if $node.flashblocks_url ))
+    --flashblocks.ws (( $node.flashblocks_url )) \
+    ((- else if $service.flashblocks_url ))
+    --flashblocks.ws (( $service.flashblocks_url )) \
+    ((- end ))
+    --http \
+    --http.addr '0.0.0.0' \
+    --http.api 'admin,debug,eth,net,trace,txpool' \
+    --http.corsdomain '*' \
+    --http.port '18645' \
+    --log.stdout.format 'json' \
+    --log-pool-transactions \
+    --metrics '0.0.0.0:9001' \
+    --port '40404' \
+    --rollup.disable-tx-pool-gossip \
+    --rpc-max-connections '5000' \
+    --rpc-max-logs-per-response '200000' \
+    --rpc-max-request-size '150' \
+    --rpc-max-response-size '1150' \
+    --rpc-max-subscriptions-per-connection '10240' \
+    --rpc-max-tracing-requests '250' \
+    --simulation-gas-limit '25000000' \
+    --simulation-nonce-limit '16' \
+    --simulation-workers '10' \
+    ((- if $service.el_static_peers ))(( range $idx, $enode := $service.el_static_peers ))
+    --trusted-peers '(( printf "%s" $enode ))' \
+    ((- end ))(( end ))
+    --txpool.lifetime '30' \
+    --txpool.max-account-slots '128' \
+    --txpool.max-new-pending-txs-notifications '100000' \
+    --txpool.max-new-txns '100000' \
+    --txpool.max-pending-txns '100000' \
+    --txpool.max-tx-gas '25000000' \
+    --txpool.nolocals \
+    --ws \
+    --ws.addr '0.0.0.0' \
+    --ws.api 'admin,debug,eth,net,trace,txpool' \
+    --ws.origins '*' \
+    --ws.port '8646' \
+    ((- if $service.custom_flags ))(( range $i, $v := $service.custom_flags ))
+    (( printf "%s" $v )) \
+    ((- end ))(( end ))
+
+ExecStop=+/usr/bin/sh -c "kill -1 $( pgrep node-health ) | true"
+ExecStop=+/usr/bin/sleep 15
+ExecStop=+/usr/bin/sh -c "PID=$( pgrep simulator ); if [ 0${PID} -gt 0 ]; then kill -2 ${PID}; while kill -0 ${PID} 2>/dev/null; do sleep 1; done; fi"

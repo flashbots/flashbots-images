@@ -42,11 +42,11 @@ preflight:
 
 # Build module
 build: check-perms setup ## Build the specified module
-	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
 
 # Build module with devtools profile
 build-dev: check-perms setup ## Build module with development tools
-	time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	@time $(WRAPPER) mkosi --force --profile=devtools -I $(patsubst %.conf,%,$(IMAGE)).conf
 
 ##@ Utilities
 
@@ -60,7 +60,7 @@ check-repro: ## Build same module twice and compare resulting images
 	@sleep 15
 
 	@echo "Building image #1..."
-	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
 	@mkdir -p build/cache
 	@mv mkosi.builddir/* build/cache/
 	@mv build build.1
@@ -71,7 +71,7 @@ check-repro: ## Build same module twice and compare resulting images
 	@sleep 15
 
 	@echo "Building image #2..."
-	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
 	@mkdir -p build/cache
 	@mv mkosi.builddir/* build/cache/
 	@mv build build.2

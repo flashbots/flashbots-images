@@ -2,13 +2,22 @@
 
 set -eu
 
-mkdir -p /home/op-rbuilder
-chown -R op-rbuilder:optimism /home/op-rbuilder
-chmod 0750 /home/op-rbuilder
+if [ ! -d /home/op-rbuilder ]; then
+  mkdir -p /home/op-rbuilder
+  chown -R op-rbuilder:optimism /home/op-rbuilder
+  chmod 0750 /home/op-rbuilder
+fi
 
 if [ ! -d /var/opt/optimism/rbuilder ]; then
-  mkdir -p /var/opt/optimism/rbuilder
-  chown op-rbuilder:optimism /var/opt/optimism/rbuilder
+  if [ -d /var/opt/optimism/unichain-builder ]; then
+    mv /var/opt/optimism/unichain-builder /var/opt/optimism/rbuilder
+  elif [ -d /var/opt/optimism/simulator ]; then
+    mv /var/opt/optimism/simulator /var/opt/optimism/rbuilder
+  else
+    mkdir -p /var/opt/optimism/rbuilder
+  fi
+
+  chown -R op-rbuilder:optimism /var/opt/optimism/rbuilder
   chmod 0750 /var/opt/optimism/rbuilder
 fi
 

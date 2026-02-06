@@ -40,8 +40,8 @@ make build IMAGE=bob
 # Build the Buildernet image
 make build IMAGE=buildernet
 
-# Build the l2 builder image
-make build IMAGE=l2-builder
+# Build the l2 op-rbuilder image
+make build IMAGE=l2/op-builder
 
 # Build with development tools
 make build-dev IMAGE=bob
