@@ -18,6 +18,7 @@ systemd_svc_whitelist=(
     "systemd-sysctl.service"
     "systemd-networkd.service"
     "systemd-networkd.socket"
+    "systemd-networkd-wait-online.service"
     "chrony.service"
 )
 
@@ -48,4 +49,5 @@ done
 mkosi-chroot systemctl add-wants minimal.target \
     chrony.service \
     systemd-resolved.service \
-    systemd-networkd.service
+    systemd-networkd.service \
+    systemd-networkd-wait-online.service

@@ -17,6 +17,7 @@ MAINTENANCE_ENDPOINTS=(
     "tcp:10022:SSH data port"
     "tcp:53:DNS"
     "udp:53:DNS"
+    "tcp:853:DNS-over-TLS"
     "tcp:80:HTTP"
     "tcp:443:HTTPS"
     "tcp:30303:EL P2P"

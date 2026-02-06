@@ -1,0 +1,8 @@
+[Match]
+Name=eth* en*
+
+[Network]
+# Azure internal DNS
+DNS=168.63.129.16
+Domains=~internal.cloudapp.net
+DNSOverTLS=no
