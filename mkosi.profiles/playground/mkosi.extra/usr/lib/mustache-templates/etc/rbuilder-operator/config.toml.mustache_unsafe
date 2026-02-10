@@ -1,22 +1,6 @@
 # =============================================================================
 # rbuilder-operator playground config
 # =============================================================================
-# Service dependencies and their status:
-#
-# LOCAL SERVICES (within VM):
-#   reth               - ENABLED, EL node via IPC (/run/reth/reth.ipc)
-#   lighthouse         - ENABLED, CL node via HTTP (127.0.0.1:3500)
-#   rbuilder-bidding   - ENABLED, bidding service via IPC (/run/rbuilder-bidding/rpc_bidding_server.sock)
-#
-# EXTERNAL SERVICES (disabled for playground):
-#   orderflow-archive  - DISABLED (confirmed), blocks_processor_url omitted, only used if key_registration_url set
-#   builderhub         - DISABLED (confirmed), key_registration_url omitted, skips key registration entirely
-#   clickhouse         - DISABLED (confirmed), [built_blocks_clickhouse_config] omitted, returns None
-#   tbv_push_redis     - DISABLED (confirmed), omitted, only used if key_registration_url set
-#   relay endpoints    - DISABLED, [[relays]] empty, no block submission
-#   relay bid scrapers - BLOCKER, [[relay_bid_scrapers]] empty, rbuilder-operator requires non-empty
-#
-# =============================================================================
 
 adjust_finalized_blocks = true
 bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
@@ -37,7 +21,7 @@ full_telemetry_server_ip = "127.0.0.1"
 full_telemetry_server_port = 6060
 ignore_blobs = {{rbuilder.ignore_blobs}}
 ignore_cancellable_orders = false
-jsonrpc_server_ip = "0.0.0.0"
+jsonrpc_server_ip = "127.0.0.1"
 jsonrpc_server_port = 8645
 # key_registration_url - disabled, no key registration with builderhub?
 # key_registration_url = "http://127.0.0.1:7937"
@@ -78,5 +62,4 @@ watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
 
 {{{rbuilder.relays}}}
 
-# TODO: explore what this is (missing service in playground?)
 {{{rbuilder.relay_bid_scrapers}}}
