@@ -2,7 +2,7 @@
 DefaultDependencies=no
 Description=Pull and render configs from BuilderHub
 Wants=network-online.target attested-tls-proxy-client.service
-After=network.target network-online.target attested-tls-proxy-server.service
+After=network.target network-online.target attested-tls-proxy-client.service
 
 [Service]
 Type=oneshot
