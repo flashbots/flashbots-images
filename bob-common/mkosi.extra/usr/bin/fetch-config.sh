@@ -46,10 +46,9 @@ CONFIG_METRICS_FLASHBOTS_PASSWORD='${metrics_flashbots_password}'
 METRICS_ENDPOINT='${metrics_endpoint}'
 EOF
 
-    # Create observability config for Prometheus if metrics are configured
-    if [ -n "$metrics_flashbots_url" ]; then
-        mkdir -p /etc/flashbox
-        cat <<EOF > "$OBSERVABILITY_CONFIG_PATH"
+    # Create observability config for Prometheus (always needed for gomplate templating)
+    mkdir -p /etc/flashbox
+    cat <<EOF > "$OBSERVABILITY_CONFIG_PATH"
 {
   "remote_write_flashbots_url": "${metrics_flashbots_url}",
   "remote_write_flashbots_username": "${metrics_flashbots_username}",
@@ -57,8 +56,7 @@ EOF
   "remote_write_flashbots_auth": $([ -n "${metrics_flashbots_username}" ] && echo '"true"' || echo '""')
 }
 EOF
-        echo "Observability configuration written to $OBSERVABILITY_CONFIG_PATH"
-    fi
+    echo "Observability configuration written to $OBSERVABILITY_CONFIG_PATH"
 }
 
 # Check for local QEMU development environment

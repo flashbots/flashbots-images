@@ -23,9 +23,9 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9256']
 
+{{ if (datasource "config" "remote_write_flashbots_url") }}
 # Remote write configuration (dynamically configured)
 remote_write:
-{{ if (datasource "config" "remote_write_flashbots_url") }}
   # Flashbots endpoint
   - url: {{ datasource "config" "remote_write_flashbots_url" }}
     write_relabel_configs:
