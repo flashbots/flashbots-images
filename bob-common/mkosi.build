@@ -52,3 +52,11 @@ build_rust_package \
     "input-only-proxy" \
     "v0.0.2" \
     "https://github.com/flashbots/input-only-proxy"
+
+# Build gomplate (template engine for Prometheus config)
+make_git_package \
+    "gomplate" \
+    "v4.3.3" \
+    "https://github.com/hairyhenderson/gomplate" \
+    'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/gomplate ./cmd/gomplate' \
+    "build/gomplate:/usr/bin/gomplate"

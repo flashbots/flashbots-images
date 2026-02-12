@@ -9,7 +9,7 @@ Requires=fetch-config.service
 Type=simple
 User=prometheus
 Group=prometheus
-ExecStartPre=/usr/bin/gomplate -f /etc/prometheus/prometheus.yml.tmpl -o /etc/prometheus/prometheus.yml -d config=/etc/flashbox/observability-config.json
+ExecStartPre=+/usr/bin/gomplate -f /etc/prometheus/prometheus.yml.tmpl -o /etc/prometheus/prometheus.yml -d config=/etc/flashbox/observability-config.json
 ExecStart=/usr/bin/prometheus \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/var/lib/prometheus/ \

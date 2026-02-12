@@ -40,6 +40,9 @@ do
     ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
 done
 
+# Fix ownership for prometheus directories (mkosi ExtraTrees sets root:root)
+mkosi-chroot chown -R prometheus:prometheus /var/lib/prometheus
+
 # Don't reserve port 22
 mkosi-chroot systemctl disable ssh.service ssh.socket
 mkosi-chroot systemctl mask ssh.service ssh.socket
