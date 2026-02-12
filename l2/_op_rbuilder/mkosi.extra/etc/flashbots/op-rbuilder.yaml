@@ -3,7 +3,7 @@ bproxy:
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
-  git_reference: op-rbuilder/v0.2.14
+  git_reference: op-rbuilder/v0.3.2-rc-2
 rust:
   version: 1.92.0
 tdx_quote_provider:
