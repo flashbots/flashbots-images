@@ -30,42 +30,31 @@ write_observability_config() {
     local metrics_flashbots_url="$1"
     local metrics_flashbots_username="$2"
     local metrics_flashbots_password="$3"
-    local metrics_searcher_url="$4"
-    local metrics_searcher_auth="$5"
-    
-    # Extract IPs for firewall rules
-    local metrics_endpoint_1=""
-    local metrics_endpoint_2=""
-    
+
+    # Extract IP for firewall rules
+    local metrics_endpoint=""
+
     if [ -n "$metrics_flashbots_url" ]; then
-        metrics_endpoint_1=$(get_ips_from_uris "$metrics_flashbots_url" | head -1)
+        metrics_endpoint=$(get_ips_from_uris "$metrics_flashbots_url" | head -1)
     fi
-    if [ -n "$metrics_searcher_url" ]; then
-        metrics_endpoint_2=$(get_ips_from_uris "$metrics_searcher_url" | head -1)
-    fi
-    
+
     # Append observability config to main config
     cat <<EOF >> "$CONFIG_PATH"
 CONFIG_METRICS_FLASHBOTS_URL='${metrics_flashbots_url}'
 CONFIG_METRICS_FLASHBOTS_USERNAME='${metrics_flashbots_username}'
 CONFIG_METRICS_FLASHBOTS_PASSWORD='${metrics_flashbots_password}'
-CONFIG_METRICS_SEARCHER_URL='${metrics_searcher_url}'
-CONFIG_METRICS_SEARCHER_AUTH='${metrics_searcher_auth}'
-METRICS_ENDPOINT_1='${metrics_endpoint_1}'
-METRICS_ENDPOINT_2='${metrics_endpoint_2}'
+METRICS_ENDPOINT='${metrics_endpoint}'
 EOF
-    
+
     # Create observability config for Prometheus if metrics are configured
-    if [ -n "$metrics_flashbots_url" ] || [ -n "$metrics_searcher_url" ]; then
+    if [ -n "$metrics_flashbots_url" ]; then
         mkdir -p /etc/flashbox
         cat <<EOF > "$OBSERVABILITY_CONFIG_PATH"
 {
   "remote_write_flashbots_url": "${metrics_flashbots_url}",
   "remote_write_flashbots_username": "${metrics_flashbots_username}",
   "remote_write_flashbots_password": "${metrics_flashbots_password}",
-  "remote_write_flashbots_auth": $([ -n "${metrics_flashbots_username}" ] && echo '"true"' || echo '""'),
-  "remote_write_searcher_url": "${metrics_searcher_url}",
-  "remote_write_searcher_auth": "${metrics_searcher_auth}"
+  "remote_write_flashbots_auth": $([ -n "${metrics_flashbots_username}" ] && echo '"true"' || echo '""')
 }
 EOF
         echo "Observability configuration written to $OBSERVABILITY_CONFIG_PATH"
@@ -96,7 +85,7 @@ if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
     fi
     
     # Add empty observability config for local dev
-    write_observability_config "" "" "" "" ""
+    write_observability_config "" "" ""
     
     exit 0
 fi
@@ -160,15 +149,11 @@ fi
 metrics_flashbots_url=$(get_data_value metrics_flashbots_url)
 metrics_flashbots_username=$(get_data_value metrics_flashbots_username)
 metrics_flashbots_password=$(get_data_value metrics_flashbots_password)
-metrics_searcher_url=$(get_data_value metrics_searcher_url)
-metrics_searcher_auth=$(get_data_value metrics_searcher_auth)
 
 # Write observability configuration
 write_observability_config \
     "$metrics_flashbots_url" \
     "$metrics_flashbots_username" \
-    "$metrics_flashbots_password" \
-    "$metrics_searcher_url" \
-    "$metrics_searcher_auth"
+    "$metrics_flashbots_password"
 
 echo "Configuration successfully fetched and written to $CONFIG_PATH"

@@ -40,16 +40,3 @@ remote_write:
     {{ end }}
 {{ end }}
 
-{{ if (datasource "config" "remote_write_searcher_url") }}
-  # Searcher endpoint (optional)
-  - url: {{ datasource "config" "remote_write_searcher_url" }}
-    write_relabel_configs:
-      # Only send aggregated metrics
-      - source_labels: [__name__]
-        regex: 'flashbox:.*'
-        action: keep
-    {{ if (datasource "config" "remote_write_searcher_auth") }}
-    headers:
-      Authorization: {{ datasource "config" "remote_write_searcher_auth" }}
-    {{ end }}
-{{ end }}

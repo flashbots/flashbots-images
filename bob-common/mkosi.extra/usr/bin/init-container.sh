@@ -86,16 +86,12 @@ ns_iptables -A OUTPUT -p udp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
 ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
 ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_TCP_PORT -j DROP
 
-# Block container from accessing metrics endpoints
-# Source config.env to get METRICS_ENDPOINT_1 and METRICS_ENDPOINT_2
+# Block container from accessing metrics endpoint
+# Source config.env to get METRICS_ENDPOINT
 . /etc/bob/config.env
-if [ -n "${METRICS_ENDPOINT_1:-}" ]; then
-    echo "Blocking container access to metrics endpoint 1: $METRICS_ENDPOINT_1"
-    ns_iptables -A OUTPUT -d "$METRICS_ENDPOINT_1" -j DROP
-fi
-if [ -n "${METRICS_ENDPOINT_2:-}" ]; then
-    echo "Blocking container access to metrics endpoint 2: $METRICS_ENDPOINT_2"
-    ns_iptables -A OUTPUT -d "$METRICS_ENDPOINT_2" -j DROP
+if [ -n "${METRICS_ENDPOINT:-}" ]; then
+    echo "Blocking container access to metrics endpoint: $METRICS_ENDPOINT"
+    ns_iptables -A OUTPUT -d "$METRICS_ENDPOINT" -j DROP
 fi
 
 # Helper, only used in sourced script below
