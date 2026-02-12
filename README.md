@@ -143,7 +143,7 @@ sudo usermod -aG kvm $USER
     ```bash
     # On Ubuntu/Debian
     sudo apt install debian-archive-keyring
-    # On other systems, download via package manager or use Docker approach below
+    # On other systems, download via package manager
     ```
 
 ### Building
