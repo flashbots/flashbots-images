@@ -23,20 +23,21 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9256']
 
-{{ if (datasource "config" "remote_write_flashbots_url") }}
+{{- $config := (datasource "config") }}
+{{- if $config.remote_write_flashbots_url }}
+
 # Remote write configuration (dynamically configured)
 remote_write:
   # Flashbots endpoint
-  - url: {{ datasource "config" "remote_write_flashbots_url" }}
+  - url: {{ $config.remote_write_flashbots_url }}
     write_relabel_configs:
       # Only send aggregated metrics
       - source_labels: [__name__]
         regex: 'flashbox:.*'
         action: keep
-    {{ if (datasource "config" "remote_write_flashbots_auth") }}
+    {{- if $config.remote_write_flashbots_auth }}
     basic_auth:
-      username: {{ datasource "config" "remote_write_flashbots_username" }}
-      password: {{ datasource "config" "remote_write_flashbots_password" }}
-    {{ end }}
-{{ end }}
-
+      username: {{ $config.remote_write_flashbots_username }}
+      password: {{ $config.remote_write_flashbots_password }}
+    {{- end }}
+{{- end }}
