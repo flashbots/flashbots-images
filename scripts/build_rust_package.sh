@@ -41,6 +41,7 @@ build_rust_package() {
 
     # Build inside mkosi chroot
     mkosi-chroot bash -c "
+        unset DESTDIR
         export RUSTFLAGS='${rustflags[*]} ${extra_rustflags}' \
                CARGO_PROFILE_RELEASE_LTO='thin' \
                CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1' \
