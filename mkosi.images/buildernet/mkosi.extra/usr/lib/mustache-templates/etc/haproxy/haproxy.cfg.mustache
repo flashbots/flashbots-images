@@ -29,7 +29,7 @@ frontend default
   http-request redirect scheme https code 301 unless { ssl_fc }
 
   # Define ACLs for privileged IPs
-  acl privileged_ip src {{haproxy.rate_limit_privileged_ips}}
+  acl privileged_ip src -f privileged_ips.lst
 
   # Stick table to track connections and bandwidth
   stick-table type ip size 100k expire 5m store conn_rate(10s),bytes_in_rate(1m),conn_cur,http_req_rate(10s)
