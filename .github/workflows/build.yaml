@@ -32,45 +32,42 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - name: Validate images
-        id: set-matrix
-        run: |
-          # Allowlist of valid images
-          valid_images=("bob-l1" "bob-l2")
-          all_images='["bob-l1","bob-l2"]'
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+        - name: Validate images
+          id: set-matrix
+          shell: python3 {0}
+          env:
+            EVENT_NAME: ${{ github.event_name }}
+            INPUT_IMAGES: ${{ inputs.images }}
+          run: |
+            import json
+            import os
+            import sys
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.images }}" != "all" ]; then
-            # Convert comma-separated string to array
-            IFS=',' read -ra requested_images <<< "${{ inputs.images }}"
+            VALID_IMAGES = ["bob-l1", "bob-l2"]
 
-            # Validate each requested image
-            invalid_images=()
-            for img in "${requested_images[@]}"; do
-              img=$(echo "$img" | xargs)  # Trim whitespace
-              if [[ ! " ${valid_images[@]} " =~ " ${img} " ]]; then
-                invalid_images+=("$img")
-              fi
-            done
+            event = os.environ["EVENT_NAME"]
+            requested = os.environ.get("INPUT_IMAGES", "all").strip()
 
-            # Fail if any invalid images
-            if [ ${#invalid_images[@]} -gt 0 ]; then
-              echo "❌ Error: Invalid image(s): ${invalid_images[*]}"
-              echo "Valid images are: ${valid_images[*]}"
-              exit 1
-            fi
+            if event == "workflow_dispatch" and requested != "all":
+                images = [img.strip() for img in requested.split(",") if img.strip()]
+                invalid = [img for img in images if img not in VALID_IMAGES]
 
-            # Convert to JSON array
-            json_array=$(printf '%s\n' "${requested_images[@]}" | jq -R . | jq -s -c 'map(select(length > 0))')
-            echo "matrix=$json_array" >> $GITHUB_OUTPUT
-            echo "✓ Building images: $json_array"
-          else
-            echo "matrix=$all_images" >> $GITHUB_OUTPUT
-            echo "✓ Building all images: $all_images"
-          fi
+                if invalid:
+                    print(f"❌ Error: Invalid image(s): {', '.join(invalid)}")
+                    print(f"Valid images are: {', '.join(VALID_IMAGES)}")
+                    sys.exit(1)
+            else:
+                images = VALID_IMAGES
+
+            matrix = json.dumps(images)
+            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                f.write(f"matrix={matrix}\n")
+
+            print(f"✓ Building images: {matrix}")
 
   build:
     needs: validate
