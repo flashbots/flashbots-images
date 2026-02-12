@@ -47,6 +47,7 @@ ExecStart=/usr/bin/prometheus-node-exporter \
   --no-collector.vmstat \
   --no-collector.xfs \
   --no-collector.zfs \
+  --no-collector.systemd \
   --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker)($|/)
 Restart=on-failure
 RestartSec=5s
