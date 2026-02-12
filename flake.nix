@@ -44,14 +44,14 @@
       src = pkgs.fetchFromGitHub {
         owner = "flashbots";
         repo = "dstack-mr-gcp";
-        rev = "ee95d36c8f18d159f6ada31474555e4a253b3897";
-        sha256 = "sha256-vAYN4zFXHSxd86KP+Toqh1ZDa4+KGLNsQoOuTr45pGg=";
+        rev = "503e7c506f89f9d81be04025c90921778b26f0a4";
+        sha256 = "sha256-z6STTgcOXatiqA2rlpzwRyvAwnXrK30oNDCJqtIp7/8=";
       };
       vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
-      mkosi-unwrapped = pkgsForSystem.mkosi.override {
+      mkosi-unwrapped = (pkgsForSystem.mkosi.override {
         extraDeps = with pkgsForSystem;
           [
             apt
@@ -74,7 +74,39 @@
             jq
           ]
           ++ [reprepro];
-      };
+      }).overrideAttrs (old: {
+        src = pkgsForSystem.fetchFromGitHub {
+          owner = "alexhulbert";
+          repo = "mkosi";
+          rev = "1c15276e3bdb379bd62629420a55eae4a4091b24";
+          hash = "sha256-N7P39o2FyGvbnVU7SQadF19WFTTNzSf2iLprYIUwYY8=";
+        };
+        patches = let
+          # TODO: remove the hunk from nixpkgs and remove this hack
+          # Newest mkosi adds nix store paths to PATH dynamically
+          # so this patch hunk in nixpkgs is no longer needed
+          patchWithoutFinalizePath = pkgsForSystem.runCommandLocal "mkosi-patch-fixed" {} ''
+            ${pkgsForSystem.gawk}/bin/awk '
+              /^@@ .* finalize_path\(/ { skip=1; next }
+              skip && /^(@@|diff )/ { skip=0 }
+              !skip
+            ' ${builtins.elemAt old.patches 0} > $out
+          '';
+        in [patchWithoutFinalizePath] ++ builtins.tail old.patches;
+        postFixup = (old.postFixup or "") + ''
+          # Fix mkosi-sandbox: Nix wraps console_scripts entry points via
+          # "from mkosi.sandbox import main", so __name__ in sandbox.py is
+          # "mkosi.sandbox" not "__main__", breaking is_main() checks.
+          # Use runpy to run the module as __main__ instead.
+          substituteInPlace $out/bin/.mkosi-sandbox-wrapped \
+            --replace-fail \
+              'from mkosi.sandbox import main' \
+              'import runpy' \
+            --replace-fail \
+              $'sys.argv[0] = re.sub(r"(-script\\.pyw|\\.exe)?$", "", sys.argv[0])\n    sys.exit(main())' \
+              'runpy.run_module("mkosi.sandbox", run_name="__main__", alter_sys=True)'
+        '';
+      });
     in
       # Create a wrapper script that runs mkosi with unshare
       # Unshare is needed to create files owned by multiple uids/gids
@@ -90,11 +122,7 @@
     devShells = builtins.listToAttrs (map (system: {
       name = system;
       value.default = pkgs.mkShell {
-        nativeBuildInputs = [
-          (mkosi system)
-          measured-boot
-          measured-boot-gcp
-        ];
+        nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
           touch mkosi.builddir/debian-backports.sources
