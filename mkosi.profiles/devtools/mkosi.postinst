@@ -7,6 +7,9 @@ HASH=$(mkosi-chroot openssl passwd -6 -salt salt "$PASSWORD")
 mkosi-chroot passwd -u root
 mkosi-chroot usermod -p "$HASH" root
 
+# Remove git files in custom/ folder
+mkosi-chroot rm /.gitignore /.gitkeep || true
+
 if [ -f "$BUILDROOT/etc/default/dropbear" ]; then
     # Remove -s, -w, -g flags from dropbear args
     sed -i '/^DROPBEAR_EXTRA_ARGS=/s/-[swg] \?//g' "$BUILDROOT/etc/default/dropbear"
