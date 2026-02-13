@@ -2,7 +2,6 @@
 set -euo pipefail
 
 # Configuration
-# KERNEL_VERSION_DEBIAN="6.15.8"  # Uncomment to use Debian source path instead of GitHub
 KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
 KERNEL_REPO="https://github.com/gregkh/linux"
 BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"

@@ -28,7 +28,7 @@ endif
 
 # Build module directly (no Lima/nix wrapper, requires mkosi in PATH)
 build-bob-l1: ## Build bob-l1 directly with mkosi (no wrapper)
-	nix develop -c mkosi --force --image-id bob-l1 --include=bob-l1.conf
+	time nix develop -c mkosi --force --image-id bob-l1 --include=bob-l1.conf
 
 # Default target
 all: build
