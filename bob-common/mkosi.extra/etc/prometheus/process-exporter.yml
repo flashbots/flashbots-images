@@ -8,8 +8,3 @@ process_names:
   - name: "searcher-container"
     cmdline:
     - '/usr/bin/catatonit'
-
-  # Monitor all processes in the searcher cgroup
-  - name: "searcher-cgroup"
-    cgroups:
-    - "machine.slice/machine-searcher*"
