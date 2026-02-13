@@ -24,7 +24,11 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure clean check-module
+.PHONY: all build build-dev build-bob-l1 setup measure clean check-module
+
+# Build module directly (no Lima/nix wrapper, requires mkosi in PATH)
+build-bob-l1: ## Build bob-l1 directly with mkosi (no wrapper)
+	nix develop -c mkosi --force --image-id bob-l1 --include=bob-l1.conf
 
 # Default target
 all: build
