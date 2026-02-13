@@ -1,10 +1,5 @@
 process_names:
-  # Monitor the searcher container cgroup
-  - name: "{{.Matches}}"
-    cmdline:
-    - 'podman'
-
-  # Monitor the container init process
+  # Monitor the searcher container (conmon + all children via --children flag)
   - name: "searcher-container"
     cmdline:
-    - 'catatonit'
+    - 'conmon.*searcher-container'
