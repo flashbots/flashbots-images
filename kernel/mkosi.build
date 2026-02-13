@@ -2,11 +2,15 @@
 set -euo pipefail
 
 # Configuration
+# KERNEL_VERSION_DEBIAN="6.15.8"  # Uncomment to use Debian source path instead of GitHub
 KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
 KERNEL_REPO="https://github.com/gregkh/linux"
 BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"
 
 echo "Building kernel $KERNEL_VERSION with snippets: ${KERNEL_CONFIG_SNIPPETS:-none}"
+
+if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
+# === GitHub path (existing behavior) ===
 
 # Generate final config
 config_file=$(mktemp)
@@ -66,3 +70,11 @@ cp "$kernel_file" "$DESTDIR/usr/lib/modules/$KERNEL_VERSION/vmlinuz"
 rm -f "$config_file"
 
 echo "Kernel installed successfully"
+
+else
+# === Debian source path (KERNEL_VERSION_DEBIAN is set) ===
+echo "Debian kernel source path: KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"
+# TODO: Implement New Kernel Build Functionality
+echo "ERROR: Debian kernel source path is not yet implemented" >&2
+exit 1
+fi
