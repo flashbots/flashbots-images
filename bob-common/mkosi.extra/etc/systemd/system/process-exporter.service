@@ -1,0 +1,19 @@
+[Unit]
+Description=Prometheus Process Exporter
+Documentation=https://github.com/ncabatoff/process-exporter
+After=network-online.target searcher-container.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/bin/prometheus-process-exporter \
+  --web.listen-address=127.0.0.1:9256 \
+  --config.path=/etc/prometheus/process-exporter.yml \
+  --children
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
