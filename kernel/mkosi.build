@@ -6,31 +6,34 @@ KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
 KERNEL_REPO="https://github.com/gregkh/linux"
 BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"
 
-echo "Building kernel $KERNEL_VERSION with snippets: ${KERNEL_CONFIG_SNIPPETS:-none}"
+echo "Building kernel $KERNEL_VERSION"
 
-if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
-# === GitHub path (existing behavior) ===
-
-# Generate final config
-config_file=$(mktemp)
-cp "$BASE_CONFIG" "$config_file"
+# Collect config snippet paths from KERNEL_CONFIG_SNIPPETS and KERNEL_CONFIG_SNIPPETS_* env vars
+snippet_paths=()
 if [[ -n "${KERNEL_CONFIG_SNIPPETS:-}" ]]; then
     IFS=',' read -ra snippets <<< "$KERNEL_CONFIG_SNIPPETS"
     for snippet in "${snippets[@]}"; do
-        snippet_file="$SRCDIR/$snippet"
-        if [[ -f "$snippet_file" ]]; then
-            cat "$snippet_file" >> "$config_file" || true
-        fi
+        [[ -f "$SRCDIR/$snippet" ]] && snippet_paths+=("$SRCDIR/$snippet")
     done
 fi
 for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
     IFS=',' read -ra snippets <<< "${!snippets_var}"
     for snippet in "${snippets[@]}"; do
-        snippet_file="$SRCDIR/$snippet"
-        if [[ -f "$snippet_file" ]]; then
-            cat "$snippet_file" >> "$config_file" || true
-        fi
+        [[ -f "$SRCDIR/$snippet" ]] && snippet_paths+=("$SRCDIR/$snippet")
     done
+done
+
+echo "Config snippets (${#snippet_paths[@]}):"
+for f in "${snippet_paths[@]}"; do echo "  $f"; done
+
+if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
+# === GitHub path ===
+
+# Assemble kernel config: base config + collected snippets (Debian path uses merge_config.sh instead)
+config_file=$(mktemp)
+cp "$BASE_CONFIG" "$config_file"
+for snippet_file in "${snippet_paths[@]}"; do
+    cat "$snippet_file" >> "$config_file" || true
 done
 
 # Calculate cache key and paths
