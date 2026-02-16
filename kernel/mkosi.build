@@ -43,6 +43,23 @@ for f in "${snippet_paths[@]}"; do echo "  $f"; done
 echo "Patches (${#patch_paths[@]}):"
 for f in "${patch_paths[@]}"; do echo "  $f"; done
 
+# Apply collected patches to a kernel source tree
+apply_patches() {
+    local source_dir="$1"
+    if [[ ${#patch_paths[@]} -eq 0 ]]; then
+        return 0
+    fi
+    echo "Applying ${#patch_paths[@]} patch(es) to $source_dir"
+    for patch_file in "${patch_paths[@]}"; do
+        if [[ ! -f "$patch_file" ]]; then
+            echo "ERROR: Patch file not found: $patch_file" >&2
+            exit 1
+        fi
+        echo "  Applying: $patch_file"
+        patch -d "$source_dir" -p1 < "$patch_file"
+    done
+}
+
 if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
 # === GitHub path ===
 
@@ -73,6 +90,8 @@ else
 
     # Clone if needed
     [[ ! -d "$build_dir" ]] && git clone --depth 1 --branch "v${KERNEL_VERSION}" "$KERNEL_REPO" "$build_dir"
+
+    apply_patches "$build_dir"
 
     # Build kernel
     cd "$build_dir"
