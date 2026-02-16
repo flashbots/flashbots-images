@@ -23,8 +23,25 @@ for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
     done
 done
 
+# Collect patch paths from KERNEL_PATCHES and KERNEL_PATCHES_* env vars
+patch_paths=()
+if [[ -n "${KERNEL_PATCHES:-}" ]]; then
+    IFS=',' read -ra patches <<< "$KERNEL_PATCHES"
+    for p in "${patches[@]}"; do
+        patch_paths+=("$SRCDIR/$p")
+    done
+fi
+for patches_var in "${!KERNEL_PATCHES_@}"; do
+    IFS=',' read -ra patches <<< "${!patches_var}"
+    for p in "${patches[@]}"; do
+        patch_paths+=("$SRCDIR/$p")
+    done
+done
+
 echo "Config snippets (${#snippet_paths[@]}):"
 for f in "${snippet_paths[@]}"; do echo "  $f"; done
+echo "Patches (${#patch_paths[@]}):"
+for f in "${patch_paths[@]}"; do echo "  $f"; done
 
 if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
 # === GitHub path ===
@@ -36,9 +53,15 @@ for snippet_file in "${snippet_paths[@]}"; do
     cat "$snippet_file" >> "$config_file" || true
 done
 
-# Calculate cache key and paths
-config_hash=$(sha256sum "$config_file" | cut -d' ' -f1 | cut -c1-12)
-cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${config_hash}"
+# Calculate cache key from config + patch contents
+hash_input=$(mktemp)
+cp "$config_file" "$hash_input"
+for patch_file in "${patch_paths[@]}"; do
+    cat "$patch_file" >> "$hash_input"
+done
+cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
+rm -f "$hash_input"
+cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
 kernel_file="$cache_dir/bzImage"
 
 # Use cached kernel if available
