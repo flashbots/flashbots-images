@@ -108,77 +108,124 @@ else
     cp .config "$cache_dir/config"
 fi
 
-# Install kernel
-mkdir -p "$DESTDIR/usr/lib/modules/$KERNEL_VERSION"
-cp "$kernel_file" "$DESTDIR/usr/lib/modules/$KERNEL_VERSION/vmlinuz"
+kernel_version_string="$KERNEL_VERSION"
 rm -f "$config_file"
 
-echo "Kernel installed successfully"
-
 else
-# === Debian source path (KERNEL_VERSION_DEBIAN is set) ===
-echo "Debian kernel source path: KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"
+    # === Debian source path ===
+    echo "Debian source path: KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"
 
-# Calculate cache key from version + snippet/patch contents
-hash_input=$(mktemp)
-echo "KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}" > "$hash_input"
-for f in "${snippet_paths[@]}"; do
-    cat "$f" >> "$hash_input"
-done
-for f in "${patch_paths[@]}"; do
-    cat "$f" >> "$hash_input"
-done
-cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
-rm -f "$hash_input"
-cache_dir="$BUILDDIR/kernel-debian-${KERNEL_VERSION_DEBIAN}-${cache_hash}"
-kernel_file="$cache_dir/bzImage"
+    # Cache key from version + snippet/patch contents
+    hash_input=$(mktemp)
+    echo "KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}" > "$hash_input"
+    for f in "${snippet_paths[@]}"; do
+        cat "$f" >> "$hash_input"
+    done
+    for f in "${patch_paths[@]}"; do
+        cat "$f" >> "$hash_input"
+    done
+    cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
+    rm -f "$hash_input"
+    cache_dir="$BUILDDIR/kernel-debian-${KERNEL_VERSION_DEBIAN}-${cache_hash}"
+    kernel_file="$cache_dir/bzImage"
 
-if [[ -f "$kernel_file" ]]; then
-    echo "Using cached Debian kernel: $kernel_file"
-    kernel_version_string=$(cat "$cache_dir/kernel.release")
-else
-    echo "Building Debian kernel from source..."
+    if [[ -f "$kernel_file" ]]; then
+        echo "Using cached Debian kernel: $kernel_file"
+        kernel_version_string=$(cat "$cache_dir/kernel.release")
+    else
+        echo "Building Debian kernel from source..."
 
-    # Install linux-source and linux-config packages (follows buildernet 10-kernel-prepare.sh)
-    apt-get -y install "linux-source-${KERNEL_VERSION_DEBIAN}/trixie-backports" --install-recommends
+        # Install kernel source and config packages from backports
+        apt-get -y install "linux-source-${KERNEL_VERSION_DEBIAN}/trixie-backports" --install-recommends
 
-    # Extract kernel source tarball
-    source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION_DEBIAN}.tar.xz"
-    if [[ ! -f "$source_tarball" ]]; then
-        echo "ERROR: Source tarball not found: $source_tarball" >&2
-        exit 1
+        # Extract source tarball
+        source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION_DEBIAN}.tar.xz"
+        if [[ ! -f "$source_tarball" ]]; then
+            echo "ERROR: Source tarball not found: $source_tarball" >&2
+            exit 1
+        fi
+        mkdir -p "$BUILDROOT/build"
+        tar xaf "$source_tarball" -C "$BUILDROOT/build/"
+        build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION_DEBIAN}"
+
+        # Verify extracted source and installed config
+        if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
+            echo "ERROR: merge_config.sh not found in kernel source" >&2
+            exit 1
+        fi
+        cloud_config_xz="$BUILDROOT/usr/src/linux-config-${KERNEL_VERSION_DEBIAN}/config.amd64_none_cloud-amd64.xz"
+        if [[ ! -f "$cloud_config_xz" ]]; then
+            echo "ERROR: Debian cloud config not found: $cloud_config_xz" >&2
+            exit 1
+        fi
+
+        echo "Kernel source: $build_dir"
+        echo "Cloud config: $cloud_config_xz"
+
+        apply_patches "$build_dir"
+
+        # Config assembly: Debian cloud base -> CONFIG_MODULES=n -> user snippets
+        # Files staged under $BUILDROOT/build/kconfig/ (not /tmp — chroot mounts tmpfs there)
+        chroot_build_dir="/build/linux-source-${KERNEL_VERSION_DEBIAN}"
+        kconfig_dir="$BUILDROOT/build/kconfig"
+        kconfig_chroot="/build/kconfig"
+
+        mkdir -p "$kconfig_dir/fragments"
+        rm -f "$kconfig_dir/fragments/"*
+
+        xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
+        echo "CONFIG_MODULES=n" > "$kconfig_dir/no-modules.config"
+
+        # Copy snippet files into chroot-accessible location
+        for f in "${snippet_paths[@]}"; do
+            cp "$f" "$kconfig_dir/fragments/"
+        done
+
+        # Build argument list with chroot-relative paths
+        merge_args=("$kconfig_chroot/base.config" "$kconfig_chroot/no-modules.config")
+        for f in "$kconfig_dir/fragments/"*; do
+            [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
+        done
+
+        echo "Config merge order:"
+        for a in "${merge_args[@]}"; do echo "  $a"; done
+
+        mkosi-chroot --chdir "$chroot_build_dir" \
+            ./scripts/kconfig/merge_config.sh "${merge_args[@]}"
+
+        # Build kernel
+        export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
+        export KBUILD_BUILD_USER="mkosi"
+        export KBUILD_BUILD_HOST="mkosi-builder"
+        export LOCALVERSION="-mkosi"
+        rm -f "$build_dir/.version"
+
+        mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
+        mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
+
+        # Locate bzImage (path varies between kernel versions)
+        if [[ -f "$build_dir/arch/x86_64/boot/bzImage" ]]; then
+            built_bzimage="$build_dir/arch/x86_64/boot/bzImage"
+        elif [[ -f "$build_dir/arch/x86/boot/bzImage" ]]; then
+            built_bzimage="$build_dir/arch/x86/boot/bzImage"
+        else
+            echo "ERROR: bzImage not found after build" >&2
+            exit 1
+        fi
+
+        # Read version string (e.g. "6.16.3-mkosi") and cache result
+        kernel_version_string=$(cat "$build_dir/include/config/kernel.release")
+        echo "Kernel version: $kernel_version_string"
+
+        mkdir -p "$cache_dir"
+        cp "$built_bzimage" "$cache_dir/bzImage"
+        cp "$build_dir/.config" "$cache_dir/config"
+        echo "$kernel_version_string" > "$cache_dir/kernel.release"
+        echo "Cached Debian kernel to: $cache_dir"
     fi
-    mkdir -p "$BUILDROOT/build"
-    tar xaf "$source_tarball" -C "$BUILDROOT/build/"
-    build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION_DEBIAN}"
-
-    # Verify required files exist in extracted source and installed packages
-    if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
-        echo "ERROR: merge_config.sh not found in kernel source" >&2
-        exit 1
-    fi
-    cloud_config_xz="$BUILDROOT/usr/src/linux-config-${KERNEL_VERSION_DEBIAN}/config.amd64_none_cloud-amd64.xz"
-    if [[ ! -f "$cloud_config_xz" ]]; then
-        echo "ERROR: Debian cloud config not found: $cloud_config_xz" >&2
-        exit 1
-    fi
-
-    echo "Kernel source: $build_dir"
-    echo "Cloud config: $cloud_config_xz"
-    echo "Source tree top-level:"
-    ls "$build_dir/" | head -20
-
-    # Apply patches to Debian source (reuses shared function)
-    apply_patches "$build_dir"
-
-    # TODO: Implement apply patches, merge configs, build kernel, cache
-    echo "ERROR: Debian kernel build not yet implemented (source acquired successfully)" >&2
-    exit 1
 fi
 
-# Install Debian kernel
+# Install kernel
 mkdir -p "$DESTDIR/usr/lib/modules/$kernel_version_string"
 cp "$kernel_file" "$DESTDIR/usr/lib/modules/$kernel_version_string/vmlinuz"
-
-echo "Debian kernel installed successfully"
-fi
+echo "Kernel installed successfully"
