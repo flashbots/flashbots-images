@@ -118,7 +118,67 @@ echo "Kernel installed successfully"
 else
 # === Debian source path (KERNEL_VERSION_DEBIAN is set) ===
 echo "Debian kernel source path: KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"
-# TODO: Implement New Kernel Build Functionality
-echo "ERROR: Debian kernel source path is not yet implemented" >&2
-exit 1
+
+# Calculate cache key from version + snippet/patch contents
+hash_input=$(mktemp)
+echo "KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}" > "$hash_input"
+for f in "${snippet_paths[@]}"; do
+    cat "$f" >> "$hash_input"
+done
+for f in "${patch_paths[@]}"; do
+    cat "$f" >> "$hash_input"
+done
+cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
+rm -f "$hash_input"
+cache_dir="$BUILDDIR/kernel-debian-${KERNEL_VERSION_DEBIAN}-${cache_hash}"
+kernel_file="$cache_dir/bzImage"
+
+if [[ -f "$kernel_file" ]]; then
+    echo "Using cached Debian kernel: $kernel_file"
+    kernel_version_string=$(cat "$cache_dir/kernel.release")
+else
+    echo "Building Debian kernel from source..."
+
+    # Install linux-source and linux-config packages (follows buildernet 10-kernel-prepare.sh)
+    apt-get -y install "linux-source-${KERNEL_VERSION_DEBIAN}/trixie-backports" --install-recommends
+
+    # Extract kernel source tarball
+    source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION_DEBIAN}.tar.xz"
+    if [[ ! -f "$source_tarball" ]]; then
+        echo "ERROR: Source tarball not found: $source_tarball" >&2
+        exit 1
+    fi
+    mkdir -p "$BUILDROOT/build"
+    tar xaf "$source_tarball" -C "$BUILDROOT/build/"
+    build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION_DEBIAN}"
+
+    # Verify required files exist in extracted source and installed packages
+    if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
+        echo "ERROR: merge_config.sh not found in kernel source" >&2
+        exit 1
+    fi
+    cloud_config_xz="$BUILDROOT/usr/src/linux-config-${KERNEL_VERSION_DEBIAN}/config.amd64_none_cloud-amd64.xz"
+    if [[ ! -f "$cloud_config_xz" ]]; then
+        echo "ERROR: Debian cloud config not found: $cloud_config_xz" >&2
+        exit 1
+    fi
+
+    echo "Kernel source: $build_dir"
+    echo "Cloud config: $cloud_config_xz"
+    echo "Source tree top-level:"
+    ls "$build_dir/" | head -20
+
+    # Apply patches to Debian source (reuses shared function)
+    apply_patches "$build_dir"
+
+    # TODO: Implement apply patches, merge configs, build kernel, cache
+    echo "ERROR: Debian kernel build not yet implemented (source acquired successfully)" >&2
+    exit 1
+fi
+
+# Install Debian kernel
+mkdir -p "$DESTDIR/usr/lib/modules/$kernel_version_string"
+cp "$kernel_file" "$DESTDIR/usr/lib/modules/$kernel_version_string/vmlinuz"
+
+echo "Debian kernel installed successfully"
 fi
