@@ -32,7 +32,7 @@ mkosi-chroot chmod        0750 /etc/vault-agent
 mkosi-chroot chmod        0750 /etc/vault-agent/gomplate
 mkosi-chroot sh -c "chmod 0640 /etc/vault-agent/gomplate/*"
 
-# Create /etc/sysconfig for vault-agent
+# Create /etc/sysconfig secrets injection
 
 mkosi-chroot mkdir -p /etc/sysconfig
 
