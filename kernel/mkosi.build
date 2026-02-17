@@ -60,53 +60,53 @@ apply_patches() {
 }
 
 if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
-# === GitHub path ===
-echo "Building kernel ${KERNEL_VERSION} (GitHub source)"
+    # === GitHub path ===
+    echo "Building kernel ${KERNEL_VERSION} (GitHub source)"
 
-# Assemble kernel config: base config + collected snippets (Debian path uses merge_config.sh instead)
-config_file=$(mktemp)
-cp "$BASE_CONFIG" "$config_file"
-for snippet_file in "${snippet_paths[@]}"; do
-    cat "$snippet_file" >> "$config_file" || true
-done
+    # Assemble kernel config: base config + collected snippets (Debian path uses merge_config.sh instead)
+    config_file=$(mktemp)
+    cp "$BASE_CONFIG" "$config_file"
+    for snippet_file in "${snippet_paths[@]}"; do
+        cat "$snippet_file" >> "$config_file" || true
+    done
 
-# Calculate cache key from config + patch contents
-cache_hash=$(
-    { cat "$config_file"; for f in "${patch_paths[@]}"; do cat "$f"; done; } \
-    | sha256sum | cut -d' ' -f1 | cut -c1-12
-)
-cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
-kernel_file="$cache_dir/bzImage"
+    # Calculate cache key from config + patch contents
+    cache_hash=$(
+        { cat "$config_file"; for f in "${patch_paths[@]}"; do cat "$f"; done; } \
+        | sha256sum | cut -d' ' -f1 | cut -c1-12
+    )
+    cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
+    kernel_file="$cache_dir/bzImage"
 
-# Use cached kernel if available and not empty (corrupted)
-if [[ -f "$kernel_file" ]] && [[ -s "$kernel_file" ]]; then
-    echo "Using cached kernel: $kernel_file"
-else
-    echo "Building kernel from source..."
-    build_dir="$BUILDROOT/build/kernel-${KERNEL_VERSION}"
+    # Use cached kernel if available and not empty (corrupted)
+    if [[ -f "$kernel_file" ]] && [[ -s "$kernel_file" ]]; then
+        echo "Using cached kernel: $kernel_file"
+    else
+        echo "Building kernel from source..."
+        build_dir="$BUILDROOT/build/kernel-${KERNEL_VERSION}"
 
-    # Clone if needed
-    [[ ! -d "$build_dir" ]] && git clone --depth 1 --branch "v${KERNEL_VERSION}" "$KERNEL_REPO" "$build_dir"
+        # Clone if needed
+        [[ ! -d "$build_dir" ]] && git clone --depth 1 --branch "v${KERNEL_VERSION}" "$KERNEL_REPO" "$build_dir"
 
-    apply_patches "$build_dir"
+        apply_patches "$build_dir"
 
-    # Build kernel
-    cd "$build_dir"
-    cp "$config_file" .config
-    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @$(git log -1 --pretty=%ct))"
-    export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
+        # Build kernel
+        cd "$build_dir"
+        cp "$config_file" .config
+        export KBUILD_BUILD_TIMESTAMP="$(date -u -d @$(git log -1 --pretty=%ct))"
+        export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
 
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
+        mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
+        mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
 
-    # Cache result
-    mkdir -p "$cache_dir"
-    cp arch/x86_64/boot/bzImage "$cache_dir/"
-    cp .config "$cache_dir/config"
-fi
+        # Cache result
+        mkdir -p "$cache_dir"
+        cp arch/x86_64/boot/bzImage "$cache_dir/"
+        cp .config "$cache_dir/config"
+    fi
 
-kernel_version_string="$KERNEL_VERSION"
-rm -f "$config_file"
+    kernel_version_string="$KERNEL_VERSION"
+    rm -f "$config_file"
 
 else
     # === Debian source path ===
