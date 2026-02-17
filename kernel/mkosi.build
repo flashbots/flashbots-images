@@ -1,12 +1,11 @@
 #!/bin/bash
 set -euo pipefail
+shopt -s inherit_errexit  # propagate errexit to $() subshells
 
 # Configuration
 KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
 KERNEL_REPO="https://github.com/gregkh/linux"
 BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"
-
-echo "Building kernel $KERNEL_VERSION"
 
 # Collect config snippet paths from KERNEL_CONFIG_SNIPPETS and KERNEL_CONFIG_SNIPPETS_* env vars
 snippet_paths=()
@@ -62,6 +61,7 @@ apply_patches() {
 
 if [[ -z "${KERNEL_VERSION_DEBIAN:-}" ]]; then
 # === GitHub path ===
+echo "Building kernel ${KERNEL_VERSION} (GitHub source)"
 
 # Assemble kernel config: base config + collected snippets (Debian path uses merge_config.sh instead)
 config_file=$(mktemp)
@@ -71,18 +71,15 @@ for snippet_file in "${snippet_paths[@]}"; do
 done
 
 # Calculate cache key from config + patch contents
-hash_input=$(mktemp)
-cp "$config_file" "$hash_input"
-for patch_file in "${patch_paths[@]}"; do
-    cat "$patch_file" >> "$hash_input"
-done
-cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
-rm -f "$hash_input"
+cache_hash=$(
+    { cat "$config_file"; for f in "${patch_paths[@]}"; do cat "$f"; done; } \
+    | sha256sum | cut -d' ' -f1 | cut -c1-12
+)
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
 kernel_file="$cache_dir/bzImage"
 
-# Use cached kernel if available
-if [[ -f "$kernel_file" ]]; then
+# Use cached kernel if available and not empty (corrupted)
+if [[ -f "$kernel_file" ]] && [[ -s "$kernel_file" ]]; then
     echo "Using cached kernel: $kernel_file"
 else
     echo "Building kernel from source..."
@@ -113,23 +110,20 @@ rm -f "$config_file"
 
 else
     # === Debian source path ===
-    echo "Debian source path: KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"
+    echo "Building kernel ${KERNEL_VERSION_DEBIAN} (Debian source)"
 
     # Cache key from version + snippet/patch contents
-    hash_input=$(mktemp)
-    echo "KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}" > "$hash_input"
-    for f in "${snippet_paths[@]}"; do
-        cat "$f" >> "$hash_input"
-    done
-    for f in "${patch_paths[@]}"; do
-        cat "$f" >> "$hash_input"
-    done
-    cache_hash=$(sha256sum "$hash_input" | cut -d' ' -f1 | cut -c1-12)
-    rm -f "$hash_input"
+    cache_hash=$(
+        { echo "KERNEL_VERSION_DEBIAN=${KERNEL_VERSION_DEBIAN}"; \
+          for f in "${snippet_paths[@]}"; do cat "$f"; done; \
+          for f in "${patch_paths[@]}"; do cat "$f"; done; } \
+        | sha256sum | cut -d' ' -f1 | cut -c1-12
+    )
     cache_dir="$BUILDDIR/kernel-debian-${KERNEL_VERSION_DEBIAN}-${cache_hash}"
     kernel_file="$cache_dir/bzImage"
 
-    if [[ -f "$kernel_file" ]]; then
+    # Use cached kernel if available and not empty (corrupted)
+    if [[ -f "$kernel_file" ]] && [[ -s "$kernel_file" ]]; then
         echo "Using cached Debian kernel: $kernel_file"
         kernel_version_string=$(cat "$cache_dir/kernel.release")
     else
@@ -176,9 +170,12 @@ else
         xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
         echo "CONFIG_MODULES=n" > "$kconfig_dir/no-modules.config"
 
-        # Copy snippet files into chroot-accessible location
+        # Copy snippets into chroot-accessible location
+        # with numbered prefixes to preserve order and avoid name collisions
+        _idx=0
         for f in "${snippet_paths[@]}"; do
-            cp "$f" "$kconfig_dir/fragments/"
+            cp "$f" "$kconfig_dir/fragments/$(printf '%03d' $_idx)-$(basename "$f")"
+            _idx=$((_idx + 1))
         done
 
         # Build argument list with chroot-relative paths
@@ -197,7 +194,7 @@ else
         export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
         export KBUILD_BUILD_USER="mkosi"
         export KBUILD_BUILD_HOST="mkosi-builder"
-        export LOCALVERSION="-mkosi"
+        export LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}"  # appended to kernel version string (e.g. 6.16.3-mkosi)
         rm -f "$build_dir/.version"
 
         mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
