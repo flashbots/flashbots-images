@@ -30,10 +30,6 @@ if [ -f /etc/rsyslog.d/50-default.conf ]; then
     sed -i 's/^.*\/var\/log\/syslog.*$/# &/' /etc/rsyslog.d/50-default.conf
 fi
 
-# Limit root filesystem size to 4GB
-
-mkosi-chroot sed -i '1a mount -o remount,size=4G /' /init
-
 # Remove automatically generated nvme data
 
 rm -rf "$BUILDROOT/etc/nvme/hostid" "$BUILDROOT/etc/nvme/hostnqn"
