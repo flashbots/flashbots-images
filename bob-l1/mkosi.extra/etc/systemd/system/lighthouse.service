@@ -1,7 +1,8 @@
 [Unit]
 Description=Lighthouse Consensus Client
-After=network.target network-setup.service persistent-mount.service
-Requires=network-setup.service persistent-mount.service
+After=network-online.target persistent-mount.service
+Wants=network-online.target
+Requires=persistent-mount.service
 
 [Service]
 Type=exec

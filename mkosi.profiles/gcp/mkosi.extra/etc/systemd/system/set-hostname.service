@@ -1,8 +1,8 @@
 [Unit]
 Description=Set hostname
 ConditionFirstBoot=yes
-After=network.target network-setup.service
-Wants=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=root
@@ -11,4 +11,4 @@ Type=oneshot
 ExecStart=/usr/bin/set-hostname.sh
 
 [Install]
-WantedBy=default.target
+WantedBy=minimal.target

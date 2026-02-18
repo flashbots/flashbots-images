@@ -1,11 +1,11 @@
 [Unit]
-Description=Fetch some configuration variables from Vault
+Description=Report VM is ready to Azure API
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/fetch-config.sh
+ExecStart=/usr/bin/azure-complete-provisioning
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal

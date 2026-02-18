@@ -1,0 +1,6 @@
+[Unit]
+Description=Minimal System
+Requires=basic.target
+Conflicts=rescue.service rescue.target emergency.service emergency.target
+After=basic.target rescue.service rescue.target emergency.service emergency.target
+AllowIsolate=yes
