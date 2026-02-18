@@ -109,7 +109,7 @@
         nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
-          touch mkosi.builddir/debian-backports.sources
+          touch mkosi.builddir/mkosi.sources
         '';
       };
     }) ["x86_64-linux" "aarch64-linux"]);

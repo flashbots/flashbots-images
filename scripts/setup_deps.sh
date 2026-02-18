@@ -24,8 +24,6 @@ cmd_exists curl || missing+=("curl")
 cmd_exists qemu-img || missing+=("qemu-utils")
 cmd_exists newuidmap || missing+=("uidmap")
 
-ls /usr/share/keyrings/debian-archive* &>/dev/null 2>&1 || missing+=("debian-archive-keyring")
-
 if cmd_exists systemctl; then
     version=$(systemctl --version | head -1 | awk '{print $2}')
     [ "$version" -ge 250 ] || err "systemd 250+ required (current: $version). $LIMA_MSG"
@@ -55,7 +53,7 @@ fi
 
 apt_pkgs=()
 for dep in "${missing[@]}"; do
-    [[ "$dep" == "curl" || "$dep" == "debian-archive-keyring" || "$dep" == "qemu-utils" || "$dep" == "uidmap" ]] && apt_pkgs+=("$dep")
+    [[ "$dep" == "curl" || "$dep" == "qemu-utils" || "$dep" == "uidmap" ]] && apt_pkgs+=("$dep")
 done
 
 if [ ${#apt_pkgs[@]} -gt 0 ]; then
