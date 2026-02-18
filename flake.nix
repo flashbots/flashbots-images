@@ -76,35 +76,19 @@
           ++ [reprepro];
       }).overrideAttrs (old: {
         src = pkgsForSystem.fetchFromGitHub {
-          owner = "alexhulbert";
+          owner = "systemd";
           repo = "mkosi";
-          rev = "1c15276e3bdb379bd62629420a55eae4a4091b24";
-          hash = "sha256-N7P39o2FyGvbnVU7SQadF19WFTTNzSf2iLprYIUwYY8=";
+          rev = "df51194bc2d890d4c267af644a1832d2d53339ac";
+          hash = "sha256-rGGzE9xIR8WvK07GBnaAmeLpmnM3Uy51wqyrmuHuWXo=";
         };
-        patches = let
-          # TODO: remove the hunk from nixpkgs and remove this hack
-          # Newest mkosi adds nix store paths to PATH dynamically
-          # so this patch hunk in nixpkgs is no longer needed
-          patchWithoutFinalizePath = pkgsForSystem.runCommandLocal "mkosi-patch-fixed" {} ''
-            ${pkgsForSystem.gawk}/bin/awk '
-              /^@@ .* finalize_path\(/ { skip=1; next }
-              skip && /^(@@|diff )/ { skip=0 }
-              !skip
-            ' ${builtins.elemAt old.patches 0} > $out
-          '';
-        in [patchWithoutFinalizePath] ++ builtins.tail old.patches;
-        postFixup = (old.postFixup or "") + ''
-          # Fix mkosi-sandbox: Nix wraps console_scripts entry points via
-          # "from mkosi.sandbox import main", so __name__ in sandbox.py is
-          # "mkosi.sandbox" not "__main__", breaking is_main() checks.
-          # Use runpy to run the module as __main__ instead.
-          substituteInPlace $out/bin/.mkosi-sandbox-wrapped \
-            --replace-fail \
-              'from mkosi.sandbox import main' \
-              'import runpy' \
-            --replace-fail \
-              $'sys.argv[0] = re.sub(r"(-script\\.pyw|\\.exe)?$", "", sys.argv[0])\n    sys.exit(main())' \
-              'runpy.run_module("mkosi.sandbox", run_name="__main__", alter_sys=True)'
+        # TODO: remove these patch hunks from upstream nixpkgs next time mkosi has a release
+        # The latest mkosi doesn't need them
+        patches = pkgs.lib.drop 2 old.patches;
+        postPatch = let fd = "${pkgs.patchutils}/bin/filterdiff"; in ''
+          { ${fd} -x '*/run.py' --hunks=x2   ${builtins.elemAt old.patches 0}
+            ${fd} -i '*/run.py' --hunks=x1-2 ${builtins.elemAt old.patches 0}
+            ${fd} --hunks=x1                 ${builtins.elemAt old.patches 1}
+          } | patch -p1
         '';
       });
     in
