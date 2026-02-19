@@ -7,6 +7,7 @@ build_rust_package() {
     local provided_binary="${4:-}"
     local extra_features="${5:-}"
     local extra_rustflags="${6:-}"
+    local cargo_package="${7:-$package}"
 
     local dest_path="$DESTDIR/usr/bin/$package"
     mkdir -p "$DESTDIR/usr/bin"
@@ -19,7 +20,8 @@ build_rust_package() {
     fi
 
     # If binary is cached, skip compilation
-    local cached_binary="$BUILDDIR/${package}-${version}"
+    local safe_version="${version//\//_}"
+    local cached_binary="$BUILDDIR/${package}-${safe_version}"
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         cp "$cached_binary" "$dest_path"
@@ -29,7 +31,14 @@ build_rust_package() {
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
     mkdir -p "$build_dir"
-    git clone --depth 1 --branch "$version" "$git_url" "$build_dir"
+    if [ -f "$BUILDDIR/.ghtoken" ]; then
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$(cat "$BUILDDIR/.ghtoken")@github.com}"
+    fi
+    git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
+        echo "Could not clone branch/tag, attempting to checkout the commit by sha"
+        git clone "$git_url" "$build_dir" &&
+        git -C "$build_dir" checkout "$version"
+    )
 
     # Define Rust flags for reproducibility
     local rustflags=(
@@ -50,7 +59,7 @@ build_rust_package() {
                CARGO_TERM_COLOR='never'
         cd '/build/$package'
         cargo fetch
-        cargo build --release --frozen ${extra_features:+--features $extra_features}
+        cargo build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
     "
 
     # Cache and install the built binary
