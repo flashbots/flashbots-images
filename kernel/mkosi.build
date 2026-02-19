@@ -39,15 +39,20 @@ for patches_var in "${!KERNEL_PATCHES_@}"; do
     done
 done
 
+# Compute LOCALVERSION early — used in cache hash and kernel build
+LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
+
 echo "Building kernel ${KERNEL_VERSION} (Debian source)"
+echo "LOCALVERSION: $LOCALVERSION"
 echo "Config snippets (${#snippet_paths[@]}):"
 for f in "${snippet_paths[@]}"; do echo "  $f"; done
 echo "Patches (${#patch_paths[@]}):"
 for f in "${patch_paths[@]}"; do echo "  $f"; done
 
-# Cache key from version + snippet/patch contents
+# Cache key from version + localversion + snippet/patch contents
 cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
+      echo "LOCALVERSION=${LOCALVERSION}"; \
       for f in "${snippet_paths[@]}"; do cat "$f"; done; \
       for f in "${patch_paths[@]}"; do cat "$f"; done; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
@@ -137,7 +142,7 @@ else
     export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
     export KBUILD_BUILD_USER="mkosi"
     export KBUILD_BUILD_HOST="mkosi-builder"
-    export LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}"  # appended to kernel version string (e.g. 6.16.3-mkosi)
+    export LOCALVERSION  # e.g. -mkosi-cloud → kernel version becomes 6.16.3-mkosi-cloud
     rm -f "$build_dir/.version"
 
     mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
