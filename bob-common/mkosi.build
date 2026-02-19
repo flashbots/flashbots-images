@@ -40,12 +40,13 @@ make_git_package \
     'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
-make_git_package \
-    "cvm-reverse-proxy" \
-    "v0.1.8" \
-    "https://github.com/flashbots/cvm-reverse-proxy" \
-    "make build-proxy-server" \
-    "build/proxy-server:/usr/bin/cvm-reverse-proxy"
+# Install attested-tls-proxy from pre-built .deb
+ATLS_VERSION="v1.1.1"
+ATLS_SHA256="539a5f7de6e0b3a80d5279e76fbf46b2531c3c74fa2e22bf55a3dd5c0118690d"
+curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${ATLS_VERSION}/attested-tls-proxy_1.${ATLS_VERSION}_amd64.deb" \
+    -o /tmp/attested-tls-proxy.deb
+echo "${ATLS_SHA256}  /tmp/attested-tls-proxy.deb" | sha256sum --check
+dpkg-deb -x /tmp/attested-tls-proxy.deb "$DESTDIR"
 
 # Build input-only-proxy
 build_rust_package \
