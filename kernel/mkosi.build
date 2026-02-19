@@ -102,7 +102,7 @@ else
         done
     fi
 
-    # Config assembly: Debian cloud base -> CONFIG_MODULES=n -> user snippets
+    # Config assembly: Debian cloud base -> user snippets
     # Files staged under $BUILDROOT/build/kconfig/ (not /tmp — chroot mounts tmpfs there)
     chroot_build_dir="/build/linux-source-${KERNEL_VERSION}"
     kconfig_dir="$BUILDROOT/build/kconfig"
@@ -112,7 +112,6 @@ else
     rm -f "$kconfig_dir/fragments/"*
 
     xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
-    echo "CONFIG_MODULES=n" > "$kconfig_dir/no-modules.config"
 
     # Copy snippets into chroot-accessible location
     # with numbered prefixes to preserve order and avoid name collisions
@@ -123,7 +122,7 @@ else
     done
 
     # Build argument list with chroot-relative paths
-    merge_args=("$kconfig_chroot/base.config" "$kconfig_chroot/no-modules.config")
+    merge_args=("$kconfig_chroot/base.config")
     for f in "$kconfig_dir/fragments/"*; do
         [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
     done
