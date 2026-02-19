@@ -58,12 +58,11 @@ cache_hash=$(
     | sha256sum | cut -d' ' -f1 | cut -c1-12
 )
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
-kernel_file="$cache_dir/bzImage"
+cached_deb="$cache_dir/kernel.deb"
 
-# Use cached kernel if available and not empty (corrupted)
-if [[ -f "$kernel_file" ]] && [[ -s "$kernel_file" ]]; then
-    echo "Using cached kernel: $kernel_file"
-    kernel_version_string=$(cat "$cache_dir/kernel.release")
+# Use cached kernel .deb if available
+if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
+    echo "Using cached kernel .deb: $cached_deb"
 else
     echo "Building kernel from source..."
 
@@ -138,38 +137,41 @@ else
     mkosi-chroot --chdir "$chroot_build_dir" \
         ./scripts/kconfig/merge_config.sh "${merge_args[@]}"
 
-    # Build kernel
+    # Build kernel .deb package
     export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
     export KBUILD_BUILD_USER="mkosi"
     export KBUILD_BUILD_HOST="mkosi-builder"
     export LOCALVERSION  # e.g. -mkosi-cloud → kernel version becomes 6.16.3-mkosi-cloud
+    # TODO: Explore whether these profiles apply to upstream bindeb-pkg:
+    # https://github.com/torvalds/linux/blob/master/scripts/package/mkdebian
+    export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
     rm -f "$build_dir/.version"
 
     mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
-    mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
+    mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
 
-    # Locate bzImage (path varies between kernel versions)
-    if [[ -f "$build_dir/arch/x86_64/boot/bzImage" ]]; then
-        built_bzimage="$build_dir/arch/x86_64/boot/bzImage"
-    elif [[ -f "$build_dir/arch/x86/boot/bzImage" ]]; then
-        built_bzimage="$build_dir/arch/x86/boot/bzImage"
-    else
-        echo "ERROR: bzImage not found after build" >&2
+    # Find the linux-image .deb
+    built_deb=$(find "$BUILDROOT/build" -maxdepth 1 -name "linux-image-*.deb" -type f | head -1)
+    if [[ -z "$built_deb" ]]; then
+        echo "ERROR: linux-image .deb not found after build" >&2
         exit 1
     fi
 
-    # Read version string (e.g. "6.16.3-mkosi") and cache result
     kernel_version_string=$(cat "$build_dir/include/config/kernel.release")
     echo "Kernel version: $kernel_version_string"
+    echo "Built .deb: $(basename "$built_deb")"
 
+    # Cache the .deb
     mkdir -p "$cache_dir"
-    cp "$built_bzimage" "$cache_dir/bzImage"
+    cp "$built_deb" "$cached_deb"
     cp "$build_dir/.config" "$cache_dir/config"
     echo "$kernel_version_string" > "$cache_dir/kernel.release"
     echo "Cached kernel to: $cache_dir"
+
+    # Clean up unwanted build artifacts
+    rm -f "$BUILDROOT/build"/*.deb "$BUILDROOT/build"/*.buildinfo "$BUILDROOT/build"/*.changes
 fi
 
-# Install kernel
-mkdir -p "$DESTDIR/usr/lib/modules/$kernel_version_string"
-cp "$kernel_file" "$DESTDIR/usr/lib/modules/$kernel_version_string/vmlinuz"
-echo "Kernel installed successfully"
+# Move kernel to PACKAGEDIR, so mkosi installs it as a package (VolatilePackages)
+cp "$cached_deb" "$PACKAGEDIR/"
+echo "Kernel .deb copied to PACKAGEDIR"
