@@ -3,8 +3,8 @@ set -euo pipefail
 
 echo "Installing attested-tls-proxy..."
 
-VERSION="v0.0.2"
-EXPECTED_SHA256=0e75fd4cc84065e95e5201be24a20186ef20167268ac0b1348509fa50dcfc4ad
+VERSION="v1.1.1"
+EXPECTED_SHA256=539a5f7de6e0b3a80d5279e76fbf46b2531c3c74fa2e22bf55a3dd5c0118690d
 curl -sSfL https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/attested-tls-proxy_1.${VERSION}_amd64.deb \
   -o $PACKAGEDIR/attested-tls-proxy.deb
 echo "${EXPECTED_SHA256}" $PACKAGEDIR/attested-tls-proxy.deb | sha256sum --check
