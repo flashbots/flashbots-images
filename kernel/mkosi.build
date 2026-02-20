@@ -1,68 +1,176 @@
 #!/bin/bash
 set -euo pipefail
+shopt -s inherit_errexit  # propagate errexit to $() subshells
 
-# Configuration
-KERNEL_VERSION="${KERNEL_VERSION:-6.15.8}"
-KERNEL_REPO="https://github.com/gregkh/linux"
-BASE_CONFIG="$SRCDIR/kernel/kernel-yocto.config"
-
-echo "Building kernel $KERNEL_VERSION with snippets: ${KERNEL_CONFIG_SNIPPETS:-none}"
-
-# Generate final config
-config_file=$(mktemp)
-cp "$BASE_CONFIG" "$config_file"
-if [[ -n "${KERNEL_CONFIG_SNIPPETS:-}" ]]; then
-    IFS=',' read -ra snippets <<< "$KERNEL_CONFIG_SNIPPETS"
-    for snippet in "${snippets[@]}"; do
-        snippet_file="$SRCDIR/$snippet"
-        if [[ -f "$snippet_file" ]]; then
-            cat "$snippet_file" >> "$config_file" || true
-        fi
-    done
+# KERNEL_VERSION must be set (Debian major.minor, e.g. "6.16").
+# Must match a linux-source package available in the pinned snapshot mirror.
+if [[ -z "${KERNEL_VERSION:-}" ]]; then
+    echo "ERROR: KERNEL_VERSION is not set. Set it in mkosi.conf Environment= (e.g. KERNEL_VERSION=6.16)" >&2
+    exit 1
 fi
-for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
-    IFS=',' read -ra snippets <<< "${!snippets_var}"
-    for snippet in "${snippets[@]}"; do
-        snippet_file="$SRCDIR/$snippet"
-        if [[ -f "$snippet_file" ]]; then
-            cat "$snippet_file" >> "$config_file" || true
-        fi
+
+# Auto-discover config fragments from registered directories
+# KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
+config_paths=()
+for dir_var in "${!KERNEL_CONFIG_SNIPPETS@}"; do
+    config_dir="$SRCDIR/${!dir_var}"
+    if [[ -d "$config_dir" ]]; then
+        for f in "$config_dir"/*; do
+            [[ -f "$f" ]] && config_paths+=("$f")
+        done
+    fi
+done
+
+# Auto-discover patches from registered directories
+# KERNEL_PATCHES is processed first, then KERNEL_PATCHES_* in alphabetical order
+# Within each directory, patches are collected in 3 layers:
+#   <dir>/*.patch                           — all versions, all flavors
+#   <dir>/<KERNEL_VERSION>/*.patch          — version specific
+#   <dir>/<KERNEL_VERSION>/<FLAVOR>/*.patch — version + flavor specific
+patch_paths=()
+for dir_var in "${!KERNEL_PATCHES@}"; do
+    patch_dir="$SRCDIR/${!dir_var}"
+    for f in "$patch_dir"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
+    done
+    for f in "$patch_dir/$KERNEL_VERSION"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
+    done
+    for f in "$patch_dir/$KERNEL_VERSION/$FLAVOR"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
     done
 done
 
-# Calculate cache key and paths
-config_hash=$(sha256sum "$config_file" | cut -d' ' -f1 | cut -c1-12)
-cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${config_hash}"
-kernel_file="$cache_dir/bzImage"
+# Compute LOCALVERSION early — used in cache hash and kernel build
+LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
 
-# Use cached kernel if available
-if [[ -f "$kernel_file" ]]; then
-    echo "Using cached kernel: $kernel_file"
+echo "Building kernel ${KERNEL_VERSION} (Debian source)"
+echo "LOCALVERSION: $LOCALVERSION"
+echo "Config fragments (${#config_paths[@]}):"
+for f in "${config_paths[@]}"; do echo "  $f"; done
+echo "Patches (${#patch_paths[@]}):"
+for f in "${patch_paths[@]}"; do echo "  $f"; done
+
+# Cache key from version + localversion + config/patch contents
+cache_hash=$(
+    { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
+      echo "LOCALVERSION=${LOCALVERSION}"; \
+      for f in "${config_paths[@]}"; do cat "$f"; done; \
+      for f in "${patch_paths[@]}"; do cat "$f"; done; } \
+    | sha256sum | cut -d' ' -f1 | cut -c1-12
+)
+cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
+cached_deb="$cache_dir/kernel.deb"
+
+# Use cached kernel .deb if available
+if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
+    echo "Using cached kernel .deb: $cached_deb"
 else
     echo "Building kernel from source..."
-    build_dir="$BUILDROOT/build/kernel-${KERNEL_VERSION}"
 
-    # Clone if needed
-    [[ ! -d "$build_dir" ]] && git clone --depth 1 --branch "v${KERNEL_VERSION}" "$KERNEL_REPO" "$build_dir"
+    # Install kernel source and config packages from backports
+    apt-get -y install "linux-source-${KERNEL_VERSION}/trixie-backports" --install-recommends
 
-    # Build kernel
-    cd "$build_dir"
-    cp "$config_file" .config
-    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @$(git log -1 --pretty=%ct))"
-    export KBUILD_BUILD_USER="mkosi" KBUILD_BUILD_HOST="mkosi-builder"
+    # Extract source tarball
+    source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
+    if [[ ! -f "$source_tarball" ]]; then
+        echo "ERROR: Source tarball not found: $source_tarball" >&2
+        exit 1
+    fi
+    mkdir -p "$BUILDROOT/build"
+    tar xaf "$source_tarball" -C "$BUILDROOT/build/"
+    build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION}"
 
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make olddefconfig
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" make -j "$(nproc 2>/dev/null || echo 2)" bzImage ARCH=x86_64 CONFIG_EFI_STUB=y
+    # Verify extracted source and installed config
+    if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
+        echo "ERROR: merge_config.sh not found in kernel source" >&2
+        exit 1
+    fi
+    cloud_config_xz="$BUILDROOT/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_cloud-amd64.xz"
+    if [[ ! -f "$cloud_config_xz" ]]; then
+        echo "ERROR: Debian cloud config not found: $cloud_config_xz" >&2
+        exit 1
+    fi
 
-    # Cache result
+    echo "Kernel source: $build_dir"
+    echo "Cloud config: $cloud_config_xz"
+
+    # Apply patches
+    if [[ ${#patch_paths[@]} -gt 0 ]]; then
+        echo "Applying ${#patch_paths[@]} patch(es) to $build_dir"
+        for patch_file in "${patch_paths[@]}"; do
+            if [[ ! -f "$patch_file" ]]; then
+                echo "ERROR: Patch file not found: $patch_file" >&2
+                exit 1
+            fi
+            echo "  Applying: $patch_file"
+            patch -d "$build_dir" -p1 < "$patch_file"
+        done
+    fi
+
+    # Config assembly: Debian cloud base + config fragments
+    # Files staged under $BUILDROOT/build/kconfig/ (not /tmp — chroot mounts tmpfs there)
+    chroot_build_dir="/build/linux-source-${KERNEL_VERSION}"
+    kconfig_dir="$BUILDROOT/build/kconfig"
+    kconfig_chroot="/build/kconfig"
+
+    mkdir -p "$kconfig_dir/fragments"
+    rm -f "$kconfig_dir/fragments/"*
+
+    xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
+
+    # Stage config fragments into chroot-accessible location
+    for f in "${config_paths[@]}"; do
+        cp "$f" "$kconfig_dir/fragments/$(basename "$f")"
+    done
+
+    # merge_config.sh: Debian cloud base + fragments (alphabetically by prefix)
+    merge_args=("$kconfig_chroot/base.config")
+    for f in "$kconfig_dir/fragments/"*; do
+        [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
+    done
+
+    echo "Config merge order:"
+    for a in "${merge_args[@]}"; do echo "  $a"; done
+
+    mkosi-chroot --chdir "$chroot_build_dir" \
+        ./scripts/kconfig/merge_config.sh "${merge_args[@]}"
+
+    # Build kernel .deb package
+    export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
+    export KBUILD_BUILD_USER="mkosi"
+    export KBUILD_BUILD_HOST="mkosi-builder"
+    export LOCALVERSION  # e.g. -mkosi-cloud → kernel version becomes 6.16.3-mkosi-cloud
+    # TODO: Explore whether these profiles apply to upstream bindeb-pkg:
+    # https://github.com/torvalds/linux/blob/master/scripts/package/mkdebian
+    export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
+    rm -f "$build_dir/.version"
+
+    mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
+    mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
+
+    # Find the linux-image .deb
+    built_deb=$(find "$BUILDROOT/build" -maxdepth 1 -name "linux-image-*.deb" -type f | head -1)
+    if [[ -z "$built_deb" ]]; then
+        echo "ERROR: linux-image .deb not found after build" >&2
+        exit 1
+    fi
+
+    kernel_version_string=$(cat "$build_dir/include/config/kernel.release")
+    echo "Kernel version: $kernel_version_string"
+    echo "Built .deb: $(basename "$built_deb")"
+
+    # Cache the .deb
     mkdir -p "$cache_dir"
-    cp arch/x86_64/boot/bzImage "$cache_dir/"
-    cp .config "$cache_dir/config"
+    cp "$built_deb" "$cached_deb"
+    cp "$build_dir/.config" "$cache_dir/config"
+    echo "$kernel_version_string" > "$cache_dir/kernel.release"
+    echo "Cached kernel to: $cache_dir"
+
+    # Clean up unwanted build artifacts
+    rm -f "$BUILDROOT/build"/*.deb "$BUILDROOT/build"/*.buildinfo "$BUILDROOT/build"/*.changes
 fi
 
-# Install kernel
-mkdir -p "$DESTDIR/usr/lib/modules/$KERNEL_VERSION"
-cp "$kernel_file" "$DESTDIR/usr/lib/modules/$KERNEL_VERSION/vmlinuz"
-rm -f "$config_file"
-
-echo "Kernel installed successfully"
+# Move kernel to PACKAGEDIR, so mkosi installs it as a package (VolatilePackages)
+cp "$cached_deb" "$PACKAGEDIR/"
+echo "Kernel .deb copied to PACKAGEDIR"

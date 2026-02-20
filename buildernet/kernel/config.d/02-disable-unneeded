@@ -1,0 +1,7 @@
+# CONFIG_BLK_DEV_DRBD is not set
+# CONFIG_BLK_DEV_NBD is not set
+# CONFIG_BLK_DEV_NULL_BLK is not set
+CONFIG_BLK_DEV_PCIESSD_MTIP32XX=y
+# CONFIG_BLK_DEV_UBLK is not set
+# CONFIG_NET_SCH_TEQL is not set
+# CONFIG_ZRAM is not set
