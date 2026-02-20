@@ -1,0 +1,15 @@
+[Unit]
+Description=Fetch configuration files from playground
+Wants=network-online.target render-config.service
+After=network.target network-online.target render-config.service persistent-setup.service
+Before=reth.service lighthouse.service rbuilder-operator.service
+ConditionPathIsDirectory=!/var/lib/persistent/playground
+
+[Service]
+Type=oneshot
+User=root
+StateDirectory=persistent/playground
+ExecStart=/usr/local/bin/playground-config-fetch
+
+[Install]
+WantedBy=multi-user.target

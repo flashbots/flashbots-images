@@ -1,0 +1,35 @@
+[general]
+listen_addr = "0.0.0.0:3535"
+pipe_file = "/run/operator-api/journal.fifo"
+pprof = false
+log_json = true
+log_debug = false
+
+# HTTP Basic Auth: the salt, and where to persistently store the hashed secret
+basic_auth_secret_path = "/var/lib/persistent/operator-api/basic-auth-hash"
+basic_auth_secret_salt = "bb36ef0b6643"
+
+# HTTP server timeouts
+# http_read_timeout_ms = 2500
+# http_write_timeout_ms = 2500
+
+# TLS configuration
+tls_enabled = true
+tls_create_if_missing = true
+tls_cert_path = "/var/lib/persistent/operator-api/cert.pem"
+tls_key_path = "/var/lib/persistent/operator-api/key.pem"
+
+# Make sure to update buildernet/mkosi.extra/etc/sudoers.d/operator-api
+# when adding a new action
+[actions]
+reboot = "sudo systemctl --no-pager --no-ask-password reboot"
+rbuilder_restart = "sudo systemctl --no-pager --no-ask-password restart rbuilder-operator"
+rbuilder_stop = "sudo systemctl --no-pager --no-ask-password stop rbuilder-operator"
+fetch_config = "sudo systemctl --no-pager --no-ask-password start fetch-config"
+rbuilder_bidding_restart = "sudo systemctl --no-pager --no-ask-password restart rbuilder-bidding"
+ssh_stop = "sudo systemctl --no-pager --no-ask-password stop ssh.service ssh.socket"
+ssh_start = "sudo systemctl --no-pager --no-ask-password start ssh.service ssh.socket"
+haproxy_restart = "sudo systemctl --no-pager --no-ask-password restart haproxy"
+
+[file_uploads]
+rbuilder_blocklist = "/var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json"
