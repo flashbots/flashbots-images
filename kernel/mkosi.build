@@ -9,33 +9,35 @@ if [[ -z "${KERNEL_VERSION:-}" ]]; then
     exit 1
 fi
 
-# Collect config snippet paths from KERNEL_CONFIG_SNIPPETS and KERNEL_CONFIG_SNIPPETS_* env vars
-snippet_paths=()
-if [[ -n "${KERNEL_CONFIG_SNIPPETS:-}" ]]; then
-    IFS=',' read -ra snippets <<< "$KERNEL_CONFIG_SNIPPETS"
-    for snippet in "${snippets[@]}"; do
-        [[ -f "$SRCDIR/$snippet" ]] && snippet_paths+=("$SRCDIR/$snippet")
-    done
-fi
-for snippets_var in "${!KERNEL_CONFIG_SNIPPETS_@}"; do
-    IFS=',' read -ra snippets <<< "${!snippets_var}"
-    for snippet in "${snippets[@]}"; do
-        [[ -f "$SRCDIR/$snippet" ]] && snippet_paths+=("$SRCDIR/$snippet")
-    done
+# Auto-discover config fragments from registered directories
+# KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
+config_paths=()
+for dir_var in "${!KERNEL_CONFIG_SNIPPETS@}"; do
+    config_dir="$SRCDIR/${!dir_var}"
+    if [[ -d "$config_dir" ]]; then
+        for f in "$config_dir"/*; do
+            [[ -f "$f" ]] && config_paths+=("$f")
+        done
+    fi
 done
 
-# Collect patch paths from KERNEL_PATCHES and KERNEL_PATCHES_* env vars
+# Auto-discover patches from registered directories
+# KERNEL_PATCHES is processed first, then KERNEL_PATCHES_* in alphabetical order
+# Within each directory, patches are collected in 3 layers:
+#   <dir>/*.patch                           — all versions, all flavors
+#   <dir>/<KERNEL_VERSION>/*.patch          — version specific
+#   <dir>/<KERNEL_VERSION>/<FLAVOR>/*.patch — version + flavor specific
 patch_paths=()
-if [[ -n "${KERNEL_PATCHES:-}" ]]; then
-    IFS=',' read -ra patches <<< "$KERNEL_PATCHES"
-    for p in "${patches[@]}"; do
-        patch_paths+=("$SRCDIR/$p")
+for dir_var in "${!KERNEL_PATCHES@}"; do
+    patch_dir="$SRCDIR/${!dir_var}"
+    for f in "$patch_dir"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
     done
-fi
-for patches_var in "${!KERNEL_PATCHES_@}"; do
-    IFS=',' read -ra patches <<< "${!patches_var}"
-    for p in "${patches[@]}"; do
-        patch_paths+=("$SRCDIR/$p")
+    for f in "$patch_dir/$KERNEL_VERSION"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
+    done
+    for f in "$patch_dir/$KERNEL_VERSION/$FLAVOR"/*.patch; do
+        [[ -f "$f" ]] && patch_paths+=("$f")
     done
 done
 
@@ -44,16 +46,16 @@ LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
 
 echo "Building kernel ${KERNEL_VERSION} (Debian source)"
 echo "LOCALVERSION: $LOCALVERSION"
-echo "Config snippets (${#snippet_paths[@]}):"
-for f in "${snippet_paths[@]}"; do echo "  $f"; done
+echo "Config fragments (${#config_paths[@]}):"
+for f in "${config_paths[@]}"; do echo "  $f"; done
 echo "Patches (${#patch_paths[@]}):"
 for f in "${patch_paths[@]}"; do echo "  $f"; done
 
-# Cache key from version + localversion + snippet/patch contents
+# Cache key from version + localversion + config/patch contents
 cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
-      for f in "${snippet_paths[@]}"; do cat "$f"; done; \
+      for f in "${config_paths[@]}"; do cat "$f"; done; \
       for f in "${patch_paths[@]}"; do cat "$f"; done; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
 )
@@ -106,7 +108,7 @@ else
         done
     fi
 
-    # Config assembly: Debian cloud base -> user snippets
+    # Config assembly: Debian cloud base + config fragments
     # Files staged under $BUILDROOT/build/kconfig/ (not /tmp — chroot mounts tmpfs there)
     chroot_build_dir="/build/linux-source-${KERNEL_VERSION}"
     kconfig_dir="$BUILDROOT/build/kconfig"
@@ -117,15 +119,12 @@ else
 
     xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
 
-    # Copy snippets into chroot-accessible location
-    # with numbered prefixes to preserve order and avoid name collisions
-    _idx=0
-    for f in "${snippet_paths[@]}"; do
-        cp "$f" "$kconfig_dir/fragments/$(printf '%03d' $_idx)-$(basename "$f")"
-        _idx=$((_idx + 1))
+    # Stage config fragments into chroot-accessible location
+    for f in "${config_paths[@]}"; do
+        cp "$f" "$kconfig_dir/fragments/$(basename "$f")"
     done
 
-    # Build argument list with chroot-relative paths
+    # merge_config.sh: Debian cloud base + fragments (alphabetically by prefix)
     merge_args=("$kconfig_chroot/base.config")
     for f in "$kconfig_dir/fragments/"*; do
         [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
