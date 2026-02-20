@@ -4,11 +4,6 @@
 
 set -e
 
-if ! dmidecode -s system-manufacturer 2>/dev/null | grep -q "Microsoft Corporation"; then
-    echo "Not running on Azure, skipping provisioning"
-    exit 0
-fi
-
 attempts=1
 retrieved_goal_state=false
 until [ "$attempts" -gt 5 ]

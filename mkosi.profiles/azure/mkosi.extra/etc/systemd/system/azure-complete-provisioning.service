@@ -1,5 +1,6 @@
 [Unit]
 Description=Report VM is ready to Azure API
+ConditionVirtualization=microsoft
 After=network-online.target
 Wants=network-online.target
 
