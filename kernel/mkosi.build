@@ -64,10 +64,6 @@ else
 
     seconds=$(( $( date +%s ) - ts ))
     duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
-
-    echo "# kernel config:"
-    mkosi-chroot --chdir "/build/kernel-${KERNEL_VERSION}" cat .config
-
     # Cache result
     mkdir -p "$cache_dir"
     cp arch/x86_64/boot/bzImage "$cache_dir/"
