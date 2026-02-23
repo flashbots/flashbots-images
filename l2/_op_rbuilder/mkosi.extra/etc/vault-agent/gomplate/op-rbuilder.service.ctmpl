@@ -55,14 +55,14 @@ ExecStart=/usr/bin/op-rbuilder node \
     --enable-discv5-discovery \
     ((- if $service.feat_flashblocks ))(( if $service.feat_flashblocks | parseBool ))
     --flashblocks.addr '0.0.0.0' \
+    ((- if $service.feat_flashblocks_block_time ))
+    --flashblocks.block-time '(( $service.feat_flashblocks_block_time ))' \
+    ((- end ))
     --flashblocks.enabled \
     --flashblocks.port '11111' \
     ((- if $service.feat_flashblocks_number_contract_address ))
     --flashblocks.number-contract-address '(( $service.feat_flashblocks_number_contract_address ))' \
     --flashblocks.number-contract-use-permit \
-    ((- end ))
-    ((- if $service.feat_flashblocks_block_time ))
-    --flashblocks.block-time '(( $service.feat_flashblocks_block_time ))' \
     ((- end ))
     ((- end ))(( end ))
     ((- if $service.feat_flashtestations ))(( if $service.feat_flashtestations | parseBool ))
