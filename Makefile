@@ -42,11 +42,11 @@ preflight:
 
 # Build module
 build: check-perms setup ## Build the specified module
-	time $(WRAPPER) mkosi --force -I $(IMAGE).conf
+	@time $(WRAPPER) mkosi --force -I $(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: check-perms setup ## Build module with development tools
-	time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
+	@time $(WRAPPER) mkosi --force --profile=devtools -I $(IMAGE).conf
 
 ##@ Utilities
 
