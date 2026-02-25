@@ -43,7 +43,7 @@ function fetch_github_release_artifact {
   release_url=$(
     curl -fsSL -H 'Accept: application/vnd.github+json' \
       "${common_headers[@]}" \
-      "https://api.github.com/repos/${owner}/${repo}/releases" | \
+      "https://api.github.com/repos/${owner}/${repo}/releases?per_page=100" | \
     jq -r --arg tag "${tag}" '.[] | select(.tag_name==$tag) | .url')
 
   assets_response=$(
