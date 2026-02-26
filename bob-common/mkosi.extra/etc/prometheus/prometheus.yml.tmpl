@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Recording rules for aggregated metrics
+rule_files:
+  - /etc/prometheus/recording_rules.yml
+
+# Scrape configurations
+scrape_configs:
+  # Node exporter on localhost
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    metric_relabel_configs:
+      # Only keep aggregated metrics for remote write
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|filesystem|network)_.*'
+        action: keep
+
+  # Process exporter for container monitoring
+  - job_name: 'process'
+    static_configs:
+      - targets: ['localhost:9256']
+
+{{- $config := (datasource "config") }}
+{{- if $config.remote_write_flashbots_url }}
+
+# Remote write configuration (dynamically configured)
+remote_write:
+  # Flashbots endpoint
+  - url: {{ $config.remote_write_flashbots_url }}
+    write_relabel_configs:
+      # Only send aggregated metrics
+      - source_labels: [__name__]
+        regex: 'flashbox:.*'
+        action: keep
+    {{- if $config.remote_write_flashbots_auth }}
+    basic_auth:
+      username: {{ $config.remote_write_flashbots_username }}
+      password: {{ $config.remote_write_flashbots_password }}
+    {{- end }}
+{{- end }}

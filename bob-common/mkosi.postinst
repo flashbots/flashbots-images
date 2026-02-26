@@ -22,18 +22,26 @@ mkdir "$BUILDROOT/etc/dropbear"
 mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
 for service in \
     network-setup.service \
+    fetch-config.service \
     logrotate.timer \
     delay-pipe.service \
     wait-for-key.service \
     searcher-firewall.service \
     dropbear.service \
+    input-only-proxy.service \
     searcher-container.service \
     ssh-pubkey-server.service \
-    cvm-reverse-proxy.service
+    cvm-reverse-proxy.service \
+    prometheus.service \
+    node-exporter.service \
+    process-exporter.service
 do
     mkosi-chroot systemctl enable "$service"
     ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
 done
+
+# Fix ownership for prometheus directories (mkosi ExtraTrees sets root:root)
+mkosi-chroot chown -R prometheus:prometheus /var/lib/prometheus
 
 # Don't reserve port 22
 mkosi-chroot systemctl disable ssh.service ssh.socket

@@ -86,6 +86,14 @@ ns_iptables -A OUTPUT -p udp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
 ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
 ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_TCP_PORT -j DROP
 
+# Block container from accessing metrics endpoint
+# Source config.env to get METRICS_ENDPOINT
+. /etc/bob/config.env
+if [ -n "${METRICS_ENDPOINT:-}" ]; then
+    echo "Blocking container access to metrics endpoint: $METRICS_ENDPOINT"
+    ns_iptables -A OUTPUT -d "$METRICS_ENDPOINT" -j DROP
+fi
+
 # Helper, only used in sourced script below
 exec_in_container() {
     su -s /bin/sh searcher -c "podman exec $NAME /bin/sh -c '$1'"

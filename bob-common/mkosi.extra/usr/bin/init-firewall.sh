@@ -149,8 +149,11 @@ drop_dst_ip() {
 # (5) Load firewall rules in {MAINTENANCE,PRODUCTION}_{IN,OUT} chains.
 # Those are customized per image, see bob*/mkosi.extra/etc/bob/firewall-config
 #
+# Source config.env for dynamic configuration (metrics endpoints, etc.)
+# Then source firewall-config which uses those variables
 # `source` is not supported in dash
 ###########################################################################
+. /etc/bob/config.env
 . /etc/bob/firewall-config
 
 ###########################################################################
