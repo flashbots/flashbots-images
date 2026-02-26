@@ -10,18 +10,16 @@ user:
   name: debian
   uid: 1000
   home: /home/debian
-rosetta:
-  enabled: true
-  binfmt: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
+      binfmt: true
 containerd:
-   # Otherwise lima will install couple of hundreds of MB of containerd stuff,
-   # which we don't need.
+  # Otherwise lima will install couple of hundreds of MB of containerd stuff,
+  # which we don't need.
   user: false
 mountTypesUnsupported: [9p]
-mounts:
-  - location: "." # cwd of `limactl start` command
-    mountPoint: /home/debian/mnt
-    writable: true
 ssh:
   forwardAgent: true
 provision:

@@ -49,7 +49,9 @@ setup_lima() {
 
         echo -e "Creating Lima VM '$LIMA_VM' for $REPO_DIR..."
         # Portable way to expand array on bash 3 & 4
-        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} "$REPO_DIR/lima.yaml"
+        limactl create -y \
+            --set '.mounts = [{"location": "'"$REPO_DIR"'", "mountPoint": "/home/debian/mnt", "writable": true}]' \
+            --name "$LIMA_VM" ${args[@]+"${args[@]}"} "$REPO_DIR/lima.yaml"
     fi
 
     # Start VM if not running
