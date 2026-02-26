@@ -93,6 +93,11 @@ if is_mkosi_cmd && [ -n "${MKOSI_EXTRA_ARGS:-}" ]; then
   cmd+=($MKOSI_EXTRA_ARGS)
 fi
 
+# Clean old build artifacts
+if is_mkosi_cmd; then
+  rm -f "$REPO_DIR/build/"* 2>/dev/null || true
+fi
+
 if should_use_lima; then
   setup_lima
 
@@ -104,8 +109,18 @@ if should_use_lima; then
   echo "Note: Lima VM '$LIMA_VM' is still running. To stop it, run: limactl stop $LIMA_VM"
 else
   if in_nix_env; then
-    exec "${cmd[@]}"
+    "${cmd[@]}"
   else
-    exec nix develop -c "${cmd[@]}"
+    nix develop -c "${cmd[@]}"
   fi
+fi
+
+# Create latest.* symlinks by replacing everything up to the second dot with "latest"
+if is_mkosi_cmd; then
+  for f in "$REPO_DIR/build/"*; do
+    [ -f "$f" ] || continue
+    f=$(basename "$f")
+    ext=${f#*.*.}
+    [[ "$ext" != "$f" ]] && ln -sf "$f" "$REPO_DIR/build/latest.$ext"
+  done
 fi
