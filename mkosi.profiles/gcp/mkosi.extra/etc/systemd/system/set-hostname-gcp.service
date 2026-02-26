@@ -1,6 +1,6 @@
 [Unit]
-Description=Set hostname
-ConditionFirstBoot=yes
+Description=Set hostname from GCP metadata
+ConditionVirtualization=google
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +8,7 @@ Wants=network-online.target
 User=root
 Group=root
 Type=oneshot
-ExecStart=/usr/bin/set-hostname.sh
+ExecStart=/usr/bin/set-hostname-gcp
 
 [Install]
 WantedBy=minimal.target
