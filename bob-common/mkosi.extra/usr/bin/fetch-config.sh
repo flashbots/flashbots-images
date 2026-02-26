@@ -16,9 +16,14 @@ fi
 
 # Helper functions
 fetch_metadata_value() {
-    curl -s \
+    local value
+    if value=$(curl -sf \
         --header "Metadata-Flavor: Google" \
-        "http://metadata/computeMetadata/v1/instance/attributes/$1"
+        "http://metadata/computeMetadata/v1/instance/attributes/$1" 2>/dev/null); then
+        echo "$value"
+    else
+        echo ""
+    fi
 }
 
 get_ips_from_uris() {
@@ -88,12 +93,27 @@ if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
     exit 0
 fi
 
+# Check if Vault metadata is available
+vault_addr=$(fetch_metadata_value "vault_addr")
+
+if [ -z "$vault_addr" ]; then
+    echo "No Vault configuration found in instance metadata, writing empty defaults..."
+
+    # Write minimal empty config so services can start
+    touch "$CONFIG_PATH"
+
+    # Add empty observability config
+    write_observability_config "" "" ""
+
+    echo "Default configuration written to $CONFIG_PATH"
+    exit 0
+fi
+
 # Production configuration using Vault
 echo "Fetching configuration from Vault..."
 
 # Get instance metadata
 instance_name=$(fetch_metadata_value "name")
-vault_addr=$(fetch_metadata_value "vault_addr")
 vault_auth_mount=$(fetch_metadata_value "vault_auth_mount_gcp")
 vault_kv_path=$(fetch_metadata_value "vault_kv_path")
 vault_kv_common_suffix=$(fetch_metadata_value "vault_kv_common_suffix")
