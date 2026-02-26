@@ -17,12 +17,7 @@ LIMA_VM="${LIMA_VM:-tee-builder-$REPO_HASH}"
 
 # Check if Lima should be used
 should_use_lima() {
-    # Use Lima by default for now
-    true ||
-    # Use Lima on macOS or if FORCE_LIMA is set
-    [[ "$OSTYPE" == "darwin"* ]] || [ -n "${FORCE_LIMA:-}" ] || 
-    # Use Lima if it's available but Nix is not
-    (command -v limactl &>/dev/null && ! command -v nix &>/dev/null)
+    [ ! -f "$REPO_DIR/.bypass-lima" ]
 }
 
 # Setup Lima if needed

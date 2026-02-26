@@ -12,3 +12,4 @@ tmp/
 .temp
 NvVars
 .vscode
+.bypass-lima

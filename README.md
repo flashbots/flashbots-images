@@ -26,19 +26,13 @@ For more information about this repository, see
 
 ### Prerequisites
 
-In order to build images, you'll need to install [Lima](https://lima-vm.io/) for your operating system. Building images without Lima is possible, but due to inconsistencies between distributions, it is not supported for generating official reproducible images.
+By default, builds run inside a [Lima](https://lima-vm.io/) VM, which requires installing Lima prior to using this repository. This works on both Mac and Linux and requires no other dependencies.
+
+Alternatively, it is possible to build natively with [Nix](https://nixos.org/download/) by creating a `.bypass-lima` file in the repo root. Reproducible builds are only supported on standard Debian Bookworm/Trixie installations, but other distros with a recent systemd installation should work too. This is not the recommended way of reproducing official Flashbots images.
 
 ### Building Images
 
-1. Edit `lima.yaml` to specify an absolute mount path:
-
-```bash
-# lima.yaml
-mounts:
-  - location: "/path/to/your/repo"
-```
-
-2. Build the image:
+Build the image:
 
 ```bash
 # Build the BOB (searcher sandbox) image
@@ -122,45 +116,21 @@ sudo usermod -aG kvm $USER
 > See [bug report #1085370](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1085370)
 > for details.
 
-## Building Without Lima (Unsupported)
+## Building Without Lima
 
-### Prerequisites
-
-1. **Install Nix** (single user mode is sufficient):
-
-    ```bash
-    sh <(curl -L https://nixos.org/nix/install) --no-daemon
-    ```
-
-2. **Enable Nix experimental features** in `~/.config/nix/nix.conf`:
+1. Install [Nix](https://nixos.org/download/) and enable flakes in `~/.config/nix/nix.conf`:
 
     ```conf
     experimental-features = nix-command flakes
     ```
 
-3. **Install Debian archive keyring** (temporary requirement):
+2. Create a `.bypass-lima` file in the repo root:
 
     ```bash
-    # On Ubuntu/Debian
-    sudo apt install debian-archive-keyring
-    # On other systems, download via package manager or use Docker approach below
+    touch .bypass-lima
     ```
 
-### Building
-
-```bash
-# Enter the development environment
-nix develop -c $SHELL
-
-# Build a specific image
-mkosi --force -I bob-l1.conf
-mkosi --force -I buildernet.conf
-
-# Build with profiles
-mkosi --force -I bob-l1.conf --profile=devtools
-mkosi --force -I bob-l1.conf --profile=azure
-mkosi --force -I bob-l1.conf --profile=azure,devtools
-```
+Then build as normal with `make build IMAGE=...`.
 
 ### Troubleshooting
 
@@ -189,7 +159,7 @@ try to disable apparmor's restriction:
   sudo -c 'echo "kernel.apparmor_restrict_unprivileged_userns=0" >> /etc/sysctl.conf'
   ```
 
-- If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu.
+- If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu/Debian.
 
 ## 📖 Documentation
 
