@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eu -o pipefail
 
 # Common configuration fetching script for FlashBox (bob-l1 and bob-l2)
