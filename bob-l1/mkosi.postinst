@@ -7,4 +7,4 @@ set -euxo pipefail
 mkosi-chroot groupadd -r eth
 mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
 
-mkosi-chroot systemctl add-wants minimal.target lighthouse
+mkosi-chroot systemctl add-wants minimal.target lighthouse.service

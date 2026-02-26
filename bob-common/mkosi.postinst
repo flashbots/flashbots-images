@@ -21,7 +21,6 @@ mkdir "$BUILDROOT/etc/dropbear"
 # Enable packaged services
 mkosi-chroot systemctl add-wants minimal.target \
     logrotate.timer \
-    delay-pipe.service \
     dropbear.service
 
 # Don't reserve port 22
