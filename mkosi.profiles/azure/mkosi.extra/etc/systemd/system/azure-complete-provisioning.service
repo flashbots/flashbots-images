@@ -1,8 +1,8 @@
 [Unit]
 Description=Report VM is ready to Azure API
 ConditionVirtualization=microsoft
-After=network-online.target
-Wants=network-online.target
+After=network-online.target tpm2.target systemd-tmpfiles-setup.service
+Wants=network-online.target tpm2.target systemd-tmpfiles-setup.service
 
 [Service]
 Type=oneshot
