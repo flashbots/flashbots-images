@@ -96,7 +96,7 @@
       # Unshare is needed to create files owned by multiple uids/gids
       pkgsForSystem.writeShellScriptBin "mkosi" ''
         exec ${pkgsForSystem.util-linux}/bin/unshare \
-          --map-auto --map-current-user \
+          --map-auto --map-root-user \
           --setuid=0 --setgid=0 \
           -- \
           env PATH="$PATH" \
