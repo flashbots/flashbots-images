@@ -1,0 +1,202 @@
+name: playground-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      image-run-id:
+        description: "Reuse image from a previous run (skip build). Leave empty to build fresh."
+        type: string
+        default: ""
+      builder-playground-ref:
+        description: "builder-playground git ref (branch/tag/sha)"
+        default: "fryd/buildernet-improvements"
+        type: string
+
+jobs:
+  build:
+    name: Build playground image
+    if: inputs.image-run-id == ''
+    runs-on: warp-ubuntu-latest-x64-32x
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mkosi
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+          pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+      - name: Enable user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build image
+        run: |
+          umask 022
+          mkosi --force -I buildernet.conf --profile="devtools,playground"
+
+      - name: Show output
+        run: |
+          ls -lah mkosi.output/
+          sha256sum mkosi.output/buildernet-qemu_*.qcow2
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildernet-playground-image
+          path: mkosi.output/buildernet-qemu_*.qcow2
+          retention-days: 3
+
+  test:
+    name: Test playground image
+    needs: build
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: warp-ubuntu-latest-x64-32x
+    timeout-minutes: 30
+    env:
+      PLAYGROUND_REF: ${{ inputs.builder-playground-ref }}
+    steps:
+      - name: Check runner environment
+        run: |
+          echo "--- CPU ---"
+          nproc
+          echo "--- Memory ---"
+          free -h
+          echo "--- Disk ---"
+          df -h
+          echo "--- KVM ---"
+          ls -la /dev/kvm 2>/dev/null && echo "KVM available" || echo "KVM NOT available"
+          echo "--- Docker ---"
+          docker --version 2>/dev/null || echo "Docker not installed"
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: buildernet-playground-image
+          path: ./image
+          run-id: ${{ inputs.image-run-id || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image
+        run: |
+          ls -lah ./image/
+          sha256sum ./image/*.qcow2
+
+      - name: Install QEMU and OVMF
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            qemu-system-x86 ovmf jq unzip
+          qemu-system-x86_64 --version
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Clone and build builder-playground
+        run: |
+          git clone --depth 1 --branch "${PLAYGROUND_REF}" \
+            https://github.com/flashbots/builder-playground.git
+          cd builder-playground
+          mkdir -p "$HOME/.local/bin"
+          go build -o "$HOME/.local/bin/builder-playground" ./main.go
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify builder-playground
+        run: builder-playground version
+
+      - name: Generate project
+        run: |
+          mkdir playground-workspace && cd playground-workspace
+          builder-playground generate buildernet/mkosi
+          echo "Generated files:"
+          find . -type f | sort
+
+      - name: Start playground
+        env:
+          BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
+          QEMU_ACCEL: tcg
+          QEMU_CPU: "4"
+          QEMU_RAM: 8G
+        run: |
+          cd playground-workspace
+          builder-playground start --detached playground.yaml
+
+      - name: Wait for rbuilder RPC
+        timeout-minutes: 12
+        run: |
+          WAIT_START=$(date +%s)
+          WAIT_TIMEOUT=600
+
+          echo "Waiting for rbuilder RPC on localhost:18645 (timeout: ${WAIT_TIMEOUT}s)..."
+          while true; do
+            if curl -sf -m 5 -X POST http://localhost:18645 \
+              -H 'Content-Type: application/json' \
+              -d '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' > /dev/null 2>&1; then
+              echo "rbuilder RPC ready after $(( $(date +%s) - WAIT_START ))s"
+              break
+            fi
+            elapsed=$(( $(date +%s) - WAIT_START ))
+            if [ "$elapsed" -ge "$WAIT_TIMEOUT" ]; then
+              echo "Timed out after ${elapsed}s waiting for rbuilder RPC"
+              exit 1
+            fi
+            echo "  ${elapsed}s - not ready, retrying in 5s..."
+            sleep 5
+          done
+
+          cd playground-workspace
+          echo "--- console log (last 50 lines) ---"
+          tail -50 .runtime/console.log || true
+
+      - name: Run integration test
+        run: |
+          cd playground-workspace
+          builder-playground test \
+            --rpc http://localhost:18645 \
+            --el-rpc http://localhost:8545 \
+            --insecure \
+            --expected-extra-data "Playground VM Builder ⚡🤖"
+
+      - name: Debug info
+        if: always()
+        run: |
+          cd playground-workspace 2>/dev/null || true
+
+          echo "=== QEMU process ==="
+          ps aux | grep qemu || echo "no qemu process"
+
+          echo "=== .runtime/ directory ==="
+          ls -lah .runtime/ 2>/dev/null || echo "no .runtime/ directory"
+
+          echo "=== QEMU console log ==="
+          cat .runtime/console.log 2>/dev/null || echo "no console.log"
+
+          echo "=== QEMU PID file ==="
+          cat .runtime/qemu.pid 2>/dev/null || echo "no qemu.pid"
+
+          echo "=== Playground session logs ==="
+          SESSION_DIR=$(ls -td ~/.local/state/builder-playground/sessions/*/ 2>/dev/null | head -1)
+          if [ -n "$SESSION_DIR" ]; then
+            echo "Session dir: $SESSION_DIR"
+            find "$SESSION_DIR/logs" -type f 2>/dev/null | while read -r f; do
+              echo "--- ${f#$SESSION_DIR/logs/} ---"
+              cat "$f"
+            done
+          else
+            echo "no session directory found"
+          fi
+
+          echo "=== VM service logs (via operator-api) ==="
+          curl -sk https://localhost:13535/logs 2>/dev/null || echo "operator-api not reachable"
+
+          echo "=== Docker containers ==="
+          docker ps -a 2>/dev/null || true
+
+          echo "=== Disk ==="
+          df -h
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd playground-workspace 2>/dev/null || true
+          builder-playground clean all 2>/dev/null || true
