@@ -111,13 +111,9 @@ jobs:
           echo "Generated files:"
           find . -type f | sort
 
-      - name: Prepare VM image
-        run: |
-          cd playground-workspace
-          ./scripts/prepare.sh ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
-
       - name: Start playground
         env:
+          BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
           QEMU_ACCEL: tcg
           QEMU_CPU: "4"
           QEMU_RAM: 8G
