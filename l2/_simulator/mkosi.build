@@ -24,10 +24,11 @@ mkosi-chroot rustup default $RUST_VERSION
 # build simulator
 
 build_rust_package \
-    "simulator" \
+    "signal-boost" \
     "${SIMULATOR_REF}" \
-    "https://github.com/flashbots/simulator.git" \
+    "https://github.com/flashbots/signal-boost.git" \
     "" "${SIMULATOR_FEATURES}" "-g"
+mv $DESTDIR/usr/bin/signal-boost $DESTDIR/usr/bin/simulator
 chmod +x $DESTDIR/usr/bin/simulator
 
 # build rproxy
