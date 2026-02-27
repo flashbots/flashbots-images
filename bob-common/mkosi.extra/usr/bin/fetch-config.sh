@@ -99,8 +99,19 @@ vault_addr=$(fetch_metadata_value "vault_addr")
 if [ -z "$vault_addr" ]; then
     echo "No Vault configuration found in instance metadata, writing empty defaults..."
 
-    # Write minimal empty config so services can start
-    touch "$CONFIG_PATH"
+    # Write empty config variables so downstream services (firewall, etc.)
+    # don't fail on unset variables under set -u
+    cat <<EOF > "$CONFIG_PATH"
+CONFIG_NETWORK_ID=''
+CONFIG_NETWORK_NAME=''
+CONFIG_JWT_SECRET=''
+CONFIG_EL_STATIC_PEERS=''
+CONFIG_EL_PEERS_IPS=''
+CONFIG_CL_STATIC_PEERS=''
+CONFIG_SIMULATOR_RPC_URL=''
+CONFIG_SIMULATOR_WS_URL=''
+CONFIG_SIMULATOR_IP=''
+EOF
 
     # Add empty observability config
     write_observability_config "" "" ""
