@@ -44,7 +44,7 @@ jobs:
         with:
           name: buildernet-playground-image
           path: mkosi.output/buildernet-qemu_*.qcow2
-          retention-days: 14
+          retention-days: 3
 
   test:
     name: Test playground image
