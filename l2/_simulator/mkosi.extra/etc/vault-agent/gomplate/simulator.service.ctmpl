@@ -42,7 +42,7 @@ ExecStart=/usr/bin/simulator node \
     ((- if $service.genesis_json ))
     --chain '/var/opt/optimism/simulator/genesis.json' \
     ((- else ))(( if $service.network_name ))
-    --chain '(( $service.network_name ))' \
+    --chain '(( $service.network_name | trimSuffix "-mainnet" ))' \
     ((- end ))(( end ))
     --color 'never' \
     ((- if $service.feat_clickhouse ))(( if $service.feat_clickhouse | parseBool ))

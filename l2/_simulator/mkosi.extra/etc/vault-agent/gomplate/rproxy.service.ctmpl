@@ -24,6 +24,20 @@ ExecStartPre=+/usr/bin/chown -R simulator:optimism /etc/rproxy
 ((- $tls_key := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_tls[[ if ( gcp.Meta "attributes/service" ) ]]_[[ gcp.Meta "attributes/service" | strings.ReplaceAll "-" "_" ]][[ end ]]" ).Data.data.tls_key ))
 
 ExecStart=/usr/bin/rproxy \
+    --authrpc-backend 'http://127.0.0.1:18651' \
+    --authrpc-enabled \
+    --authrpc-listen-address '0.0.0.0:8651' \
+    --authrpc-log-proxied-requests \
+    --authrpc-log-proxied-responses \
+    --authrpc-log-sanitise \
+    --authrpc-max-request-size-mb '150' \
+    --authrpc-max-response-size-mb '1150' \
+    ((- if $service.authrpc_peers ))
+    ((- range $i, $e := $service.authrpc_peers ))
+    --authrpc-mirroring-peer '(( printf "%s" $e ))' \
+    ((- end ))
+    --authrpc-remove-backend-from-mirroring-peers \
+    ((- end ))
     --metrics-listen-address '0.0.0.0:6786' \
     --rpc-backend 'http://127.0.0.1:18645' \
     --rpc-enabled \
