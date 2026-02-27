@@ -1,0 +1,139 @@
+name: Build and publish mkosi image
+
+on:
+  workflow_call:
+    inputs:
+      mkosi-profile:
+        description: "mkosi profiles (e.g. 'devtools,playground'). Empty for production."
+        type: string
+        default: ""
+      r2-path-prefix:
+        description: "R2 destination prefix (e.g. 'buildernet-images')"
+        type: string
+        required: true
+      checksum-globs:
+        description: "Bash glob for sha256sum (e.g. 'buildernet-*.{efi,qcow2}')"
+        type: string
+        required: true
+      r2-include:
+        description: "rclone --include glob for R2 upload"
+        type: string
+        required: true
+      cache-name:
+        description: "R2 cache object name (e.g. 'cache' or 'cache-playground')"
+        type: string
+        required: true
+
+jobs:
+  build:
+    name: Build image
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            debian-archive-keyring \
+            minisign\
+            pigz \
+            rclone
+          pip3 install git+https://github.com/systemd/mkosi.git@$(cat .mkosi_version)
+
+      - name: Create rclone config (artifacts upload)
+        env:
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
+          R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat << EOF > ~/.config/rclone/rclone.conf
+          [r2-flashbots-public-artifacts]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY
+          secret_access_key = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY
+          region = auto
+          endpoint = $R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT
+          acl = private
+          EOF
+
+      - name: Create rclone config (cache)
+        env:
+          R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY }}
+          R2_MKOSI_BUILDERNET_CACHE_ENDPOINT: ${{ secrets.R2_MKOSI_BUILDERNET_CACHE_ENDPOINT }}
+        run: |
+          cat << EOF >> ~/.config/rclone/rclone.conf
+          [r2-mkosi-buildernet-cache]
+          type = s3
+          provider = Cloudflare
+
+          access_key_id = $R2_MKOSI_BUILDERNET_CACHE_ACCESS_KEY
+          secret_access_key = $R2_MKOSI_BUILDERNET_CACHE_SECRET_KEY
+          region = auto
+          endpoint = $R2_MKOSI_BUILDERNET_CACHE_ENDPOINT
+          acl = private
+          EOF
+
+      - name: Download cache
+        run: |
+          rclone copyto -P --retries 3 --retries-sleep 10s \
+            --transfers=2 --multi-thread-streams 10 --contimeout=1m \
+            r2-mkosi-buildernet-cache:mkosi-buildernet-cache/${{ inputs.cache-name }}.tar.gz cache.tar.gz
+
+      - name: Extract cache
+        run: |
+          if [[ -f cache.tar.gz ]]; then
+            unpigz -c cache.tar.gz | sudo tar -xf -
+            sudo rm -f cache.tar.gz
+          fi
+
+      - name: Enable user namespaces
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build image
+        run: |
+          set -x
+          umask 022
+          ARGS=(--force -I buildernet.conf)
+          ARGS+=(--image-version="${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}")
+          if [[ -n "${{ inputs.mkosi-profile }}" ]]; then
+            ARGS+=(--profile="${{ inputs.mkosi-profile }}")
+          fi
+          mkosi "${ARGS[@]}"
+
+      - name: Prepare cache
+        run: |
+          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+            sudo tar --null -cf - -T - 2>/dev/null | pigz > cache.tar.gz
+
+      - name: Upload cache
+        run: |
+          rclone copyto -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
+            --transfers=2 --s3-upload-concurrency=10 \
+            cache.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/${{ inputs.cache-name }}.tar.gz
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd mkosi.output
+          sha256sum ${{ inputs.checksum-globs }} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
+
+      - name: Sign artifacts
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_SECRET_KEY_PASSWORD: ${{ secrets.MINISIGN_SECRET_KEY_PASSWORD }}
+        run: |
+          mkdir -p ~/.minisign
+          echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
+          chmod 600 ~/.minisign/minisign.key
+          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256 \
+            -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+      - name: Upload to R2
+        run: |
+          rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
+            --s3-upload-concurrency=8 --transfers=8 --include "${{ inputs.r2-include }}" \
+            mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/${{ inputs.r2-path-prefix }}/${GITHUB_REF_NAME#buildernet-}/

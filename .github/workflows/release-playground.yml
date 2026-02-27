@@ -1,0 +1,19 @@
+name: release-playground
+
+on:
+  push:
+    tags:
+      - buildernet-v*
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: build playground image
+    uses: ./.github/workflows/_build-buildernet-image.yml
+    with:
+      mkosi-profile: "devtools,playground"
+      r2-path-prefix: "buildernet-playground-images"
+      checksum-globs: "buildernet-*.qcow2"
+      r2-include: "buildernet-*.{qcow2,minisig,sha256}"
+      cache-name: "cache-playground"
+    secrets: inherit
