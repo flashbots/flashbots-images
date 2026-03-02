@@ -90,11 +90,15 @@ jobs:
             qemu-system-x86 ovmf jq unzip
           qemu-system-x86_64 --version
 
-      - name: Start playground
+      - name: Install builder-playground
         uses: flashbots/builder-playground-action@v1
         with:
           version: ${{ inputs.builder-playground-version }}
-          recipe: buildernet/mkosi
+
+      - name: Generate and start playground
+        run: |
+          builder-playground generate buildernet/mkosi
+          builder-playground start --detached playground.yaml
 
       - name: Wait for rbuilder RPC
         timeout-minutes: 12
