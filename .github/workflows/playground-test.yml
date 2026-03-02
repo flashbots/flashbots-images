@@ -7,9 +7,9 @@ on:
         description: "Reuse image from a previous run (skip build). Leave empty to build fresh."
         type: string
         default: ""
-      builder-playground-ref:
-        description: "builder-playground git ref (branch/tag/sha)"
-        default: "fryd/buildernet-improvements"
+      builder-playground-version:
+        description: "builder-playground version (e.g. v0.3.2-alpha.5 or latest)"
+        default: "v0.3.2-alpha.5"
         type: string
 
 jobs:
@@ -53,7 +53,10 @@ jobs:
     runs-on: warp-ubuntu-latest-x64-32x
     timeout-minutes: 30
     env:
-      PLAYGROUND_REF: ${{ inputs.builder-playground-ref }}
+      BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
+      QEMU_ACCEL: tcg
+      QEMU_CPU: "4"
+      QEMU_RAM: 8G
     steps:
       - name: Check runner environment
         run: |
@@ -87,39 +90,11 @@ jobs:
             qemu-system-x86 ovmf jq unzip
           qemu-system-x86_64 --version
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "stable"
-
-      - name: Clone and build builder-playground
-        run: |
-          git clone --depth 1 --branch "${PLAYGROUND_REF}" \
-            https://github.com/flashbots/builder-playground.git
-          cd builder-playground
-          mkdir -p "$HOME/.local/bin"
-          go build -o "$HOME/.local/bin/builder-playground" ./main.go
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Verify builder-playground
-        run: builder-playground version
-
-      - name: Generate project
-        run: |
-          mkdir playground-workspace && cd playground-workspace
-          builder-playground generate buildernet/mkosi
-          echo "Generated files:"
-          find . -type f | sort
-
       - name: Start playground
-        env:
-          BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
-          QEMU_ACCEL: tcg
-          QEMU_CPU: "4"
-          QEMU_RAM: 8G
-        run: |
-          cd playground-workspace
-          builder-playground start --detached playground.yaml
+        uses: flashbots/builder-playground-action@v1
+        with:
+          version: ${{ inputs.builder-playground-version }}
+          recipe: buildernet/mkosi
 
       - name: Wait for rbuilder RPC
         timeout-minutes: 12
@@ -144,13 +119,11 @@ jobs:
             sleep 5
           done
 
-          cd playground-workspace
           echo "--- console log (last 50 lines) ---"
           tail -50 .runtime/console.log || true
 
       - name: Run integration test
         run: |
-          cd playground-workspace
           builder-playground test \
             --rpc http://localhost:18645 \
             --el-rpc http://localhost:8545 \
@@ -160,8 +133,6 @@ jobs:
       - name: Debug info
         if: always()
         run: |
-          cd playground-workspace 2>/dev/null || true
-
           echo "=== QEMU process ==="
           ps aux | grep qemu || echo "no qemu process"
 
@@ -197,6 +168,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: |
-          cd playground-workspace 2>/dev/null || true
-          builder-playground clean all 2>/dev/null || true
+        run: builder-playground clean all 2>/dev/null || true
