@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: build image
-    uses: ./.github/workflows/_build-buildernet-image.yml
+    uses: ./.github/workflows/_release-buildernet-image.yml
     with:
       r2-path-prefix: "buildernet-images"
       checksum-globs: "buildernet-*.{efi,tar.gz,vhd,qcow2}"

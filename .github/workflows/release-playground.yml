@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: build playground image
-    uses: ./.github/workflows/_build-buildernet-image.yml
+    uses: ./.github/workflows/_release-buildernet-image.yml
     with:
       mkosi-profile: "devtools,playground"
       r2-path-prefix: "buildernet-playground-images"
