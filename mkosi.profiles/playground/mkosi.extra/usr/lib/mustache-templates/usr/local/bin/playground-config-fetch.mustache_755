@@ -1,21 +1,13 @@
 #!/bin/bash
-#
 # Fetches devnet configuration files from playground HTTP service.
-# Base URL is injected via mustache from builderhub config.
-#
-
 set -eu -o pipefail
 
 source /usr/bin/helper-functions.sh
 
-# Base URL from BuilderHub config (injected via mustache)
+# Injected via mustache from builderhub config
 BASE_URL="{{{playground.artifacts_url}}}"
-
-# Target directory
 PLAYGROUND_DIR="/var/lib/persistent/playground"
 
-# File mappings: source_path -> target_path
-# Source paths are relative to BASE_URL
 declare -A FILES=(
     ["genesis.json"]="${PLAYGROUND_DIR}/genesis.json"
     ["testnet/config.yaml"]="${PLAYGROUND_DIR}/testnet/config.yaml"
