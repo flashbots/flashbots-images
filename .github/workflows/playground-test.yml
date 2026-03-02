@@ -108,7 +108,8 @@ jobs:
 
           echo "Waiting for rbuilder RPC on localhost:18645 (timeout: ${WAIT_TIMEOUT}s)..."
           while true; do
-            if curl -sf -m 5 -X POST http://localhost:18645 \
+            readyz=$(curl -ski -m 1 https://localhost:10443/readyz 2>&1) || true
+            if curl -sf -m 1 -X POST http://localhost:18645 \
               -H 'Content-Type: application/json' \
               -d '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' > /dev/null 2>&1; then
               echo "rbuilder RPC ready after $(( $(date +%s) - WAIT_START ))s"
@@ -119,9 +120,12 @@ jobs:
               echo "Timed out after ${elapsed}s waiting for rbuilder RPC"
               exit 1
             fi
-            echo "  ${elapsed}s - not ready, retrying in 5s..."
+            echo "  ${elapsed}s - RPC not ready, /readyz: ${readyz:-no response}, retrying in 5s..."
             sleep 5
           done
+
+          echo "--- /readyz ---"
+          curl -skv -m 1 https://localhost:10443/readyz || true
 
           echo "--- console log (last 50 lines) ---"
           tail -50 .runtime/console.log || true
