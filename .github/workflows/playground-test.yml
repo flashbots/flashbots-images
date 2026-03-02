@@ -100,32 +100,26 @@ jobs:
           builder-playground generate buildernet/mkosi
           builder-playground start --detached playground.yaml
 
-      - name: Wait for rbuilder RPC
+      - name: Wait for VM readyz
         timeout-minutes: 12
         run: |
           WAIT_START=$(date +%s)
           WAIT_TIMEOUT=600
 
-          echo "Waiting for rbuilder RPC on localhost:18645 (timeout: ${WAIT_TIMEOUT}s)..."
+          echo "Waiting for /readyz on localhost:10443 (timeout: ${WAIT_TIMEOUT}s)..."
           while true; do
-            readyz=$(curl -ski -m 1 https://localhost:10443/readyz 2>&1) || true
-            if curl -sf -m 1 -X POST http://localhost:18645 \
-              -H 'Content-Type: application/json' \
-              -d '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' > /dev/null 2>&1; then
-              echo "rbuilder RPC ready after $(( $(date +%s) - WAIT_START ))s"
+            if curl -sfk -m 1 -o /dev/null https://localhost:10443/readyz 2>/dev/null; then
+              echo "/readyz OK after $(( $(date +%s) - WAIT_START ))s"
               break
             fi
             elapsed=$(( $(date +%s) - WAIT_START ))
             if [ "$elapsed" -ge "$WAIT_TIMEOUT" ]; then
-              echo "Timed out after ${elapsed}s waiting for rbuilder RPC"
+              echo "Timed out after ${elapsed}s waiting for /readyz"
               exit 1
             fi
-            echo "  ${elapsed}s - RPC not ready, /readyz: ${readyz:-no response}, retrying in 5s..."
+            echo "  ${elapsed}s - not ready, retrying in 5s..."
             sleep 5
           done
-
-          echo "--- /readyz ---"
-          curl -skv -m 1 https://localhost:10443/readyz || true
 
           echo "--- console log (last 50 lines) ---"
           tail -50 .runtime/console.log || true
