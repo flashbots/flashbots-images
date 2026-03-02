@@ -79,15 +79,15 @@ jobs:
 
       - name: Download cache
         run: |
-          rclone copyto -P --retries 3 --retries-sleep 10s \
+          rclone copy -P --retries 3 --retries-sleep 10s \
             --transfers=2 --multi-thread-streams 10 --contimeout=1m \
-            r2-mkosi-buildernet-cache:mkosi-buildernet-cache/${{ inputs.cache-name }}.tar.gz cache.tar.gz
+            r2-mkosi-buildernet-cache:mkosi-buildernet-cache/${{ inputs.cache-name }}.tar.gz .
 
       - name: Extract cache
         run: |
-          if [[ -f cache.tar.gz ]]; then
-            unpigz -c cache.tar.gz | sudo tar -xf -
-            sudo rm -f cache.tar.gz
+          if [[ -f ${{ inputs.cache-name }}.tar.gz ]]; then
+            unpigz -c ${{ inputs.cache-name }}.tar.gz | sudo tar -xf -
+            sudo rm -f ${{ inputs.cache-name }}.tar.gz
           fi
 
       - name: Enable user namespaces
@@ -108,13 +108,13 @@ jobs:
       - name: Prepare cache
         run: |
           sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
-            sudo tar --null -cf - -T - 2>/dev/null | pigz > cache.tar.gz
+            sudo tar --null -cf - -T - 2>/dev/null | pigz > ${{ inputs.cache-name }}.tar.gz
 
       - name: Upload cache
         run: |
-          rclone copyto -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
+          rclone copy -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
             --transfers=2 --s3-upload-concurrency=10 \
-            cache.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/${{ inputs.cache-name }}.tar.gz
+            ${{ inputs.cache-name }}.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/
 
       - name: Generate SHA256 checksums
         run: |
