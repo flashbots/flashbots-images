@@ -36,15 +36,19 @@ ExecStart=/usr/bin/simulator node \
     --authrpc.addr '0.0.0.0' \
     --authrpc.jwtsecret '/var/opt/optimism/jwtsecret' \
     --authrpc.port '18651' \
+    --backrun.rpc.addr '0.0.0.0' \
+    --backrun.rpc.port '8601' \
     ((- if $service.el_bootnodes ))
     --bootnodes '(( range $i, $e := $service.el_bootnodes ))(( if $i )),(( end ))(( printf "%s" $e ))(( end ))' \
+    ((- end ))
+    ((- if $service.builder_rpc_url ))
+    --builder.rpc-url '(( $service.builder_rpc_url ))' \
     ((- end ))
     ((- if $service.genesis_json ))
     --chain '/var/opt/optimism/simulator/genesis.json' \
     ((- else ))(( if $service.network_name ))
     --chain '(( $service.network_name | trimSuffix "-mainnet" ))' \
     ((- end ))(( end ))
-    --color 'never' \
     ((- if $service.feat_clickhouse ))(( if $service.feat_clickhouse | parseBool ))
     ((- if $service.feat_clickhouse_database ))
     --clickhouse.database '(( $service.feat_clickhouse_database ))' \
@@ -56,6 +60,7 @@ ExecStart=/usr/bin/simulator node \
     --clickhouse.user '(( $service.feat_clickhouse_user ))' \
     ((- end ))
     ((- end ))(( end ))
+    --color 'never' \
     --datadir '/var/opt/optimism/simulator' \
     --discovery.port '9200' \
     --enable-discv5-discovery \
@@ -83,6 +88,8 @@ ExecStart=/usr/bin/simulator node \
     --simulation-gas-limit '25000000' \
     --simulation-nonce-limit '16' \
     --simulation-workers '10' \
+    --state-diff.rpc.addr '0.0.0.0' \
+    --state-diff.rpc.port '8600' \
     ((- if $service.el_static_peers ))(( range $idx, $enode := $service.el_static_peers ))
     --trusted-peers '(( printf "%s" $enode ))' \
     ((- end ))(( end ))
