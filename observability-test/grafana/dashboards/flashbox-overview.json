@@ -1,0 +1,191 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Host",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "CPU Usage %",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100 },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:cpu_usage_percent", "legendFormat": "CPU Usage", "refId": "A" }
+      ]
+    },
+    {
+      "title": "CPU Usage % by Mode",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:cpu_usage_percent_by_mode", "legendFormat": "{{mode}}", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Memory Usage %",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100 },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:memory_usage_percent", "legendFormat": "Memory Usage", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Memory Available (GB)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "decgbytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:memory_available_gb", "legendFormat": "Available", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Disk Usage % (root)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }] } },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:disk_usage_percent_root", "legendFormat": "Root", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Disk Usage % (persistent)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }] } },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:disk_usage_percent_persistent", "legendFormat": "Persistent", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Disk I/O (MB/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "MBs" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:disk_io_read_mb_per_sec", "legendFormat": "Read", "refId": "A" },
+        { "expr": "flashbox:disk_io_write_mb_per_sec", "legendFormat": "Write", "refId": "B" }
+      ]
+    },
+    {
+      "title": "Network Traffic (raw counters)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "decmbytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:network_receive_mb_total", "legendFormat": "Received", "refId": "A" },
+        { "expr": "flashbox:network_transmit_mb_total", "legendFormat": "Transmitted", "refId": "B" }
+      ]
+    },
+    {
+      "title": "Network Traffic (5m rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "MBs" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:network_receive_mb_per_sec", "legendFormat": "Received", "refId": "A" },
+        { "expr": "flashbox:network_transmit_mb_per_sec", "legendFormat": "Transmitted", "refId": "B" }
+      ]
+    },
+    {
+      "title": "Container",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "collapsed": false
+    },
+    {
+      "title": "Container Alive",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "mappings": [{ "type": "range", "options": { "from": 1, "to": 9999, "result": { "text": "UP", "color": "green" } } }, { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } }]
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "clamp_max(flashbox:container_alive, 1)", "legendFormat": "Container", "refId": "A", "instant": true }
+      ]
+    },
+    {
+      "title": "Container CPU %",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "sum(flashbox:container_cpu_percent)", "legendFormat": "Container CPU", "refId": "A" }
+      ]
+    },
+    {
+      "title": "Container Memory (MB)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": { "unit": "decmbytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:container_memory_mb{memtype=\"resident\"}", "legendFormat": "Container Memory (resident)", "refId": "A" }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["flashbox", "observability"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Flashbox Overview",
+  "uid": "flashbox-overview"
+}
