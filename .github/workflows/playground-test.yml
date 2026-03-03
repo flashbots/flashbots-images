@@ -9,7 +9,7 @@ on:
         default: ""
       builder-playground-version:
         description: "builder-playground version (e.g. v0.3.2-alpha.5 or latest)"
-        default: "v0.3.2-alpha.5"
+        default: "latest"
         type: string
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
       BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
       QEMU_CPU: "2"
       QEMU_RAM: 8G
-      VM_DATA_DISK_SIZE: 2G
+      VM_DATA_DISK_SIZE: 10G
     steps:
       - name: Enable KVM
         run: |
@@ -103,7 +103,6 @@ jobs:
 
       - name: Generate and start playground
         run: |
-          df -h
           builder-playground generate buildernet/mkosi
           builder-playground start --detached playground.yaml
 
@@ -130,9 +129,6 @@ jobs:
 
           echo "--- console log (last 50 lines) ---"
           tail -50 .runtime/console.log || true
-
-          echo "--- disk usage ---"
-          df -h
 
       - name: Run integration test
         run: |
