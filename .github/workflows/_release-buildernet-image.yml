@@ -151,5 +151,5 @@ jobs:
       - name: Upload to R2
         run: |
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
-            --s3-upload-concurrency=8 --transfers=8 --include '${{ inputs.r2-include }}' \
+            --s3-upload-concurrency=8 --transfers=8 --include "${{ inputs.r2-include }}" \
             mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/${{ inputs.r2-path-prefix }}/${VERSION_DIR}/
