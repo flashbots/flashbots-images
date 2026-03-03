@@ -3,7 +3,10 @@ Name=eth* en*
 
 [Network]
 DHCP=yes
+DNSDefaultRoute=no
+DNSOverTLS=no
 
 [DHCPv4]
-UseDNS=no
+UseDNS=yes
+UseDomains=yes
 UseHostname=no
