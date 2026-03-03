@@ -35,7 +35,9 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $SEARCHER_INPUT_TCP_PORT "Searcher TCP inpu
 
 # We drive op-geth in the searcher container from external op-node
 # We assume here that static peers in config are only syn nodes
-accept_src_ip_dst_port $CHAIN_ALWAYS_IN tcp "$CONFIG_EL_PEERS_IPS" $ENGINE_API_PORT "Engine API"
+if [ -n "$CONFIG_EL_PEERS_IPS" ]; then
+    accept_src_ip_dst_port $CHAIN_ALWAYS_IN tcp "$CONFIG_EL_PEERS_IPS" $ENGINE_API_PORT "Engine API"
+fi
 
 # CVM reverse-proxy serves server attestation
 # Also forwards request to ssh pubkey server on localhost:5001,
@@ -72,7 +74,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 
 # Block ALL traffic to simulator during maintenance
 # Simulator endpoints (8645, 8646) are production-only
-drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in maintenance)"
+if [ -n "$CONFIG_SIMULATOR_IP" ]; then
+    drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in maintenance)"
+fi
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -94,5 +98,7 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $OP_GETH_P2P_PORT "op-geth P2P (UDP)"
 ###########################################################################
 
 # Allow simulator endpoints in production mode
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator RPC (sendBackrun)"
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator WebSocket (tx stream)"
+if [ -n "$CONFIG_SIMULATOR_IP" ]; then
+    accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_RPC_PORT "Simulator RPC (sendBackrun)"
+    accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp "$CONFIG_SIMULATOR_IP" $SIMULATOR_WS_PORT "Simulator WebSocket (tx stream)"
+fi
