@@ -2,25 +2,5 @@
 
 set -euxo pipefail
 
-# Configure tdx-init disk glob for GCP
-mkdir -p "$BUILDROOT/etc/tdx-init"
-echo "/dev/disk/by-id/google-data" >> "$BUILDROOT/etc/tdx-init/disk-glob"
-
-# Enable systemd services
-
-mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
-
-mkosi-chroot systemctl unmask sys-kernel-config.mount
-mkosi-chroot systemctl add-wants minimal.target sys-kernel-config.mount
-
-if [ -f /etc/rsyslog.d/50-default.conf ]; then
-    sed -i 's/^.*\/var\/log\/syslog.*$/# &/' /etc/rsyslog.d/50-default.conf
-fi
-
-# Limit root filesystem size to 4GB
-
-mkosi-chroot sed -i '1a mount -o remount,size=4G /' /init
-
 # Remove automatically generated nvme data
-
 rm -rf "$BUILDROOT/etc/nvme/hostid" "$BUILDROOT/etc/nvme/hostnqn"
