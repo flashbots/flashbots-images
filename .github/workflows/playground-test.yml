@@ -50,14 +50,20 @@ jobs:
     name: Test playground image
     needs: build
     if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    runs-on: warp-ubuntu-latest-x64-32x
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       BUILDERNET_IMAGE: ${{ github.workspace }}/image/buildernet-qemu_latest.qcow2
-      QEMU_ACCEL: tcg
-      QEMU_CPU: "4"
+      QEMU_CPU: "2"
       QEMU_RAM: 8G
+      VM_DATA_DISK_SIZE: 2G
     steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Check runner environment
         run: |
           echo "--- CPU ---"
@@ -97,6 +103,7 @@ jobs:
 
       - name: Generate and start playground
         run: |
+          df -h
           builder-playground generate buildernet/mkosi
           builder-playground start --detached playground.yaml
 
@@ -123,6 +130,9 @@ jobs:
 
           echo "--- console log (last 50 lines) ---"
           tail -50 .runtime/console.log || true
+
+          echo "--- disk usage ---"
+          df -h
 
       - name: Run integration test
         run: |
