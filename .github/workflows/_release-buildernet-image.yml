@@ -94,12 +94,28 @@ jobs:
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
+      - name: Compute image version
+        run: |
+          # https://docs.github.com/en/actions/reference/workflows-and-actions/variables
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#buildernet-v}"    # e.g. 1.2.3
+            VERSION_DIR="${GITHUB_REF_NAME#buildernet-}" # e.g. v1.2.3
+            IMAGE_VERSION="${VERSION}-${GITHUB_SHA::8}"  # e.g. 1.2.3-abcd1234
+          else
+            DATE="$(date +%Y%m%d)"
+            IMAGE_VERSION="dev-${DATE}-${GITHUB_SHA::8}" # e.g. dev-20260303-abcd1234
+            VERSION_DIR="${IMAGE_VERSION}"
+          fi
+          echo "IMAGE_VERSION=${IMAGE_VERSION}" >> "$GITHUB_ENV"
+          echo "VERSION_DIR=${VERSION_DIR}" >> "$GITHUB_ENV"
+          echo "IMAGE_VERSION=${IMAGE_VERSION}, VERSION_DIR=${VERSION_DIR}"
+
       - name: Build image
         run: |
           set -x
           umask 022
           ARGS=(--force -I buildernet.conf)
-          ARGS+=(--image-version="${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}")
+          ARGS+=(--image-version="${IMAGE_VERSION}")
           if [[ -n "${{ inputs.mkosi-profile }}" ]]; then
             ARGS+=(--profile="${{ inputs.mkosi-profile }}")
           fi
@@ -112,14 +128,15 @@ jobs:
 
       - name: Upload cache
         run: |
-          rclone copy -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
+          # TODO: re-enable once verified
+          echo "would run: rclone copy -P --retries 3 --retries-sleep 10s --error-on-no-transfer \
             --transfers=2 --s3-upload-concurrency=10 \
-            ${{ inputs.cache-name }}.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/
+            ${{ inputs.cache-name }}.tar.gz r2-mkosi-buildernet-cache:mkosi-buildernet-cache/"
 
       - name: Generate SHA256 checksums
         run: |
           cd mkosi.output
-          sha256sum ${{ inputs.checksum-globs }} | tee buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256
+          sha256sum ${{ inputs.checksum-globs }} | tee buildernet-${IMAGE_VERSION}.sha256
 
       - name: Sign artifacts
         env:
@@ -129,11 +146,15 @@ jobs:
           mkdir -p ~/.minisign
           echo "$MINISIGN_SECRET_KEY" > ~/.minisign/minisign.key
           chmod 600 ~/.minisign/minisign.key
-          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${GITHUB_REF_NAME#buildernet-v}-${GITHUB_SHA::8}.sha256 \
+          echo "$MINISIGN_SECRET_KEY_PASSWORD" | minisign -Sm mkosi.output/buildernet-${IMAGE_VERSION}.sha256 \
             -t "github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
       - name: Upload to R2
         run: |
-          rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
-            --s3-upload-concurrency=8 --transfers=8 --include "${{ inputs.r2-include }}" \
-            mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/${{ inputs.r2-path-prefix }}/${GITHUB_REF_NAME#buildernet-}/
+          # TODO: re-enable once verified
+          echo "would upload to: flashbots-public-artifacts/${{ inputs.r2-path-prefix }}/${VERSION_DIR}/"
+          echo "candidates in mkosi.output/ (filter: '${{ inputs.r2-include }}'):"
+          ls -lah mkosi.output/
+          echo "would run: rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
+            --s3-upload-concurrency=8 --transfers=8 --include '${{ inputs.r2-include }}' \
+            mkosi.output r2-flashbots-public-artifacts:flashbots-public-artifacts/${{ inputs.r2-path-prefix }}/${VERSION_DIR}/"
