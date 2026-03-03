@@ -1,0 +1,5 @@
+# Passive Prometheus — no scrape targets.
+# Receives flashbox:* metrics via remote_write from the VM's main Prometheus.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
