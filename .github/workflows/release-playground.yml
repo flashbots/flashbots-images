@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - buildernet-v*
+    branches:
+      - fryd/ci-release-manual  # TODO: remove after bootstrapping workflow_dispatch
   workflow_dispatch: {}
 
 jobs:
