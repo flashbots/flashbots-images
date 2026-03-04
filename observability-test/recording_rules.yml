@@ -1,18 +1,65 @@
 groups:
-  - name: flashbox_host_metrics
+  # Base metrics — local: prefix means they stay inside the TEE
+  # (remote_write only forwards flashbox:*)
+  - name: local_host_metrics
     interval: 30s
     rules:
-      - record: flashbox:cpu_usage_percent
+      - record: local:cpu_usage_percent
         expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 
-      - record: flashbox:cpu_usage_percent_by_mode
-        expr: avg(rate(node_cpu_seconds_total[5m])) by (mode) * 100
+      - record: local:memory_usage_percent
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
 
-      - record: flashbox:memory_usage_percent
-        expr: avg_over_time(((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)[5m:])
+  - name: local_container_metrics
+    interval: 30s
+    rules:
+      - record: local:container_cpu_percent
+        expr: sum(rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m])) * 100
 
-      - record: flashbox:memory_available_gb
-        expr: avg_over_time((node_memory_MemAvailable_bytes / 1024 / 1024 / 1024)[5m:])
+      - record: local:container_memory_percent
+        expr: namedprocess_namegroup_memory_bytes{groupname=~".*searcher-container.*", memtype="resident"} / scalar(node_memory_MemTotal_bytes) * 100
+
+  # Forwarded metrics — flashbox: prefix, picked up by remote_write
+  - name: flashbox_health_levels
+    interval: 30s
+    rules:
+      # CPU: 0-20% low, 20-40% med, 40-85% high, 85-100% crit
+      - record: flashbox:cpu_level
+        expr: >
+          1
+          + (avg_over_time(local:cpu_usage_percent[15m]) > bool 20)
+          + (avg_over_time(local:cpu_usage_percent[15m]) > bool 40)
+          + (avg_over_time(local:cpu_usage_percent[15m]) > bool 85)
+
+      # Memory: 0-30% low, 30-70% med, 70-90% high, 90-100% crit
+      - record: flashbox:memory_level
+        expr: >
+          1
+          + (avg_over_time(local:memory_usage_percent[15m]) > bool 30)
+          + (avg_over_time(local:memory_usage_percent[15m]) > bool 70)
+          + (avg_over_time(local:memory_usage_percent[15m]) > bool 90)
+
+      # Container CPU: same buckets as host
+      - record: flashbox:container_cpu_level
+        expr: >
+          1
+          + (avg_over_time(local:container_cpu_percent[15m]) > bool 20)
+          + (avg_over_time(local:container_cpu_percent[15m]) > bool 40)
+          + (avg_over_time(local:container_cpu_percent[15m]) > bool 85)
+
+      # Container Memory: % of total VM RAM, same buckets as host memory
+      - record: flashbox:container_memory_level
+        expr: >
+          1
+          + (avg_over_time(local:container_memory_percent[15m]) > bool 30)
+          + (avg_over_time(local:container_memory_percent[15m]) > bool 70)
+          + (avg_over_time(local:container_memory_percent[15m]) > bool 90)
+
+  - name: flashbox_infra_metrics
+    interval: 30s
+    rules:
+      - record: flashbox:container_alive
+        expr: up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"}
 
       - record: flashbox:disk_usage_percent_root
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)
@@ -21,25 +68,13 @@ groups:
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/persistent"} / node_filesystem_size_bytes{mountpoint="/persistent"} * 100)
 
       - record: flashbox:disk_io_read_mb_per_sec
-        expr: rate(node_disk_read_bytes_total[5m]) / 1024 / 1024
+        expr: sum(rate(node_disk_read_bytes_total[5m])) / 1024 / 1024
 
       - record: flashbox:disk_io_write_mb_per_sec
-        expr: rate(node_disk_written_bytes_total[5m]) / 1024 / 1024
+        expr: sum(rate(node_disk_written_bytes_total[5m])) / 1024 / 1024
 
       - record: flashbox:network_receive_mb_per_sec
         expr: sum(rate(node_network_receive_bytes_total[5m])) / 1024 / 1024
 
       - record: flashbox:network_transmit_mb_per_sec
         expr: sum(rate(node_network_transmit_bytes_total[5m])) / 1024 / 1024
-
-  - name: flashbox_container_metrics
-    interval: 5m
-    rules:
-      - record: flashbox:container_alive
-        expr: up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"}
-
-      - record: flashbox:container_cpu_percent
-        expr: sum(rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m])) * 100
-
-      - record: flashbox:container_memory_mb
-        expr: avg_over_time((namedprocess_namegroup_memory_bytes{groupname=~".*searcher-container.*", memtype="resident"} / 1024 / 1024)[5m:])
