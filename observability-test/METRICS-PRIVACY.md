@@ -4,36 +4,32 @@
 
 - L1: ~12s/block, L2: ~2s/block
 - All rules eval every 30s
-- Bucketed levels use 15m `avg_over_time` → ~75 L1 blocks / ~450 L2 blocks of smoothing
-- A spike needs to sustain minutes before a level changes
+- Boolean metrics use 15m `avg_over_time` or 5m `rate` windows — no instantaneous values leave the TEE
+- CPU metric includes a spike guard: `max_over_time` with `offset 5m` prevents rapid transitions from leaking side-channel information
 
 ## What leaves the TEE
 
-Only `flashbox:*` metrics are forwarded via remote_write. Base percentages use a `local:` prefix and stay inside.
+Only `flashbox:*` metrics are forwarded via remote_write. The single local helper (`local:container_cpu_percent`) stays inside.
 
 | Metric | Type | Notes |
 |--------|------|-------|
-| `flashbox:cpu_level` | bucket (15m avg) | host CPU, integer 1-4 |
-| `flashbox:memory_level` | bucket (15m avg) | host memory, integer 1-4 |
-| `flashbox:container_cpu_level` | bucket (15m avg) | searcher CPU, integer 1-4 |
-| `flashbox:container_memory_level` | bucket (15m avg) | searcher memory, integer 1-4 |
-| `flashbox:container_alive` | binary | process up/down |
-| `flashbox:disk_usage_percent_root` | instant | slow-moving |
-| `flashbox:disk_usage_percent_persistent` | instant | slow-moving |
-| `flashbox:disk_io_read_mb_per_sec` | 5m rate | summed across devices |
-| `flashbox:disk_io_write_mb_per_sec` | 5m rate | summed across devices |
-| `flashbox:network_receive_mb_per_sec` | 5m rate | summed across interfaces |
-| `flashbox:network_transmit_mb_per_sec` | 5m rate | summed across interfaces |
+| `flashbox:container_alive` | bool | searcher process up/down |
+| `flashbox:container_average_cpu_is_under_80_percent` | bool | 15m avg < 80% AND spike-guarded (10m max offset 5m < 70%) |
+| `flashbox:container_oom_kills_count` | counter | system-wide OOM kill count (`node_vmstat_oom_kill`) |
+| `flashbox:disk_free_space_is_over_10_percent` | bool | root filesystem has >10% available |
+| `flashbox:disk_free_space_is_over_128_gb` | bool | persistent volume has >128GB available |
+| `flashbox:network_is_up` | bool | any non-loopback traffic in last 5m |
 
-## Bucket thresholds
+## Spike guard
 
-**CPU**: 🟢 0-20 🟡 20-40 🟠 40-85 🔴 85+
+The CPU metric uses Anton's spike guard formula to prevent side-channel signaling via rapid metric transitions:
 
-**Memory**: 🟢 0-30 🟡 30-70 🟠 70-90 🔴 90+
+```
+(avg_over_time(local:container_cpu_percent[15m]) < bool 80)
+* (max_over_time(local:container_cpu_percent[10m] offset 5m) < bool 70)
+```
 
-Container memory = % of total VM RAM (no cgroup limit, container has access to all VM RAM).
-
-Thresholds are initial guesses — need tuning with real workloads.
+Both conditions must be true for the metric to report `1` (healthy). The `offset 5m` lookback means a spike that occurred in the last 5 minutes will keep the metric at `0` even if current average is below threshold.
 
 ## Recording rules
 
