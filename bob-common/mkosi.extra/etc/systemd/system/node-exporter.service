@@ -44,7 +44,7 @@ ExecStart=/usr/bin/prometheus-node-exporter \
   --no-collector.timex \
   --no-collector.udp_queues \
   --no-collector.uname \
-  --no-collector.vmstat \
+  --collector.vmstat \
   --no-collector.xfs \
   --no-collector.zfs \
   --no-collector.systemd \
