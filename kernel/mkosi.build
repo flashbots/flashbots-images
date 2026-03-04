@@ -23,10 +23,6 @@ done
 
 # Auto-discover patches from registered directories
 # KERNEL_PATCHES is processed first, then KERNEL_PATCHES_* in alphabetical order
-# Within each directory, patches are collected in 3 layers:
-#   <dir>/*.patch                           — all versions, all flavors
-#   <dir>/<KERNEL_VERSION>/*.patch          — version specific
-#   <dir>/<KERNEL_VERSION>/<FLAVOR>/*.patch — version + flavor specific
 patch_paths=()
 for dir_var in "${!KERNEL_PATCHES@}"; do
     patch_dir="$SRCDIR/${!dir_var}"
@@ -41,7 +37,6 @@ for dir_var in "${!KERNEL_PATCHES@}"; do
     done
 done
 
-# Compute LOCALVERSION early — used in cache hash and kernel build
 LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
 
 echo "Building kernel ${KERNEL_VERSION} (Debian source)"
@@ -68,10 +63,8 @@ if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
 else
     echo "Building kernel from source..."
 
-    # Install kernel source and config packages from backports
     apt-get -y install "linux-source-${KERNEL_VERSION}/trixie-backports" --install-recommends
 
-    # Extract source tarball
     source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
     if [[ ! -f "$source_tarball" ]]; then
         echo "ERROR: Source tarball not found: $source_tarball" >&2
@@ -81,7 +74,6 @@ else
     tar xaf "$source_tarball" -C "$BUILDROOT/build/"
     build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION}"
 
-    # Verify extracted source and installed config
     if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
         echo "ERROR: merge_config.sh not found in kernel source" >&2
         exit 1
@@ -96,20 +88,11 @@ else
     echo "Cloud config: $cloud_config_xz"
 
     # Apply patches
-    if [[ ${#patch_paths[@]} -gt 0 ]]; then
-        echo "Applying ${#patch_paths[@]} patch(es) to $build_dir"
-        for patch_file in "${patch_paths[@]}"; do
-            if [[ ! -f "$patch_file" ]]; then
-                echo "ERROR: Patch file not found: $patch_file" >&2
-                exit 1
-            fi
-            echo "  Applying: $patch_file"
-            patch -d "$build_dir" -p1 < "$patch_file"
-        done
-    fi
+    for patch_file in "${patch_paths[@]}"; do
+        echo "  Applying: $patch_file"
+        patch -d "$build_dir" -p1 < "$patch_file"
+    done
 
-    # Config assembly: Debian cloud base + config fragments
-    # Files staged under $BUILDROOT/build/kconfig/ (not /tmp — chroot mounts tmpfs there)
     chroot_build_dir="/build/linux-source-${KERNEL_VERSION}"
     kconfig_dir="$BUILDROOT/build/kconfig"
     kconfig_chroot="/build/kconfig"
@@ -119,12 +102,10 @@ else
 
     xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
 
-    # Stage config fragments into chroot-accessible location
     for f in "${config_paths[@]}"; do
         cp "$f" "$kconfig_dir/fragments/$(basename "$f")"
     done
 
-    # merge_config.sh: Debian cloud base + fragments (alphabetically by prefix)
     merge_args=("$kconfig_chroot/base.config")
     for f in "$kconfig_dir/fragments/"*; do
         [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
@@ -140,7 +121,7 @@ else
     export KBUILD_BUILD_TIMESTAMP="$(date -u -d @0)"
     export KBUILD_BUILD_USER="mkosi"
     export KBUILD_BUILD_HOST="mkosi-builder"
-    export LOCALVERSION  # e.g. -mkosi-cloud → kernel version becomes 6.16.3-mkosi-cloud
+    export LOCALVERSION  # suffix appended to kernel version, e.g. -mkosi-cloud
     # TODO: Explore whether these profiles apply to upstream bindeb-pkg:
     # https://github.com/torvalds/linux/blob/master/scripts/package/mkdebian
     export DEB_BUILD_PROFILES='nodoc noudeb pkg.linux.nosource pkg.linux.notools pkg.linux.nokerneldbg pkg.linux.nokerneldbginfo pkg.linux.nometa'
@@ -149,7 +130,6 @@ else
     mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
     mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
 
-    # Find the linux-image .deb
     built_deb=$(find "$BUILDROOT/build" -maxdepth 1 -name "linux-image-*.deb" -type f | head -1)
     if [[ -z "$built_deb" ]]; then
         echo "ERROR: linux-image .deb not found after build" >&2
@@ -167,10 +147,9 @@ else
     echo "$kernel_version_string" > "$cache_dir/kernel.release"
     echo "Cached kernel to: $cache_dir"
 
-    # Clean up unwanted build artifacts
     rm -f "$BUILDROOT/build"/*.deb "$BUILDROOT/build"/*.buildinfo "$BUILDROOT/build"/*.changes
 fi
 
-# Move kernel to PACKAGEDIR, so mkosi installs it as a package (VolatilePackages)
+# Copy to PACKAGEDIR for mkosi VolatilePackages installation
 cp "$cached_deb" "$PACKAGEDIR/"
 echo "Kernel .deb copied to PACKAGEDIR"
