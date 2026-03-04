@@ -6,7 +6,7 @@
   "links": [],
   "panels": [
     {
-      "title": "Container Health",
+      "title": "Flashbox Health",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
@@ -14,210 +14,129 @@
     {
       "title": "Container Alive",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "thresholds": { "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
-          "mappings": [{ "type": "range", "options": { "from": 1, "to": 9999, "result": { "text": "UP", "color": "#10b981" } } }, { "type": "value", "options": { "0": { "text": "DOWN", "color": "#ef4444" } } }]
-        },
-        "overrides": []
-      },
-      "targets": [
-        { "expr": "clamp_max(flashbox:container_alive, 1)", "legendFormat": "Container", "refId": "A", "instant": true }
-      ]
-    },
-    {
-      "title": "CPU",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0, "max": 4, "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#10b981", "value": null },
-            { "color": "#fbbf24", "value": 1.01 },
-            { "color": "#f97316", "value": 2.01 },
-            { "color": "#ef4444", "value": 3.01 }
-          ]},
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": {
-              "1": { "text": "LOW", "index": 0 },
-              "2": { "text": "MED", "index": 1 },
-              "3": { "text": "HIGH", "index": 2 },
-              "4": { "text": "CRIT", "index": 3 }
-            }}
+            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
           ]
         },
         "overrides": []
       },
       "targets": [
-        { "expr": "flashbox:container_cpu_level", "refId": "A", "instant": true }
-      ]
+        { "expr": "clamp_max(flashbox:container_alive, 1)", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
     },
     {
-      "title": "Memory",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "title": "Container CPU < 80%",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "min": 0, "max": 4, "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#10b981", "value": null },
-            { "color": "#fbbf24", "value": 1.01 },
-            { "color": "#f97316", "value": 2.01 },
-            { "color": "#ef4444", "value": 3.01 }
-          ]},
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": {
-              "1": { "text": "LOW", "index": 0 },
-              "2": { "text": "MED", "index": 1 },
-              "3": { "text": "HIGH", "index": 2 },
-              "4": { "text": "CRIT", "index": 3 }
-            }}
+            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
           ]
         },
         "overrides": []
       },
       "targets": [
-        { "expr": "flashbox:container_memory_level", "refId": "A", "instant": true }
-      ]
+        { "expr": "flashbox:container_average_cpu_is_under_80_percent", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
     },
     {
-      "title": "Bucket Thresholds",
+      "title": "OOM Kills",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#10b981", "value": null }, { "color": "#ef4444", "value": 1 }] },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:container_oom_kills_count", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "title": "Root Disk > 10% Free",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:disk_free_space_is_over_10_percent", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "title": "Persistent Disk > 128GB Free",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:disk_free_space_is_over_128_gb", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "title": "Network Up",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "\u26ab",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "flashbox:network_is_up", "refId": "A", "instant": true }
+      ],
+      "options": { "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "title": "Legend",
       "type": "text",
-      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
       "options": {
         "mode": "markdown",
-        "content": "**CPU** 🟢 0-20 🟡 20-40 🟠 40-85 🔴 85+\n\n**Mem** 🟢 0-30 🟡 30-70 🟠 70-90 🔴 90+\n\n*15m avg window*"
+        "content": "| Panel | Meaning |\n|---|---|\n| **Container Alive** | Searcher process is running |\n| **Container CPU < 80%** | 15m avg CPU under 80% |\n| **OOM Kills** | System-wide OOM kill counter (0 = healthy) |\n| **Root Disk > 10% Free** | Root filesystem has >10% available |\n| **Persistent Disk > 128GB Free** | Persistent volume has >128GB available |\n| **Network Up** | Non-loopback traffic detected in last 5m |\n\n\ud83d\udfe2 healthy · \ud83d\udd34 unhealthy · \u26ab no data"
       }
-    },
-    {
-      "title": "Host Health",
-      "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
-      "collapsed": false
-    },
-    {
-      "title": "CPU",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0, "max": 4, "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#10b981", "value": null },
-            { "color": "#fbbf24", "value": 1.01 },
-            { "color": "#f97316", "value": 2.01 },
-            { "color": "#ef4444", "value": 3.01 }
-          ]},
-          "mappings": [
-            { "type": "value", "options": {
-              "1": { "text": "LOW", "index": 0 },
-              "2": { "text": "MED", "index": 1 },
-              "3": { "text": "HIGH", "index": 2 },
-              "4": { "text": "CRIT", "index": 3 }
-            }}
-          ]
-        },
-        "overrides": []
-      },
-      "targets": [
-        { "expr": "flashbox:cpu_level", "refId": "A", "instant": true }
-      ]
-    },
-    {
-      "title": "Memory",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0, "max": 4, "decimals": 0,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#10b981", "value": null },
-            { "color": "#fbbf24", "value": 1.01 },
-            { "color": "#f97316", "value": 2.01 },
-            { "color": "#ef4444", "value": 3.01 }
-          ]},
-          "mappings": [
-            { "type": "value", "options": {
-              "1": { "text": "LOW", "index": 0 },
-              "2": { "text": "MED", "index": 1 },
-              "3": { "text": "HIGH", "index": 2 },
-              "4": { "text": "CRIT", "index": 3 }
-            }}
-          ]
-        },
-        "overrides": []
-      },
-      "targets": [
-        { "expr": "flashbox:memory_level", "refId": "A", "instant": true }
-      ]
-    },
-    {
-      "title": "Disk (root)",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "#10b981", "value": null }, { "color": "#fbbf24", "value": 70 }, { "color": "#ef4444", "value": 90 }] } },
-        "overrides": []
-      },
-      "targets": [
-        { "expr": "flashbox:disk_usage_percent_root", "refId": "A" }
-      ]
-    },
-    {
-      "title": "Disk (persistent)",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "#10b981", "value": null }, { "color": "#fbbf24", "value": 70 }, { "color": "#ef4444", "value": 90 }] } },
-        "overrides": []
-      },
-      "targets": [
-        { "expr": "flashbox:disk_usage_percent_persistent", "refId": "A" }
-      ]
-    },
-    {
-      "title": "Disk I/O (MB/s)",
-      "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": { "unit": "MBs", "color": { "mode": "fixed" } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "Read" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#10b981" } }] },
-          { "matcher": { "id": "byName", "options": "Write" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#f97316" } }] }
-        ]
-      },
-      "targets": [
-        { "expr": "flashbox:disk_io_read_mb_per_sec", "legendFormat": "Read", "refId": "A" },
-        { "expr": "flashbox:disk_io_write_mb_per_sec", "legendFormat": "Write", "refId": "B" }
-      ],
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
-    },
-    {
-      "title": "Network Traffic (MB/s)",
-      "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 14 },
-      "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
-      "fieldConfig": {
-        "defaults": { "unit": "MBs", "color": { "mode": "fixed" } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "Received" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#10b981" } }] },
-          { "matcher": { "id": "byName", "options": "Transmitted" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#f97316" } }] }
-        ]
-      },
-      "targets": [
-        { "expr": "flashbox:network_receive_mb_per_sec", "legendFormat": "Received", "refId": "A" },
-        { "expr": "flashbox:network_transmit_mb_per_sec", "legendFormat": "Transmitted", "refId": "B" }
-      ]
     }
   ],
   "schemaVersion": 39,
