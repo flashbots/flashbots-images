@@ -29,12 +29,6 @@ for dir_var in "${!KERNEL_PATCHES@}"; do
     for f in "$patch_dir"/*.patch; do
         [[ -f "$f" ]] && patch_paths+=("$f")
     done
-    for f in "$patch_dir/$KERNEL_VERSION"/*.patch; do
-        [[ -f "$f" ]] && patch_paths+=("$f")
-    done
-    for f in "$patch_dir/$KERNEL_VERSION/$FLAVOR"/*.patch; do
-        [[ -f "$f" ]] && patch_paths+=("$f")
-    done
 done
 
 LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
