@@ -11,9 +11,11 @@ SEARCHER_INPUT_TCP_PORT=27018
 
 # Well-known ports
 DNS_PORT=53
+DNS_OVER_TLS_PORT=853
 HTTP_PORT=80
 HTTPS_PORT=443
 NTP_PORT=123
+NTP_NTS_PORT=4460
 CL_P2P_PORT=9000
 EL_P2P_PORT=30303
 
@@ -58,6 +60,7 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 
 # Note: this is accessible only from host, searcher netns has DROP on those
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
 # Titan builder bundle endpoints (always on)
 # Security note: This is a side channel.
@@ -90,6 +93,7 @@ drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_OVER_TLS_PORT "DNS-over-TLS"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTP_PORT "HTTP"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTPS_PORT "HTTPS"
