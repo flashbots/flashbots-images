@@ -19,8 +19,8 @@ OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
 
 # Simulator ports (production only)
-SIMULATOR_RPC_PORT=8645
-SIMULATOR_WS_PORT=8646
+SIMULATOR_RPC_PORT=8601
+SIMULATOR_WS_PORT=8600
 
 ###########################################################################
 # (1) ALWAYS_IN: Inbound rules that are always applied
