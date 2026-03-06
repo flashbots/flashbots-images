@@ -15,6 +15,7 @@ DNS_OVER_TLS_PORT=853
 HTTP_PORT=80
 HTTPS_PORT=443
 NTP_PORT=123
+NTP_NTS_PORT=4460
 OP_NODE_P2P_PORT=9222
 OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
@@ -47,6 +48,7 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # Note: this is accessible only from host, searcher netns has DROP on those
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
