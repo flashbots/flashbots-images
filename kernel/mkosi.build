@@ -9,6 +9,12 @@ if [[ -z "${KERNEL_VERSION:-}" ]]; then
     exit 1
 fi
 
+# Read distribution info from mkosi config JSON
+mirror=$(jq -re '.Mirror' "$MKOSI_CONFIG")
+release=$(jq -re '.Release' "$MKOSI_CONFIG")
+echo "Mirror: $mirror"
+echo "Release: $release"
+
 # Auto-discover config fragments from registered directories
 # KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
 config_paths=()
@@ -44,6 +50,7 @@ for f in "${patch_paths[@]}"; do echo "  $f"; done
 cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
+      echo "MIRROR=${mirror}"; \
       for f in "${config_paths[@]}"; do cat "$f"; done; \
       for f in "${patch_paths[@]}"; do cat "$f"; done; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
@@ -57,7 +64,7 @@ if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
 else
     echo "Building kernel from source..."
 
-    apt-get -y install "linux-source-${KERNEL_VERSION}/trixie-backports" --install-recommends
+    apt-get -y install "linux-source-${KERNEL_VERSION}/${release}-backports" --install-recommends
 
     source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
     if [[ ! -f "$source_tarball" ]]; then
