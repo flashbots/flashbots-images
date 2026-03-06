@@ -1,0 +1,130 @@
+# GitHub Actions workflow for building mkosi images using Nix.
+#
+# Triggers on:
+# - Pushes to main branch: Builds all images (bob-l1, bob-l2) in parallel
+#
+# - Manual dispatch: Allows specifying:
+#   - Branch to build from (default: main)
+#   - Images to build (default: bob-l1)
+#     - "all" → builds bob-l1 and bob-l2
+#     - "bob-l1" → builds only bob-l1
+#     - "bob-l2" → builds only bob-l2
+#     - "bob-l1,bob-l2" → builds both
+
+name: Build mkosi images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+        type: string
+      images:
+        description: 'Images to build (comma-separated: bob-l1,bob-l2 or "all")'
+        required: false
+        default: 'bob-l1'
+        type: string
+
+jobs:
+  validate:
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+        - name: Validate images
+          id: set-matrix
+          shell: python3 {0}
+          env:
+            EVENT_NAME: ${{ github.event_name }}
+            INPUT_IMAGES: ${{ inputs.images }}
+          run: |
+            import json
+            import os
+            import sys
+
+            VALID_IMAGES = ["bob-l1", "bob-l2"]
+
+            event = os.environ["EVENT_NAME"]
+            requested = os.environ.get("INPUT_IMAGES", "all").strip()
+
+            if event == "workflow_dispatch" and requested != "all":
+                images = [img.strip() for img in requested.split(",") if img.strip()]
+                invalid = [img for img in images if img not in VALID_IMAGES]
+
+                if invalid:
+                    print(f"❌ Error: Invalid image(s): {', '.join(invalid)}")
+                    print(f"Valid images are: {', '.join(VALID_IMAGES)}")
+                    sys.exit(1)
+            else:
+                images = VALID_IMAGES
+
+            matrix = json.dumps(images)
+            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                f.write(f"matrix={matrix}\n")
+
+            print(f"✓ Building images: {matrix}")
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.validate.outputs.matrix) }}
+
+    name: build ${{ matrix.image }} image
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Enable user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build ${{ matrix.image }} image
+        run: |
+          umask 022
+          nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
+
+      - name: Fix permissions
+        run: |
+            sudo chown -R $(id -u):$(id -g) build/
+
+      - name: Show build artifacts
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Image: ${{ matrix.image }}"
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ -d "build" ]; then
+            echo ""
+            # Show only filename and size for matching files
+            ls -lh build/ | grep -E "${{ matrix.image }}" | awk '{print $9, "(" $5 ")"}'
+          else
+            echo "⚠️  Build directory not found"
+          fi
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd build/
+          TIMESTAMP=$(git show -s --format=%ct HEAD)
+          SHORT_SHA="${GITHUB_SHA::8}"
+          CHECKSUM_FILE="${{ matrix.image }}_${TIMESTAMP}_${SHORT_SHA}.sha256"
+          sha256sum ${{ matrix.image }}_* > "$CHECKSUM_FILE"
+          cat "$CHECKSUM_FILE"

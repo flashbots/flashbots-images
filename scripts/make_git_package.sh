@@ -41,7 +41,7 @@ make_git_package() {
         git clone "$git_url" "$build_dir" &&
         git -C "$build_dir" checkout "$version"
     )
-    mkosi-chroot bash -c "cd '/build/$package' && $build_cmd"
+    mkosi-chroot bash -c "unset DESTDIR && cd '/build/$package' && $build_cmd"
 
     # Copy artifacts to image and cache
     for artifact_map in "${@:5}"; do
