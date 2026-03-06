@@ -16,6 +16,7 @@ systemd_svc_whitelist=(
     "systemd-journald-dev-log.socket"
     "systemd-remount-fs.service"
     "systemd-sysctl.service"
+    "systemd-tmpfiles-setup.service"
     "systemd-networkd.service"
     "systemd-networkd.socket"
     "systemd-networkd-wait-online.service"
@@ -28,6 +29,7 @@ systemd_bin_whitelist=(
     "journalctl"
     "systemd"
     "systemd-tty-ask-password-agent"
+    "systemd-tmpfiles"
 )
 
 mkosi-chroot dpkg-query -L systemd | grep -E '^/usr/bin/' | while read -r bin_path; do
