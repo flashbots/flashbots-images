@@ -5,7 +5,7 @@
 SSH_CONTROL_PORT=22
 SSH_DATA_PORT=10022
 SSH_REGISTER_PORT=8080
-CVM_REVERSE_PROXY_PORT=8745
+ATTESTED_TLS_PROXY_PORT=8745
 SEARCHER_INPUT_UDP_PORT=27017
 SEARCHER_INPUT_TCP_PORT=27018
 
@@ -38,10 +38,10 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $SSH_CONTROL_PORT "SSH control port"
 accept_dst_port $CHAIN_ALWAYS_IN udp $SEARCHER_INPUT_UDP_PORT "Searcher UDP input channel"
 accept_dst_port $CHAIN_ALWAYS_IN tcp $SEARCHER_INPUT_TCP_PORT "Searcher TCP input channel (input-only-proxy)"
 
-# CVM reverse-proxy serves server attestation
+# Attested TLS proxy serves server attestation
 # Also forwards request to ssh pubkey server on localhost:5001,
 #    which serves searcher-container openssh server pubkey
-accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
+accept_dst_port $CHAIN_ALWAYS_IN tcp $ATTESTED_TLS_PROXY_PORT "Attested TLS proxy"
 
 # Note: this is CL running on the host
 accept_dst_port $CHAIN_ALWAYS_IN tcp $CL_P2P_PORT "CL P2P (TCP)"
