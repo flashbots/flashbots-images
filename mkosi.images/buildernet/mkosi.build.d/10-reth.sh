@@ -1,6 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-EXPECTED_SHA256=05d2358f591856077e5d79789ec1aab9462ebdf630055973ef6e18580aabfaed
-curl -sSfL https://github.com/paradigmxyz/reth/releases/download/v1.11.1/reth-v1.11.1-x86_64-unknown-linux-gnu-reproducible.deb -o $PACKAGEDIR/reth.deb
-echo "${EXPECTED_SHA256}" $PACKAGEDIR/reth.deb | sha256sum --check
+REF=5fd44d08e5cf49107f1bc05823584fbb3449190e
+CARGO_HOME="$BUILDDIR/.cargo"
+PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
+BUILDDIR="$BUILDDIR/reth"
+export CARGO_HOME="$SRCDIR/mkosi.images/buildernet/mkosi.cache/cargo"
+
+echo "Installing reth..."
+
+mkdir -p $BUILDDIR
+
+curl -sSfL https://api.github.com/repos/flashbots/reth/tarball/${REF} | \
+  tar xzf - -C $BUILDDIR --strip-components=1
+
+cd $BUILDDIR
+
+make build
+
+mkdir -p $DESTDIR/usr/bin
+cp $CARGO_TARGET_DIR/release/reth $DESTDIR/usr/bin/reth
