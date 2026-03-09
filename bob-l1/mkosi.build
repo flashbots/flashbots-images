@@ -8,6 +8,7 @@ LIGHTHOUSE_BUILD_CMD="
     export CARGO_INCREMENTAL=0
     export LC_ALL=C
     export TZ=UTC
+    export SOURCE_DATE_EPOCH=\$(git log -1 --pretty=%ct)
     export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
     cargo build --bin lighthouse \
