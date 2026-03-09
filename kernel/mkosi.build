@@ -10,9 +10,9 @@ if [[ -z "${KERNEL_VERSION:-}" ]]; then
 fi
 
 # Read distribution info from mkosi config JSON
-mirror=$(jq -re '.Mirror' "$MKOSI_CONFIG")
+snapshot=$(jq -re '.Snapshot' "$MKOSI_CONFIG")
 release=$(jq -re '.Release' "$MKOSI_CONFIG")
-echo "Mirror: $mirror"
+echo "Snapshot: $snapshot"
 echo "Release: $release"
 
 # Auto-discover config fragments from registered directories
@@ -50,7 +50,7 @@ for f in "${patch_paths[@]}"; do echo "  $f"; done
 cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
-      echo "MIRROR=${mirror}"; \
+      echo "SNAPSHOT=${snapshot}"; \
       for f in "${config_paths[@]}"; do cat "$f"; done; \
       for f in "${patch_paths[@]}"; do cat "$f"; done; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
