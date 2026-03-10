@@ -1,7 +1,10 @@
 [Unit]
 Description=Sync reth snapshot
+# Explicitly pull in persistent-setup dependency since ConditionPathIsDirectory
+# does not verify if the path is an actual mount point
+Requires=persistent-setup.service
 Wants=network-online.target
-After=network.target network-online.target
+After=network.target network-online.target persistent-setup.service
 ConditionPathIsDirectory=!/var/lib/persistent/reth
 
 [Service]
