@@ -1,49 +1,39 @@
 groups:
-  - name: flashbox_aggregated_metrics
-    interval: 30s  # How often to evaluate rules
+  # Base metrics — local: prefix means they stay inside the TEE
+  # (remote_write only forwards flashbox:*)
+  - name: local_container_metrics
+    interval: 30s
     rules:
-      # CPU aggregated metrics
-      - record: flashbox:cpu_usage_percent
-        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+      - record: local:container_cpu_percent
+        expr: sum(rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m])) * 100
 
-      - record: flashbox:cpu_usage_percent_by_mode
-        expr: avg(rate(node_cpu_seconds_total[5m])) by (mode) * 100
-
-      # Memory aggregated metrics
-      - record: flashbox:memory_usage_percent
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
-
-      - record: flashbox:memory_available_gb
-        expr: node_memory_MemAvailable_bytes / 1024 / 1024 / 1024
-
-      # Disk aggregated metrics - both root and persistent
-      # Root filesystem (always available)
-      - record: flashbox:disk_usage_percent_root
-        expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)
-
-      # Persistent storage (available after mount) - returns no data if not mounted
-      - record: flashbox:disk_usage_percent_persistent  
-        expr: 100 - (node_filesystem_avail_bytes{mountpoint="/persistent"} / node_filesystem_size_bytes{mountpoint="/persistent"} * 100)
-
-      - record: flashbox:disk_io_read_mb_per_sec
-        expr: rate(node_disk_read_bytes_total[5m]) / 1024 / 1024
-
-      - record: flashbox:disk_io_write_mb_per_sec
-        expr: rate(node_disk_written_bytes_total[5m]) / 1024 / 1024
-
-      # Container health metrics (using process exporter)
+  # Forwarded metrics — flashbox: prefix, picked up by remote_write
+  - name: flashbox_health
+    interval: 30s
+    rules:
       - record: flashbox:container_alive
         expr: up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"}
 
-      - record: flashbox:container_cpu_percent
-        expr: rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m]) * 100
+      # Spike-guarded: current 15m avg must be under 80%,
+      # AND the 10m max ending 5m ago must have been under 70%
+      - record: flashbox:container_average_cpu_is_under_80_percent
+        expr: >
+          (avg_over_time(local:container_cpu_percent[15m]) < bool 80)
+          * (max_over_time(local:container_cpu_percent[10m] offset 5m) < bool 70)
 
-      - record: flashbox:container_memory_mb
-        expr: namedprocess_namegroup_memory_bytes{groupname=~".*searcher-container.*"} / 1024 / 1024
+      - record: flashbox:container_oom_kills_count
+        expr: node_vmstat_oom_kill
 
-      # Network metrics (only counters, no detailed info)
-      - record: flashbox:network_receive_mb_total
-        expr: sum(node_network_receive_bytes_total) / 1024 / 1024
+      - record: flashbox:disk_free_space_is_over_10_percent
+        expr: >
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) > bool 0.1
 
-      - record: flashbox:network_transmit_mb_total
-        expr: sum(node_network_transmit_bytes_total) / 1024 / 1024
+      - record: flashbox:disk_free_space_is_over_128_gb
+        expr: >
+          (node_filesystem_avail_bytes{mountpoint="/persistent"}) > bool (128 * 1024 * 1024 * 1024)
+
+      - record: flashbox:network_is_up
+        expr: >
+          (sum(rate(node_network_receive_bytes_total{device!~"lo"}[5m]))
+          + sum(rate(node_network_transmit_bytes_total{device!~"lo"}[5m])))
+          > bool 0
