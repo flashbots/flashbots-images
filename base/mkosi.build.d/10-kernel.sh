@@ -52,8 +52,7 @@ cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
-      for f in "${config_paths[@]}"; do cat "$f"; done; \
-      for f in "${patch_paths[@]}"; do cat "$f"; done; } \
+      cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
 )
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
