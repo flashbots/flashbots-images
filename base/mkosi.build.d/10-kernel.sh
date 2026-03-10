@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 shopt -s inherit_errexit  # propagate errexit to $() subshells
+shopt -s nullglob         # non-matching globs expand to nothing
 
 # KERNEL_VERSION must be set (Debian major.minor, e.g. "6.16").
 # Must match a linux-source package available in the pinned snapshot mirror.
@@ -19,22 +20,14 @@ echo "Release: $release"
 # KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
 config_paths=()
 for dir_var in "${!KERNEL_CONFIG_SNIPPETS@}"; do
-    config_dir="$SRCDIR/${!dir_var}"
-    if [[ -d "$config_dir" ]]; then
-        for f in "$config_dir"/*; do
-            [[ -f "$f" ]] && config_paths+=("$f")
-        done
-    fi
+    config_paths+=("$SRCDIR/${!dir_var}"/*)
 done
 
 # Auto-discover patches from registered directories
 # KERNEL_PATCHES is processed first, then KERNEL_PATCHES_* in alphabetical order
 patch_paths=()
 for dir_var in "${!KERNEL_PATCHES@}"; do
-    patch_dir="$SRCDIR/${!dir_var}"
-    for f in "$patch_dir"/*.patch; do
-        [[ -f "$f" ]] && patch_paths+=("$f")
-    done
+    patch_paths+=("$SRCDIR/${!dir_var}"/*.patch)
 done
 
 KERNEL_FLAVOR=cloud
@@ -101,8 +94,8 @@ else
         patch -d "${kernel_src_dir}" -p1 < "${patch_file}"
     done
 
+    rm -rf "${kconfig_dir}/fragments"
     mkdir -p "${kconfig_dir}/fragments"
-    rm -f "${kconfig_dir}/fragments/"*
 
     xz -dc "${cloud_config_xz}" > "${kconfig_dir}/base.config"
 
@@ -116,7 +109,7 @@ else
 
     merge_args=("${chroot_kconfig_dir}/base.config")
     for f in "${kconfig_dir}/fragments/"*; do
-        [[ -f "$f" ]] && merge_args+=("${chroot_kconfig_dir}/fragments/$(basename "$f")")
+        merge_args+=("${chroot_kconfig_dir}/fragments/$(basename "$f")")
     done
 
     echo "Config merge order:"
