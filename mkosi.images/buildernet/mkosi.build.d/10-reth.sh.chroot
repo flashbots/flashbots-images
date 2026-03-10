@@ -16,6 +16,9 @@ curl -sSfL https://api.github.com/repos/flashbots/reth/tarball/${REF} | \
 
 cd $BUILDDIR
 
+RUSTFLAGS="-C target-cpu=x86-64-v4 \
+           -L /usr/lib/x86_64-linux-gnu"
+CARGO_TARGET_DIR="$BUILDDIR/target"
 make build
 
 mkdir -p $DESTDIR/usr/bin
