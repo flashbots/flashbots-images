@@ -22,7 +22,7 @@ groups:
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)
 
       # Persistent storage (available after mount) - returns no data if not mounted
-      - record: flashbox:disk_usage_percent_persistent  
+      - record: flashbox:disk_usage_percent_persistent
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/persistent"} / node_filesystem_size_bytes{mountpoint="/persistent"} * 100)
 
       - record: flashbox:disk_io_read_mb_per_sec
