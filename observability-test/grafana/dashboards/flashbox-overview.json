@@ -18,10 +18,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+            { "type": "value", "options": { "0": { "text": "\u26a0\ufe0f" }, "1": { "text": "\u2705" } } }
           ]
         },
         "overrides": []
@@ -38,10 +38,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+            { "type": "value", "options": { "0": { "text": "\u26a0\ufe0f" }, "1": { "text": "\u2705" } } }
           ]
         },
         "overrides": []
@@ -58,7 +58,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#10b981", "value": null }, { "color": "#ef4444", "value": 1 }] },
           "mappings": []
         },
@@ -76,10 +76,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+            { "type": "value", "options": { "0": { "text": "\u26a0\ufe0f" }, "1": { "text": "\u2705" } } }
           ]
         },
         "overrides": []
@@ -96,10 +96,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+            { "type": "value", "options": { "0": { "text": "\u26a0\ufe0f" }, "1": { "text": "\u2705" } } }
           ]
         },
         "overrides": []
@@ -116,10 +116,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-remote-write" },
       "fieldConfig": {
         "defaults": {
-          "noValue": "\u26ab",
+          "noValue": "\u2753",
           "thresholds": { "mode": "absolute", "steps": [{ "color": "#ef4444", "value": null }, { "color": "#10b981", "value": 1 }] },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "\ud83d\udd34" }, "1": { "text": "\ud83d\udfe2" } } }
+            { "type": "value", "options": { "0": { "text": "\u26a0\ufe0f" }, "1": { "text": "\u2705" } } }
           ]
         },
         "overrides": []
@@ -135,7 +135,7 @@
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
       "options": {
         "mode": "markdown",
-        "content": "| Panel | Meaning |\n|---|---|\n| **Container Alive** | Searcher process is running |\n| **Container CPU < 80%** | 15m avg CPU under 80% |\n| **OOM Kills** | System-wide OOM kill counter (0 = healthy) |\n| **Root Disk > 10% Free** | Root filesystem has >10% available |\n| **Persistent Disk > 128GB Free** | Persistent volume has >128GB available |\n| **Network Up** | Non-loopback traffic detected in last 5m |\n\n\ud83d\udfe2 healthy · \ud83d\udd34 unhealthy · \u26ab no data"
+        "content": "| Panel | Meaning |\n|---|---|\n| **Container Alive** | Searcher process is running |\n| **Container CPU < 80%** | 15m avg CPU under 80% |\n| **OOM Kills** | System-wide OOM kill counter (0 = healthy) |\n| **Root Disk > 10% Free** | Root filesystem has >10% available |\n| **Persistent Disk > 128GB Free** | Persistent volume has >128GB available |\n| **Network Up** | Non-loopback traffic detected in last 5m |\n\n\u2705 healthy · \u26a0\ufe0f unhealthy · \u2753 no data · OOM Kills shows the count"
       }
     }
   ],
