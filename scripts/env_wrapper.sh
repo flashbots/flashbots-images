@@ -17,12 +17,7 @@ LIMA_VM="${LIMA_VM:-tee-builder-$REPO_HASH}"
 
 # Check if Lima should be used
 should_use_lima() {
-    # Use Lima by default for now
-    true ||
-    # Use Lima on macOS or if FORCE_LIMA is set
-    [[ "$OSTYPE" == "darwin"* ]] || [ -n "${FORCE_LIMA:-}" ] || 
-    # Use Lima if it's available but Nix is not
-    (command -v limactl &>/dev/null && ! command -v nix &>/dev/null)
+    [ ! -f "$REPO_DIR/.bypass-lima" ]
 }
 
 # Setup Lima if needed
@@ -49,7 +44,9 @@ setup_lima() {
 
         echo -e "Creating Lima VM '$LIMA_VM' for $REPO_DIR..."
         # Portable way to expand array on bash 3 & 4
-        limactl create -y --name "$LIMA_VM" ${args[@]+"${args[@]}"} "$REPO_DIR/lima.yaml"
+        limactl create -y \
+            --set '.mounts = [{"location": "'"$REPO_DIR"'", "mountPoint": "/home/debian/mnt", "writable": true}]' \
+            --name "$LIMA_VM" ${args[@]+"${args[@]}"} "$REPO_DIR/lima.yaml"
     fi
 
     # Start VM if not running
@@ -73,73 +70,57 @@ lima_exec() {
 
 # Check if in nix environment
 in_nix_env() {
-    [ -n "${IN_NIX_SHELL:-}" ] || [ -n "${NIX_STORE:-}" ]
+  [ -n "${IN_NIX_SHELL:-}" ] || [ -n "${NIX_STORE:-}" ]
 }
 
 # Exit here if being sourced (for setup_deps.sh to use should_use_lima)
 [[ "${BASH_SOURCE[0]}" != "${0}" ]] && return 0
 
 if [ $# -eq 0 ]; then
-    echo "Error: No command specified"
-    exit 1
+  echo "Error: No command specified"
+  exit 1
 fi
 
 cmd=("$@")
 
 is_mkosi_cmd() {
-    [[ "${cmd[0]}" == "mkosi" ]] || [[ "${cmd[0]}" == *"/mkosi" ]]
+  [[ "${cmd[0]}" == "mkosi" ]] || [[ "${cmd[0]}" == *"/mkosi" ]]
 }
 
 if is_mkosi_cmd && [ -n "${MKOSI_EXTRA_ARGS:-}" ]; then
-    # TODO: these args will be overriden by default cache/out dir in Lima
-    # Not a big deal, but might worth fixing
-    cmd+=($MKOSI_EXTRA_ARGS)
+  # TODO: these args will be overriden by default cache/out dir in Lima
+  # Not a big deal, but might worth fixing
+  cmd+=($MKOSI_EXTRA_ARGS)
+fi
+
+# Clean old build artifacts
+if is_mkosi_cmd; then
+  rm -f "$REPO_DIR/build/"* 2>/dev/null || true
 fi
 
 if should_use_lima; then
-    setup_lima
+  setup_lima
 
-    mkosi_cache=/home/debian/mkosi-cache
-    mkosi_output=/home/debian/mkosi-output
+  # Trust mounted repo (owned by host user, not debian)
+  lima_exec "git config --global --get-all safe.directory | grep -Fxq ~/mnt || git config --global --add safe.directory ~/mnt"
 
-    if is_mkosi_cmd; then
-        lima_exec mkdir -p "$mkosi_cache" "$mkosi_output"
+  lima_exec "cd ~/mnt && /home/debian/.nix-profile/bin/nix develop -c ${cmd[*]@Q}"
 
-        cmd+=(
-            # We can't use default cache dir from mnt/, because it is mounted
-            # from host, and mkosi will try to preserve root/other permissions
-            # without success.
-            "--cache-directory=$mkosi_cache"
-            # For the same reason, we need to use separate output dir.
-            # mkosi tries to preserve ownership of output files, which fails,
-            # as it is running from root in a user namespace.
-            "--output-dir=$mkosi_output"
-        )
-    fi
-
-    # Trust mounted repo (owned by host user, not debian)
-    lima_exec "git config --global --get-all safe.directory | grep -Fxq ~/mnt || git config --global --add safe.directory ~/mnt"
-
-    lima_exec "cd ~/mnt && /home/debian/.nix-profile/bin/nix develop -c ${cmd[*]@Q}"
-
-    if is_mkosi_cmd; then
-        files=$(lima_exec "ls -1 $mkosi_output 2>/dev/null" | tr -d '\r')
-        lima_exec "mkdir -p ~/mnt/build; mv '$mkosi_output'/* ~/mnt/build/" || true
-
-        for f in $files; do
-            ext=${f#*.*.}
-            [[ "$ext" != "$f" ]] && ln -sf "$f" "build/latest.$ext"
-        done
-
-        echo "Check ./build/ directory for output files"
-        echo
-    fi
-
-    echo "Note: Lima VM '$LIMA_VM' is still running. To stop it, run: limactl stop $LIMA_VM"
+  echo "Note: Lima VM '$LIMA_VM' is still running. To stop it, run: limactl stop $LIMA_VM"
 else
-    if in_nix_env; then
-        exec "${cmd[@]}"
-    else
-        exec nix develop -c "${cmd[@]}"
-    fi
+  if in_nix_env; then
+    "${cmd[@]}"
+  else
+    nix develop -c "${cmd[@]}"
+  fi
+fi
+
+# Create latest.* symlinks by replacing everything up to the second dot with "latest"
+if is_mkosi_cmd; then
+  for f in "$REPO_DIR/build/"*; do
+    [ -f "$f" ] || continue
+    f=$(basename "$f")
+    ext=${f#*.*.}
+    [[ "$ext" != "$f" ]] && ln -sf "$f" "$REPO_DIR/build/latest.$ext"
+  done
 fi

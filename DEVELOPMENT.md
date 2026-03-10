@@ -15,6 +15,7 @@ This comprehensive guide covers everything you need to know about developing wit
 - [Freezing to Debian Archive Snapshots](#freezing-to-debian-archive-snapshots)
 - [Testing for Reproducibility](#testing-for-reproducibility)
 - [Creating Debian Packages](#creating-debian-packages)
+- [Custom Developer Files](#custom-developer-files)
 - [Debugging and Troubleshooting](#debugging-and-troubleshooting)
 
 ## Project Structure
@@ -276,8 +277,8 @@ systemd services are the primary way to run applications in Flashboxes. Here's h
 ```ini
 [Unit]
 Description=My Application
-After=network.target network-setup.service
-Requires=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -354,8 +355,8 @@ Conflicts=apache2.service
 ```ini
 [Unit]
 # Network is available
-After=network.target network-setup.service
-Requires=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 # Persistent storage is mounted
 After=persistent-mount.service
@@ -365,23 +366,13 @@ Requires=persistent-mount.service
 After=basic.target
 ```
 
-### Enabling Services
+### Enabling Packaged Services
 
-**In `mkosi.postinst` script**:
+To enable a service installed with a Debian package, add the following to your `mkosi.postinst` script:
+
 ```bash
-#!/bin/bash
-set -euxo pipefail
-
-# Enable service
-mkosi-chroot systemctl enable myapp.service
-
-# Create symlink for minimal.target
-mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
-ln -sf "/etc/systemd/system/myapp.service" \
-    "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+mkosi-chroot systemctl add-wants minimal.target myapp.service
 ```
-
-For comprehensive systemd options, see: [systemd Service Documentation](https://www.freedesktop.org/software/systemd/man/systemd.service.html)
 
 ## Extending Built-in systemd Services
 
@@ -543,8 +534,7 @@ chown myapp:myapp /etc/myapp/config.conf
 chmod 600 /etc/myapp/config.conf
 
 # Enable systemd service
-systemctl enable myapp.service || true
-systemctl start myapp.service || true
+mkosi-chroot systemctl add-wants minimal.target myapp.service || true
 
 exit 0
 ```
@@ -635,6 +625,30 @@ For systems without systemd v250+ or where Nix installation isn't feasible, you 
    ```
    > Replace "btrfs" with your chosen storage driver
 5. Run the desired `mkosi` command inside the shell Podman environment
+
+## Custom Developer Files
+
+When building with the `devtools` profile, you can add your own custom files to the image without committing them to git. This is useful for adding personal SSH keys, configuration files, or debugging tools during development.
+
+### Adding Custom Files
+
+Place files in `mkosi.profiles/devtools/custom/` mirroring the filesystem structure you want:
+
+```bash
+# Add your SSH authorized keys
+mkdir -p mkosi.profiles/devtools/custom/root/.ssh
+cp ~/.ssh/id_rsa.pub mkosi.profiles/devtools/custom/root/.ssh/authorized_keys
+
+# Add a custom configuration file
+mkdir -p mkosi.profiles/devtools/custom/etc
+echo "my_setting=value" > mkosi.profiles/devtools/custom/etc/myconfig.conf
+
+# Add a debugging script
+mkdir -p mkosi.profiles/devtools/custom/usr/local/bin
+cp my-debug-script.sh mkosi.profiles/devtools/custom/usr/local/bin/
+```
+
+Files placed here will be copied into the image (like any other `ExtraTrees` directory) but will be ignored by git, so they won't be accidentally committed.
 
 ## Debugging and Troubleshooting
 
