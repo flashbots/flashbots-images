@@ -64,62 +64,65 @@ if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
 else
     echo "Building kernel from source..."
 
+    # Build directory layout (chroot-relative paths, then host paths derived from BUILDROOT)
+    chroot_kernel_build_dir="/build/kernel-build"
+    chroot_kernel_src_dir="${chroot_kernel_build_dir}/linux-source-${KERNEL_VERSION}"
+    chroot_kconfig_dir="${chroot_kernel_build_dir}/kconfig"
+    kernel_build_dir="${BUILDROOT}${chroot_kernel_build_dir}"
+    kernel_src_dir="${BUILDROOT}${chroot_kernel_src_dir}"
+    kconfig_dir="${BUILDROOT}${chroot_kconfig_dir}"
+
     apt-get -y install "linux-source-${KERNEL_VERSION}/${release}-backports" --install-recommends
 
-    source_tarball="$BUILDROOT/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
-    if [[ ! -f "$source_tarball" ]]; then
-        echo "ERROR: Source tarball not found: $source_tarball" >&2
+    source_tarball="${BUILDROOT}/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
+    if [[ ! -f "${source_tarball}" ]]; then
+        echo "ERROR: Source tarball not found: ${source_tarball}" >&2
         exit 1
     fi
-    mkdir -p "$BUILDROOT/build"
-    tar xaf "$source_tarball" -C "$BUILDROOT/build/"
-    build_dir="$BUILDROOT/build/linux-source-${KERNEL_VERSION}"
+    mkdir -p "${kernel_build_dir}"
+    tar xaf "${source_tarball}" -C "${kernel_build_dir}/"
 
-    if [[ ! -f "$build_dir/scripts/kconfig/merge_config.sh" ]]; then
+    if [[ ! -f "${kernel_src_dir}/scripts/kconfig/merge_config.sh" ]]; then
         echo "ERROR: merge_config.sh not found in kernel source" >&2
         exit 1
     fi
-    cloud_config_xz="$BUILDROOT/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_${FLAVOR}-amd64.xz"
-    if [[ ! -f "$cloud_config_xz" ]]; then
-        echo "ERROR: Debian ${FLAVOR} config not found: $cloud_config_xz" >&2
+    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_${FLAVOR}-amd64.xz"
+    if [[ ! -f "${cloud_config_xz}" ]]; then
+        echo "ERROR: Debian ${FLAVOR} config not found: ${cloud_config_xz}" >&2
         exit 1
     fi
 
-    echo "Kernel source: $build_dir"
-    echo "Cloud config: $cloud_config_xz"
+    echo "Kernel source: ${kernel_src_dir}"
+    echo "Cloud config: ${cloud_config_xz}"
 
     # Apply patches
     for patch_file in "${patch_paths[@]}"; do
-        echo "  Applying: $patch_file"
-        patch -d "$build_dir" -p1 < "$patch_file"
+        echo "  Applying: ${patch_file}"
+        patch -d "${kernel_src_dir}" -p1 < "${patch_file}"
     done
 
-    chroot_build_dir="/build/linux-source-${KERNEL_VERSION}"
-    kconfig_dir="$BUILDROOT/build/kconfig"
-    kconfig_chroot="/build/kconfig"
+    mkdir -p "${kconfig_dir}/fragments"
+    rm -f "${kconfig_dir}/fragments/"*
 
-    mkdir -p "$kconfig_dir/fragments"
-    rm -f "$kconfig_dir/fragments/"*
-
-    xz -dc "$cloud_config_xz" > "$kconfig_dir/base.config"
+    xz -dc "${cloud_config_xz}" > "${kconfig_dir}/base.config"
 
     for f in "${config_paths[@]}"; do
-        if [[ -e "$kconfig_dir/fragments/$(basename "$f")" ]]; then
+        if [[ -e "${kconfig_dir}/fragments/$(basename "$f")" ]]; then
             echo "ERROR: duplicate kernel config fragment '$(basename "$f")' from $f" >&2
             exit 1
         fi
-        cp "$f" "$kconfig_dir/fragments/$(basename "$f")"
+        cp "$f" "${kconfig_dir}/fragments/$(basename "$f")"
     done
 
-    merge_args=("$kconfig_chroot/base.config")
-    for f in "$kconfig_dir/fragments/"*; do
-        [[ -f "$f" ]] && merge_args+=("$kconfig_chroot/fragments/$(basename "$f")")
+    merge_args=("${chroot_kconfig_dir}/base.config")
+    for f in "${kconfig_dir}/fragments/"*; do
+        [[ -f "$f" ]] && merge_args+=("${chroot_kconfig_dir}/fragments/$(basename "$f")")
     done
 
     echo "Config merge order:"
     for a in "${merge_args[@]}"; do echo "  $a"; done
 
-    mkosi-chroot --chdir "$chroot_build_dir" \
+    mkosi-chroot --chdir "${chroot_kernel_src_dir}" \
         ./scripts/kconfig/merge_config.sh "${merge_args[@]}"
 
     # Build kernel .deb package
@@ -128,31 +131,31 @@ else
     export KBUILD_BUILD_HOST="mkosi-builder"
     export LOCALVERSION  # suffix appended to kernel version, e.g. -mkosi-cloud
     export DEB_BUILD_PROFILES='pkg.linux-upstream.nokernelheaders pkg.linux-upstream.nokerneldbg'
-    rm -f "$build_dir/.version"
+    rm -f "${kernel_src_dir}/.version"
 
-    mkosi-chroot --chdir "$chroot_build_dir" make olddefconfig
-    mkosi-chroot --chdir "$chroot_build_dir" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
+    mkosi-chroot --chdir "${chroot_kernel_src_dir}" make olddefconfig
+    mkosi-chroot --chdir "${chroot_kernel_src_dir}" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
 
-    built_deb=$(find "$BUILDROOT/build" -maxdepth 1 -name "linux-image-*${LOCALVERSION}_*.deb" -type f | head -1)
-    if [[ -z "$built_deb" ]]; then
+    built_deb=$(find "${kernel_build_dir}" -maxdepth 1 -name "linux-image-*${LOCALVERSION}_*.deb" -type f | head -1)
+    if [[ -z "${built_deb}" ]]; then
         echo "ERROR: linux-image .deb not found after build" >&2
         exit 1
     fi
 
-    kernel_version_string=$(cat "$build_dir/include/config/kernel.release")
-    echo "Kernel version: $kernel_version_string"
-    echo "Built .deb: $(basename "$built_deb")"
+    kernel_version_string=$(cat "${kernel_src_dir}/include/config/kernel.release")
+    echo "Kernel version: ${kernel_version_string}"
+    echo "Built .deb: $(basename "${built_deb}")"
 
     # Cache the .deb
-    mkdir -p "$cache_dir"
-    cp "$built_deb" "$cached_deb"
-    cp "$build_dir/.config" "$cache_dir/config"
-    echo "$kernel_version_string" > "$cache_dir/kernel.release"
-    echo "Cached kernel to: $cache_dir"
+    mkdir -p "${cache_dir}"
+    cp "${built_deb}" "${cached_deb}"
+    cp "${kernel_src_dir}/.config" "${cache_dir}/config"
+    echo "${kernel_version_string}" > "${cache_dir}/kernel.release"
+    echo "Cached kernel to: ${cache_dir}"
 
-    rm -f "$BUILDROOT/build"/*.deb "$BUILDROOT/build"/*.buildinfo "$BUILDROOT/build"/*.changes
+    rm -rf "${kernel_build_dir}"
 fi
 
 # Copy to PACKAGEDIR for mkosi VolatilePackages installation
-cp "$cached_deb" "$PACKAGEDIR/"
+cp "${cached_deb}" "${PACKAGEDIR}/"
 echo "Kernel .deb copied to PACKAGEDIR"
