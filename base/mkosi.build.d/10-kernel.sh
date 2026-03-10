@@ -37,7 +37,8 @@ for dir_var in "${!KERNEL_PATCHES@}"; do
     done
 done
 
-LOCALVERSION="${KERNEL_LOCALVERSION:--mkosi}-${FLAVOR}"  # e.g. -mkosi-cloud
+KERNEL_FLAVOR=cloud
+LOCALVERSION="-mkosi-${KERNEL_FLAVOR}"
 
 echo "Building kernel ${KERNEL_VERSION} (Debian source)"
 echo "LOCALVERSION: $LOCALVERSION"
@@ -86,9 +87,9 @@ else
         echo "ERROR: merge_config.sh not found in kernel source" >&2
         exit 1
     fi
-    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_${FLAVOR}-amd64.xz"
+    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_${KERNEL_FLAVOR}-amd64.xz"
     if [[ ! -f "${cloud_config_xz}" ]]; then
-        echo "ERROR: Debian ${FLAVOR} config not found: ${cloud_config_xz}" >&2
+        echo "ERROR: Debian ${KERNEL_FLAVOR} config not found: ${cloud_config_xz}" >&2
         exit 1
     fi
 
