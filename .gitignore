@@ -1,4 +1,5 @@
 build/
+build.*/
 mkosi/
 env.json
 mkosi.packages/
@@ -8,4 +9,7 @@ mkosi.builddir/
 .claudesync/
 .claudeignore
 tmp/
+.temp
 NvVars
+.vscode
+.bypass-lima

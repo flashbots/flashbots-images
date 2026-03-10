@@ -1,7 +1,7 @@
 [Unit]
 Description=Fetch some configuration variables from Vault
-After=network.target network-setup.service
-Requires=network-setup.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot

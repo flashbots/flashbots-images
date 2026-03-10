@@ -601,9 +601,9 @@ Developer Notes
 
 ### Service Order
 
-1. Initialize network (**name:** `network-setup.service`)
-2. Get searcher key from LUKS partition or wait for key on port 8080 (**name:** `wait-for-key.service`) (**after:** `network-setup.service`)
-3. Setup firewall (**name:** `searcher-firewall.service`) (**after:** `network-setup.service`)
+1. Initialize network via `systemd-networkd.service`
+2. Get searcher key from LUKS partition or wait for key on port 8080 (**name:** `wait-for-key.service`) (**after:** `network-online.target`)
+3. Setup firewall (**name:** `searcher-firewall.service`) (**after:** `network-online.target`)
 4. Start dropbear server for `initialize`, `toggle`, etc. (**name:** `dropbear.service`) (**after:** `wait-for-key.service`, `searcher-firewall.service`)
 5. Open a log socket and forward text from it to the delayed log file after 300s (**name:** searcher-log-reader.service) (**after:** `/persistent` is mounted)
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)

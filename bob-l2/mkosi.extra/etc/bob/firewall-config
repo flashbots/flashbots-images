@@ -11,9 +11,11 @@ SEARCHER_INPUT_TCP_PORT=27018
 
 # Well-known ports
 DNS_PORT=53
+DNS_OVER_TLS_PORT=853
 HTTP_PORT=80
 HTTPS_PORT=443
 NTP_PORT=123
+NTP_NTS_PORT=4460
 OP_NODE_P2P_PORT=9222
 OP_GETH_P2P_PORT=40404
 ENGINE_API_PORT=8651
@@ -22,8 +24,8 @@ ENGINE_API_PORT=8651
 # METRICS_ENDPOINT variable
 
 # Simulator ports (production only)
-SIMULATOR_RPC_PORT=8645
-SIMULATOR_WS_PORT=8646
+SIMULATOR_RPC_PORT=8601
+SIMULATOR_WS_PORT=8600
 
 ###########################################################################
 # (1) ALWAYS_IN: Inbound rules that are always applied
@@ -49,6 +51,7 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 # Note: this is accessible only from host, searcher netns has DROP on those
 # See also init-container.sh
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
+accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
 # Observability metrics endpoint (always allowed, host-only)
 # Configured dynamically and only from host namespace
@@ -76,6 +79,7 @@ drop_dst_ip $CHAIN_MAINTENANCE_OUT "$CONFIG_SIMULATOR_IP" "Simulator (blocked in
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
+accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_OVER_TLS_PORT "DNS-over-TLS"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTP_PORT "HTTP"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $HTTPS_PORT "HTTPS"
