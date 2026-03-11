@@ -4,6 +4,8 @@ VERSION := $(shell git describe --tags --always --dirty="-dev")
 SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
+FILE ?= build/latest.efi
+
 ##@ Help
 
 # Awk script from https://github.com/paradigmxyz/reth/blob/main/Makefile
