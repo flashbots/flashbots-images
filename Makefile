@@ -4,6 +4,8 @@ VERSION := $(shell git describe --tags --always --dirty="-dev")
 SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
+FILE ?= build/latest.efi
+
 ##@ Help
 
 # Awk script from https://github.com/paradigmxyz/reth/blob/main/Makefile
@@ -48,7 +50,7 @@ measure: ## Export TDX measurements for the built EFI file
 	echo "Measurements exported to build/measurements.json"
 
 measure-gcp: ## Export TDX measurements for GCP
-	@$(WRAPPER) dstack-mr -uki $(FILE) -json > build/gcp_measurements.json
+	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
 	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
