@@ -50,7 +50,7 @@ measure: ## Export TDX measurements for the built EFI file
 	echo "Measurements exported to build/measurements.json"
 
 measure-gcp: ## Export TDX measurements for GCP
-	@$(WRAPPER) dstack-mr -uki $(FILE) -json > build/gcp_measurements.json
+	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
 	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
