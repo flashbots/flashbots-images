@@ -10,8 +10,11 @@ ConfigurationDirectory=flowproxy
 StateDirectory=persistent/flowproxy
 EnvironmentFile=%E/flowproxy/flowproxy.env
 ExecStart=/usr/bin/flowproxy
-Restart=on-failure
 LimitNOFILE=65535
+Restart=on-failure
+RestartSec=5s
+RestartSteps=5
+RestartMaxDelaySec=1min
 
 [Install]
 WantedBy=multi-user.target
