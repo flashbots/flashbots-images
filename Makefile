@@ -37,11 +37,11 @@ setup: ## Install dependencies (Linux only)
 
 # Build module
 build: setup ## Build the specified module
-	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=$(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: setup ## Build module with development tools
-	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=$(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
 
 ##@ Utilities
 

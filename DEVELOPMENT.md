@@ -22,21 +22,28 @@ This comprehensive guide covers everything you need to know about developing wit
 
 ```
 flashboxes/
-├── base/                   # Core minimal Linux system
-│   ├── mkosi.conf          # Base mkosi configuration
-│   ├── mkosi.skeleton/     # Base filesystem overlay
-│   └── debloat*.sh         # System cleanup scripts
-├── bob-common/             # TEE Searcher common image
-├── bob-l1/                 # L1 TEE Searcher sandbox image
-├── bob-l2/                 # L2 TEE Searcher sandbox image
-├── buildernet/             # BuilderNet
-├── tdx-dummy/              # TDX test environment
-├── kernel/                 # Kernel configuration
-│   ├── kernel-yocto.config # Base kernel config
-│   └── snippets/           # Additional config fragments
-├── scripts/                # Build helper scripts
-├── services/               # Shared systemd services
-└── mkosi.profiles/         # Build profiles (devtools, azure)
+├── shared/                          # Core minimal Linux system
+│   ├── mkosi.conf                   # Base mkosi configuration
+│   ├── mkosi.skeleton/              # Base filesystem overlay
+│   ├── kernel/                      # Kernel configuration
+│   │   ├── config.d/                # Base + config fragments
+│   │   └── patches/                 # Kernel patches
+│   └── debloat*.sh                  # System cleanup scripts
+├── modules/
+│   ├── flashbox/
+│   │   ├── common/                  # TEE Searcher common image
+│   │   ├── flashbox-l1/             # L1 TEE Searcher sandbox image
+│   │   └── flashbox-l2/             # L2 TEE Searcher sandbox image
+│   └── tdx-dummy/                   # TDX test environment
+├── images/                          # Top-level image configs
+│   ├── flashbox-l1.conf
+│   ├── flashbox-l2.conf
+│   └── tdx-dummy.conf
+├── buildernet/                      # BuilderNet
+├── scripts/                         # Build helper scripts
+│   └── verification/                # Image verification tools
+├── services/                        # Shared systemd services
+└── mkosi.profiles/                  # Build profiles (devtools, azure)
 ```
 
 ## Creating a New Module
@@ -89,17 +96,17 @@ BuildPackages=build-essential
 
 ### Step 3: Create Top-Level Configuration
 
-**`mymodule.conf`** (in project root):
+**`images/mymodule.conf`** (in images/):
 ```ini
 [Include]
-Include=base/mkosi.conf
+Include=shared/mkosi.conf
 Include=mymodule/mkosi.conf
 ```
 
 ### Step 4: Build Your Module
 
 ```bash
-nix develop -c mkosi --force -I mymodule.conf
+nix develop -c mkosi --force -I images/mymodule.conf
 ```
 
 ## Adding Files to Modules
@@ -204,7 +211,7 @@ CONFIG_MY_FEATURE=y
 Environment=KERNEL_CONFIG_SNIPPETS=module/kernel.config,module/another-kernel-snippet.config
 ```
 
-These snippets will be applied over the base configuration in `kernel/kernel-yocto.config`
+These snippets will be applied over the base configuration in `shared/kernel/kernel-yocto.config`
 
 ## Adding Source Repositories
 
