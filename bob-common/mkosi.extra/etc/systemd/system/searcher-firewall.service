@@ -1,7 +1,8 @@
 [Unit]
 Description=Searcher Network and Firewall Rules
-After=network-online.target
+After=network-online.target fetch-config.service
 Wants=network-online.target
+Requires=fetch-config.service
 
 [Service]
 Type=oneshot

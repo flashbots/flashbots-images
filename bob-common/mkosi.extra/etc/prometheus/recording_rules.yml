@@ -1,0 +1,49 @@
+groups:
+  - name: flashbox_aggregated_metrics
+    interval: 30s  # How often to evaluate rules
+    rules:
+      # CPU aggregated metrics
+      - record: flashbox:cpu_usage_percent
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: flashbox:cpu_usage_percent_by_mode
+        expr: avg(rate(node_cpu_seconds_total[5m])) by (mode) * 100
+
+      # Memory aggregated metrics
+      - record: flashbox:memory_usage_percent
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+      - record: flashbox:memory_available_gb
+        expr: node_memory_MemAvailable_bytes / 1024 / 1024 / 1024
+
+      # Disk aggregated metrics - both root and persistent
+      # Root filesystem (always available)
+      - record: flashbox:disk_usage_percent_root
+        expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100)
+
+      # Persistent storage (available after mount) - returns no data if not mounted
+      - record: flashbox:disk_usage_percent_persistent  
+        expr: 100 - (node_filesystem_avail_bytes{mountpoint="/persistent"} / node_filesystem_size_bytes{mountpoint="/persistent"} * 100)
+
+      - record: flashbox:disk_io_read_mb_per_sec
+        expr: rate(node_disk_read_bytes_total[5m]) / 1024 / 1024
+
+      - record: flashbox:disk_io_write_mb_per_sec
+        expr: rate(node_disk_written_bytes_total[5m]) / 1024 / 1024
+
+      # Container health metrics (using process exporter)
+      - record: flashbox:container_alive
+        expr: up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"}
+
+      - record: flashbox:container_cpu_percent
+        expr: rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m]) * 100
+
+      - record: flashbox:container_memory_mb
+        expr: namedprocess_namegroup_memory_bytes{groupname=~".*searcher-container.*"} / 1024 / 1024
+
+      # Network metrics (only counters, no detailed info)
+      - record: flashbox:network_receive_mb_total
+        expr: sum(node_network_receive_bytes_total) / 1024 / 1024
+
+      - record: flashbox:network_transmit_mb_total
+        expr: sum(node_network_transmit_bytes_total) / 1024 / 1024
