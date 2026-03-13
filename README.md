@@ -35,8 +35,8 @@ Alternatively, it is possible to build natively with [Nix](https://nixos.org/dow
 Build the image:
 
 ```bash
-# Build the BOB (searcher sandbox) image
-make build IMAGE=bob-l1
+# Build the Flashbox (searcher sandbox) image
+make build IMAGE=flashbox-l1
 
 # Build the Buildernet image
 make build IMAGE=buildernet
@@ -45,7 +45,7 @@ make build IMAGE=buildernet
 make build IMAGE=l2-builder
 
 # Build with development tools
-make build-dev IMAGE=bob-l1
+make build-dev IMAGE=flashbox-l1
 
 # View all available targets
 make help
@@ -164,4 +164,4 @@ try to disable apparmor's restriction:
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
-- [BOB Module Guide](bob-l1/README.md) - Detailed documentation for the MEV searcher environment
+- [Flashbox L1 Module Guide](modules/flashbox/flashbox-l1/readme.md) - Detailed documentation for the MEV searcher environment

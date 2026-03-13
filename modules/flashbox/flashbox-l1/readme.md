@@ -146,8 +146,8 @@ umask 0022
 git clone https://github.com/flashbots/flashbots-images.git
 cd flashbots-images
 
-# build the BOB (TEE searcher sandbox) image
-make build IMAGE=bob-l1
+# build the Flashbox (TEE searcher sandbox) image
+make build IMAGE=flashbox-l1
 ```
 
 ### 2. audit the VM image
@@ -168,20 +168,20 @@ Critically, `tdx-init` enforces that the SSH key can only be provided once, and 
 
 2. **Dropbear SSH Configuration** (Host SSH Access)
 
-Dropbear is installed as a [base system package](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.conf#L12) during the image build process.
+Dropbear is installed as a [base system package](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.conf#L12) during the image build process.
 
 The standard default location for Dropbear to look for `authorized_keys` is in the user's home directory under the .ssh subdirectory ([~/.ssh/authorized_keys](https://linux.die.net/man/8/dropbear)). The `authorized_keys` file and its containing ~/.ssh directory must only be writable by the user, otherwise Dropbear will not allow a login using public key authentication.
 
 On each startup, `tdx-init` retrieves the SSH key from the LUKS header, writes it to [`/home/searcher/.ssh/authorized_keys`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L85), and ensures the directory is owned by the searcher user.
 
-Note: The image overrides the default configuration with [extra security flags](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/etc/default/dropbear). Systemd's [drop-in configuration mechanism](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/etc/systemd/system/dropbear.service.d/dropbear-prereq.conf) is also used to ensure dropbear runs after `wait-for-key.service`, sets proper ownership of the .ssh files, and generates the dropbear host key if it doesn't exist.
+Note: The image overrides the default configuration with [extra security flags](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.extra/etc/default/dropbear). Systemd's [drop-in configuration mechanism](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.extra/etc/systemd/system/dropbear.service.d/dropbear-prereq.conf) is also used to ensure dropbear runs after `wait-for-key.service`, sets proper ownership of the .ssh files, and generates the dropbear host key if it doesn't exist.
 
 3. **OpenSSH Authorization** (Container SSH Access)
 
 On each startup, `tdx-init` retrieves the SSH key from the LUKS header, and writes it to
 [`/etc/searcher_key`](https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/keys.go#L103).
 
-During container startup, OpenSSH is installed and the SSH key is copied from `etc/searcher_key` to [`/root/.ssh/authorized_keys`](https://github.com/flashbots/flashbots-images/blob/main/bob-common/mkosi.extra/usr/bin/init-container.sh#L30) with the correct permissions.
+During container startup, OpenSSH is installed and the SSH key is copied from `etc/searcher_key` to [`/root/.ssh/authorized_keys`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.extra/usr/bin/init-container.sh#L30) with the correct permissions.
 
 **<u>Searcher Disk Encryption</u>**
 
@@ -218,7 +218,7 @@ Only [PCR 4, 9, and 11](https://constellation-docs.netlify.app/constellation/2.2
 ```bash
 cd flashbots-images
 
-# assuming you've run make build IMAGE=bob-l1
+# assuming you've run make build IMAGE=flashbox-l1
 make measure
 ```
 
@@ -279,7 +279,7 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
 
 > Note: at the time of the writing, those measurements were acquired by building from commit ef5dd2727ba4569d530c67822dc96778f54a295a, if you're viewing this from main branch please ensure to build from the same commit to get the same measurements.
 
-> Note: at the time of the writing, compiling bob-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
+> Note: at the time of the writing, compiling flashbox-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
 ### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
 
