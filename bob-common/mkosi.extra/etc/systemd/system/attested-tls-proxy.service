@@ -1,0 +1,17 @@
+[Unit]
+Description=Attested TLS Proxy for SSH Public Key Server
+After=ssh-pubkey-server.service
+Requires=ssh-pubkey-server.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/attested-tls-proxy server \
+            --listen-addr 0.0.0.0:8745 \
+            --server-attestation-type auto \
+            --allowed-remote-attestation-type none \
+            127.0.0.1:5001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=minimal.target
