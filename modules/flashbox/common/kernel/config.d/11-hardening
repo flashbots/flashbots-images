@@ -1,0 +1,9 @@
+#
+# 11-hardening — Flashbox (l1, l2)
+#
+# Re-enable options disabled by 01-hardening that Flashbox needs for podman.
+#
+
+CONFIG_USER_NS=y
+CONFIG_BRIDGE=y
+CONFIG_BPF_SYSCALL=y

@@ -1,0 +1,145 @@
+#
+# 05-tdx-guest
+#
+# Overrides and pins for TDX guest kernels. Applied after 01-hardening
+# (generated) and 02-sane-defaults. Per-VM fragments (e.g. bob-common/
+# 11-hardening) may override options set here.
+#
+
+
+# ==========================================================================
+# Hardening checker second pass
+# ==========================================================================
+
+# max mmap ASLR bits (default 28, kernel allows up to 32)
+CONFIG_ARCH_MMAP_RND_BITS=32
+
+# UBSAN bounds-only -- other checks fire on non-security UB and conflict
+# with UBSAN_TRAP (which turns violations into BUG() instead of warnings)
+# CONFIG_UBSAN_SHIFT is not set
+# CONFIG_UBSAN_DIV_ZERO is not set
+# CONFIG_UBSAN_UNREACHABLE is not set
+# CONFIG_UBSAN_SIGNED_WRAP is not set
+# CONFIG_UBSAN_INTEGER_WRAP is not set
+# CONFIG_UBSAN_BOOL is not set
+# CONFIG_UBSAN_ENUM is not set
+# CONFIG_UBSAN_ALIGNMENT is not set
+
+# requires gcc-14-plugin-dev at build time
+CONFIG_GCC_PLUGINS=y
+
+# zero the kernel stack on syscall return
+CONFIG_KSTACK_ERASE=y
+
+
+# ==========================================================================
+# Disable debug options enabled by 01-hardening
+# These are developer-only runtime checks with no security benefit in
+# production. Measured ~72% sys-time increase in benchmarks (herecura.eu).
+# AL2023 also excludes all four.
+# ==========================================================================
+
+# CONFIG_DEBUG_VIRTUAL is not set
+# CONFIG_DEBUG_SG is not set
+# CONFIG_DEBUG_NOTIFIERS is not set
+# CONFIG_DEBUG_CREDENTIALS is not set
+
+
+# ==========================================================================
+# TDX-redundant options from 01-hardening
+# TDX encrypts all guest memory with ephemeral keys managed by the CPU.
+# These mitigations target threats that TDX hardware already handles.
+# ==========================================================================
+
+# keys are destroyed on reset -- cold boot attacks don't apply
+# CONFIG_RESET_ATTACK_MITIGATION is not set
+
+# no physical PCI bus in a TDX guest
+# CONFIG_EFI_DISABLE_PCI_DMA is not set
+
+# TDX runs on Intel only -- AMD IOMMU code is dead weight
+# CONFIG_AMD_IOMMU is not set
+# CONFIG_AMD_IOMMU_V2 is not set
+
+# no passthrough devices in TDX guest -- SVM has nothing to manage
+# CONFIG_INTEL_IOMMU_SVM is not set
+
+# relax IOMMU DMA from STRICT to LAZY -- encrypted memory already prevents
+# DMA snooping; STRICT flushes IOTLB on every unmap which hurts throughput
+# CONFIG_IOMMU_DEFAULT_DMA_STRICT is not set
+CONFIG_IOMMU_DEFAULT_DMA_LAZY=y
+
+# KVM hypervisor
+# CONFIG_KVM is not set
+
+
+# ==========================================================================
+# Pin defconfig-provided options
+# All of these currently come from defconfig and work fine, but would
+# silently break if upstream defaults change across kernel versions.
+# ==========================================================================
+
+# -- namespaces & cgroups (container isolation) --
+CONFIG_NAMESPACES=y
+CONFIG_NET_NS=y
+CONFIG_PID_NS=y
+CONFIG_IPC_NS=y
+CONFIG_UTS_NS=y
+CONFIG_CGROUPS=y
+CONFIG_CGROUP_CPUACCT=y
+CONFIG_CGROUP_DEVICE=y
+CONFIG_CGROUP_FREEZER=y
+CONFIG_CGROUP_SCHED=y
+CONFIG_CPUSETS=y
+CONFIG_MEMCG=y
+CONFIG_CGROUP_PIDS=y
+CONFIG_BLK_CGROUP=y
+CONFIG_KEYS=y
+
+# -- container networking (Docker/podman bridge + NAT) --
+CONFIG_VETH=y
+CONFIG_BRIDGE_NETFILTER=y
+CONFIG_IP_NF_NAT=y
+CONFIG_NF_NAT=y
+CONFIG_IP_NF_TARGET_MASQUERADE=y
+CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y
+CONFIG_OVERLAY_FS=y
+
+# -- virtio & paravirt (guest-side drivers) --
+CONFIG_VIRTIO_PCI=y
+CONFIG_PARAVIRT=y
+CONFIG_KVM_GUEST=y
+CONFIG_VIRTIO_CONSOLE=y
+CONFIG_HW_RANDOM_VIRTIO=y
+
+# -- storage --
+CONFIG_BLK_DEV_NVME=y
+CONFIG_NVME_CORE=y
+
+# -- SR-IOV for Azure accelerated networking --
+CONFIG_PCI_IOV=y
+
+# -- TDX guest core --
+CONFIG_INTEL_TDX_GUEST=y
+
+# trust CPU RDRAND for entropy
+CONFIG_RANDOM_TRUST_CPU=y
+
+
+# ==========================================================================
+# Performance
+# ==========================================================================
+
+# halt on kernel oops -- prevents exploit retries
+CONFIG_PANIC_ON_OOPS=y
+CONFIG_PANIC_TIMEOUT=0
+
+# stop timer tick when idle -- less virt overhead, standard for cloud VMs
+CONFIG_NO_HZ_IDLE=y
+# CONFIG_NO_HZ_FULL is not set
+
+# huge pages only for processes that request them via madvise(MADV_HUGEPAGE)
+# avoids latency spikes from background compaction; Reth and QEMU opt in
+# CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
