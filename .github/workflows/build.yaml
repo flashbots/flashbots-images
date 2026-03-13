@@ -10,6 +10,8 @@
 #     - "bob-l1" → builds only bob-l1
 #     - "bob-l2" → builds only bob-l2
 #     - "bob-l1,bob-l2" → builds both
+#   - Reproducibility test (default: false)
+#     - Adds a second build on a separate runner and compares SHA256 hashes
 
 name: Build mkosi images
 
@@ -29,6 +31,11 @@ on:
         required: false
         default: 'bob-l1'
         type: string
+      reprotest:
+        description: 'Run reproducibility test (builds on 2 machines and compares hashes)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   validate:
@@ -121,6 +128,7 @@ jobs:
           fi
 
       - name: Generate SHA256 checksums
+        id: checksum
         run: |
           cd build/
           TIMESTAMP=$(git show -s --format=%ct HEAD)
@@ -128,3 +136,69 @@ jobs:
           CHECKSUM_FILE="${{ matrix.image }}_${TIMESTAMP}_${SHORT_SHA}.sha256"
           sha256sum ${{ matrix.image }}_* > "$CHECKSUM_FILE"
           cat "$CHECKSUM_FILE"
+
+      - name: Upload checksum for reprotest
+        if: inputs.reprotest == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.image }}-build-1
+          path: build/*.sha256
+          retention-days: 1
+
+  reprotest-build:
+    needs: [validate, build]
+    if: inputs.reprotest == true
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.validate.outputs.matrix) }}
+    name: reprotest ${{ matrix.image }}
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y debian-archive-keyring
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Enable user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Build ${{ matrix.image }} image
+        run: |
+          umask 022
+          nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
+          sudo chown -R $(id -u):$(id -g) build/
+          sha256sum build/${{ matrix.image }}_*.efi | tee checksum.sha256
+
+      - name: Download checksum from build-1
+        uses: actions/download-artifact@v4
+        with:
+          name: checksum-${{ matrix.image }}-build-1
+          path: build-1/
+
+      - name: Compare SHA256 hashes
+        run: |
+          echo "=== Reproducibility Check for ${{ matrix.image }} ==="
+          echo "Build 1 (original):"
+          cat build-1/*.sha256
+          echo "Build 2 (reprotest):"
+          cat checksum.sha256
+
+          hash1=$(awk '{print $1}' build-1/*.sha256)
+          hash2=$(awk '{print $1}' checksum.sha256)
+
+          if [ "$hash1" = "$hash2" ]; then
+            echo "✅ SUCCESS: ${{ matrix.image }} images are identical (reproducible build verified)"
+          else
+            echo "❌ FAILURE: ${{ matrix.image }} images differ (reproducible build failed)"
+            exit 1
+          fi
