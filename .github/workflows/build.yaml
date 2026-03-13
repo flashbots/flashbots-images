@@ -128,21 +128,15 @@ jobs:
           fi
 
       - name: Generate SHA256 checksums
-        id: checksum
         run: |
-          cd build/
-          TIMESTAMP=$(git show -s --format=%ct HEAD)
-          SHORT_SHA="${GITHUB_SHA::8}"
-          CHECKSUM_FILE="${{ matrix.image }}_${TIMESTAMP}_${SHORT_SHA}.sha256"
-          sha256sum ${{ matrix.image }}_* > "$CHECKSUM_FILE"
-          cat "$CHECKSUM_FILE"
+          sha256sum build/${{ matrix.image }}_*.efi | tee build/checksum.sha256
 
       - name: Upload checksum for reprotest
         if: inputs.reprotest == true
         uses: actions/upload-artifact@v4
         with:
           name: checksum-${{ matrix.image }}-build-1
-          path: build/*.sha256
+          path: build/checksum.sha256
           retention-days: 1
 
   reprotest-build:
@@ -208,13 +202,18 @@ jobs:
       - name: Compare SHA256 hashes
         run: |
           echo "=== Reproducibility Check for ${{ matrix.image }} ==="
-          echo "Build 1:"
+          echo "Build 1 (all artifacts):"
           cat checksums/checksum-${{ matrix.image }}-build-1/*.sha256
-          echo "Build 2:"
+          echo "Build 2 (EFI only):"
           cat checksums/checksum-${{ matrix.image }}-build-2/checksum.sha256
 
-          hash1=$(awk '{print $1}' checksums/checksum-${{ matrix.image }}-build-1/*.sha256)
+          # Extract only the .efi hash from build-1 to compare with build-2
+          hash1=$(grep '\.efi$' checksums/checksum-${{ matrix.image }}-build-1/*.sha256 | awk '{print $1}')
           hash2=$(awk '{print $1}' checksums/checksum-${{ matrix.image }}-build-2/checksum.sha256)
+
+          echo ""
+          echo "EFI hash build-1: $hash1"
+          echo "EFI hash build-2: $hash2"
 
           if [ "$hash1" = "$hash2" ]; then
             echo "✅ SUCCESS: ${{ matrix.image }} images are identical (reproducible build verified)"
