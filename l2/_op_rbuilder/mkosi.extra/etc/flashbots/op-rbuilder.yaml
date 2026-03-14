@@ -5,6 +5,6 @@ op_rbuilder:
 rproxy:
   git_reference: v0.0.10-dev.8
 rust:
-  version: 1.92.0
+  version: 1.94.0
 tdx_quote_provider:
   git_reference: tdx-quote-provider/v0.1.0
