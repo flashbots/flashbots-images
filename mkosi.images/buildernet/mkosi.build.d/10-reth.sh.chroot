@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REF=fc129b99c7fe1c37ce992aa86c34848fc236e635 # v1.11.2 with the fixes
+REF=f325e69bfe66a10aa8efbf3b89e4ad37ba1b00da # v1.11.3 with the fixes
 CARGO_HOME="$BUILDDIR/.cargo"
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
 BUILDDIR="$BUILDDIR/reth"
