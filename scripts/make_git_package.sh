@@ -10,29 +10,11 @@ make_git_package() {
     # All remaining arguments are artifact mappings in src:dest format
 
     mkdir -p "$DESTDIR/usr/bin"
-    local safe_version="${version//\//_}"
-    local cache_dir="$BUILDDIR/${package}-${safe_version}"
 
-    # Use cached artifacts if available
-    if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
-        echo "Using cached artifacts for $package version $version"
-        for artifact_map in "${@:5}"; do
-            local src="${artifact_map%%:*}"
-            local dest="${artifact_map#*:}"
-            mkdir -p "$(dirname "$DESTDIR$dest")"
-            local cached_name="$(echo "$src" | tr '/' '_')"
-            if [ -d "$cache_dir/$cached_name" ]; then
-                mkdir -p "$DESTDIR$dest"
-                cp -r "$cache_dir/$cached_name"/* "$DESTDIR$dest/"
-            else
-                cp "$cache_dir/$cached_name" "$DESTDIR$dest"
-            fi
-        done
-        return 0
-    fi
-
-    # Build from source
+    # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
+    set +x # don't leak github token into logs
+    echo "Cloning ${git_url}"
     if [ -f "$BUILDDIR/.ghtoken" ]; then
         git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$(cat "$BUILDDIR/.ghtoken")@github.com}"
     fi
@@ -41,7 +23,37 @@ make_git_package() {
         git clone "$git_url" "$build_dir" &&
         git -C "$build_dir" checkout "$version"
     )
+    set -x
+
+    # Get the git reference
+    local git_describe=$( git -C "$build_dir" describe --always --long --tags )
+    printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
+
+    local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}"
+
+    # Use cached artifacts if available
+    if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
+        echo "Using cached artifacts for $package version $version"
+        echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  |   |" >> "$BUILDDIR/manifest.md"
+        for artifact_map in "${@:5}"; do
+            local src="${artifact_map%%:*}"
+            local dest="${artifact_map#*:}"
+            mkdir -p "$(dirname "$DESTDIR$dest")"
+            if [ -d "$cache_dir/$src" ]; then
+                mkdir -p "$DESTDIR$dest"
+                cp -r "$cache_dir/$src"/* "$DESTDIR$dest/"
+            else
+                cp "$cache_dir/$src" "$DESTDIR$dest"
+            fi
+        done
+        return 0
+    fi
+
+    # Build from source
+    local ts=$( date +%s )
     mkosi-chroot bash -c "unset DESTDIR && cd '/build/$package' && $build_cmd"
+    local seconds=$(( $( date +%s ) - ts ))
+    local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
 
     # Copy artifacts to image and cache
     for artifact_map in "${@:5}"; do
@@ -59,12 +71,14 @@ make_git_package() {
 
         # Cache artifact
         mkdir -p "$cache_dir"
-        local cached_name="$(echo "$src" | tr '/' '_')"
         if [ -d "$build_dir/$src" ]; then
-            mkdir -p "$cache_dir/$cached_name"
-            cp -r "$build_dir/$src"/* "$cache_dir/$cached_name/"
+            mkdir -p "$cache_dir/$src"
+            cp -r "$build_dir/$src"/* "$cache_dir/$src/"
         else
-            cp "$build_dir/$src" "$cache_dir/$cached_name"
+            mkdir -p "$( dirname $cache_dir/$src )"
+            cp "$build_dir/$src" "$cache_dir/$src"
         fi
     done
+
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }
