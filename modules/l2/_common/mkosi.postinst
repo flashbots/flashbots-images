@@ -4,8 +4,6 @@ set -euxo pipefail
 
 # Enable systemd services
 
-mkdir "$BUILDROOT/etc/systemd/system/minimal.target.wants" || true
-
 for service in \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
@@ -16,7 +14,7 @@ for service in \
     vault-agent.service
 do
     mkosi-chroot systemctl enable "$service"
-    ln -sf "/etc/systemd/system/$service" "$BUILDROOT/etc/systemd/system/minimal.target.wants/"
+    mkosi-chroot systemctl add-wants minimal.target "$service"
 done
 
 # Remove automatically generated vault cert
