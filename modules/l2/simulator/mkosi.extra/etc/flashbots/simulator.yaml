@@ -3,6 +3,6 @@ node_healthchecker:
 simulator:
   git_reference: trunk
 rproxy:
-  git_reference: v0.0.10
+  git_reference: v0.0.11
 rust:
   version: 1.93.0

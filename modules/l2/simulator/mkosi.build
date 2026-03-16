@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-ENV_YAML="$SRCDIR/l2/_simulator/mkosi.extra/etc/flashbots/simulator.yaml"
+ENV_YAML="$SRCDIR/modules/l2/simulator/mkosi.extra/etc/flashbots/simulator.yaml"
 
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r '.node_healthchecker.git_reference' < "$ENV_YAML")
 RPROXY_FEATURES=$(mkosi-chroot yq -r '.rproxy.features // ["default"] | sort | join(",")' < "$ENV_YAML")
