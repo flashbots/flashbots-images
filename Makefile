@@ -1,8 +1,10 @@
 .DEFAULT_GOAL := help
 
 VERSION := $(shell git describe --tags --always --dirty="-dev")
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
+
+FILE ?= build/latest.efi
 
 ##@ Help
 
@@ -24,85 +26,41 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure clean check-perms check-module
+.PHONY: all build build-dev setup measure clean check-module
 
 # Default target
 all: build
-
-# Ensure repo was cloned with correct permissions
-check-perms: ## Check repository permissions
-	@scripts/check_perms.sh
 
 # Setup dependencies (Linux only)
 setup: ## Install dependencies (Linux only)
 	@scripts/setup_deps.sh
 
-preflight:
-	@$(WRAPPER) echo "Ready to build"
-
 # Build module
-build: check-perms setup ## Build the specified module
-	@time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
+build: setup ## Build the specified module
+	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf
 
 # Build module with devtools profile
-build-dev: check-perms setup ## Build module with development tools
-	@time $(WRAPPER) mkosi --force --profile=devtools -I $(patsubst %.conf,%,$(IMAGE)).conf
+build-dev: setup ## Build module with development tools
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
 
 ##@ Utilities
 
-check-repro: ## Build same module twice and compare resulting images
-	@rm -rf build.1
-	@rm -rf build.2
-
-	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
-#	hack:  there's some race condition under lima that causes apt to fail while trying to
-#	       create a temp dir under apt cache
-	@sleep 15
-
-	@echo "Building image #1..."
-	time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
-	@mkdir -p build/cache
-	@mv mkosi.builddir/* build/cache/
-	@mv build build.1
-
-	@rm -rf build/* mkosi.builddir/* mkosi.cache/* mkosi.packages/*
-#	hack:  there's some race condition under lima that causes apt to fail while trying to
-#	       create a temp dir under apt cache
-	@sleep 15
-
-	@echo "Building image #2..."
-	time $(WRAPPER) mkosi --force -I $(patsubst %.conf,%,$(IMAGE)).conf
-	@mkdir -p build/cache
-	@mv mkosi.builddir/* build/cache/
-	@mv build build.2
-
-	@echo "Comparing..."
-	@for file in $$( find build.1 -type f ); do \
-		sha256sum $$file; \
-		sha256sum $${file/build1/build.2}; \
-		echo ""; \
-	done
-
 measure: ## Export TDX measurements for the built EFI file
-	@if [ ! -f build/tdx-debian.efi ]; then \
-		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
-		exit 1; \
-	fi
-	@$(WRAPPER) measured-boot build/tdx-debian.efi build/measurements.json --direct-uki
+	@$(WRAPPER) measured-boot $(FILE) build/measurements.json --direct-uki
 	echo "Measurements exported to build/measurements.json"
 
 measure-gcp: ## Export TDX measurements for GCP
-	@if [ ! -f build/tdx-debian.efi ]; then \
-		echo "Error: build/tdx-debian.efi not found. Run 'make build' first."; \
-		exit 1; \
-	fi
-	@$(WRAPPER) dstack-mr -uki build/tdx-debian.efi
+	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
+	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
 clean: ## Remove cache and build artifacts
 	rm -rf build/ mkosi.builddir/ mkosi.cache/ lima-nix/
-	@if command -v limactl >/dev/null 2>&1 && limactl list | grep -q '^tee-builder'; then \
-		echo "Stopping and deleting lima VM 'tee-builder'..."; \
-		limactl stop tee-builder || true; \
-		limactl delete tee-builder || true; \
+	@REPO_DIR="$$(pwd)"; \
+	REPO_HASH="$$(echo -n "$$REPO_DIR" | sha256sum | cut -c1-8)"; \
+	LIMA_VM="tee-builder-$$REPO_HASH"; \
+	if command -v limactl >/dev/null 2>&1 && limactl list | grep -q "^$$LIMA_VM"; then \
+		echo "Stopping and deleting Lima VM '$$LIMA_VM'..."; \
+		limactl stop "$$LIMA_VM" || true; \
+		limactl delete "$$LIMA_VM" || true; \
 	fi

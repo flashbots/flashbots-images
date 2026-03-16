@@ -1,0 +1,15 @@
+[Unit]
+Description=Report VM is ready to Azure API
+ConditionVirtualization=microsoft
+After=network-online.target tpm2.target systemd-tmpfiles-setup.service
+Wants=network-online.target tpm2.target systemd-tmpfiles-setup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/azure-complete-provisioning
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target

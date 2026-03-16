@@ -1,9 +1,0 @@
-[Unit]
-Description=Minimal System
-Requires=basic.target
-Conflicts=rescue.service rescue.target
-After=basic.target rescue.service rescue.target
-AllowIsolate=yes
-
-[Install]
-WantedBy=default.target

@@ -26,25 +26,26 @@ For more information about this repository, see
 
 ### Prerequisites
 
-In order to build images, you'll need to install [Lima](https://lima-vm.io/) for
-your operating system. Building images without Lima is possible, but due to
-inconsistencies between distributions, it is not supported for generating
-official reproducible images.
+By default, builds run inside a [Lima](https://lima-vm.io/) VM, which requires installing Lima prior to using this repository. This works on both Mac and Linux and requires no other dependencies.
+
+Alternatively, it is possible to build natively with [Nix](https://nixos.org/download/) by creating a `.bypass-lima` file in the repo root. Reproducible builds are only supported on standard Debian Bookworm/Trixie installations, but other distros with a recent systemd installation should work too. This is not the recommended way of reproducing official Flashbots images.
 
 ### Building Images
 
+Build the image:
+
 ```bash
-# Build the BOB (searcher sandbox) image
-make build IMAGE=bob
+# Build the Flashbox (searcher sandbox) image
+make build IMAGE=flashbox-l1
 
 # Build the Buildernet image
 make build IMAGE=buildernet
 
-# Build the l2 op-rbuilder image
-make build IMAGE=l2/op-builder
+# Build the l2 builder image
+make build IMAGE=l2-builder
 
 # Build with development tools
-make build-dev IMAGE=bob
+make build-dev IMAGE=flashbox-l1
 
 # View all available targets
 make help
@@ -61,6 +62,12 @@ This generates measurement files in the `build/` directory for attestation and v
 
 ### Running Images
 
+**Add yourself to the kvm group** (to run QEMU without sudo):
+```bash
+sudo usermod -aG kvm $USER
+# Log out and back in for the change to take effect
+```
+
 **Create persistent storage** (for stateful applications):
    ```bash
    qemu-img create -f qcow2 persistent.qcow2 2048G
@@ -68,14 +75,14 @@ This generates measurement files in the `build/` directory for attestation and v
 
 **Run QEMU**:
   ```bash
-  sudo qemu-system-x86_64 \
+  qemu-system-x86_64 \
     -enable-kvm \
     -machine type=q35,smm=on \
     -m 16384M \
     -nographic \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd \
     -drive file=/usr/share/edk2/x64/OVMF_VARS.4m.fd,if=pflash,format=raw \
-    -kernel build/tdx-debian.efi \
+    -kernel build/latest.efi \
     -netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::8080-:8080 \
     -device virtio-net-pci,netdev=net0 \
     -device virtio-scsi-pci,id=scsi0 \
@@ -85,14 +92,14 @@ This generates measurement files in the `build/` directory for attestation and v
 
 **With TDX confidential computing** (requires TDX-enabled hardware/hypervisor):
   ```bash
-  sudo qemu-system-x86_64 \
+  qemu-system-x86_64 \
     -accel kvm \
     -machine type=q35,kernel_irqchip=split,confidential-guest-support=tdx0 \
     -object tdx-guest,id=tdx0 \
     -cpu host,-kvm-steal-time,-kvmclock \
     -m 16384M \
     -nographic \
-    -kernel build/tdx-debian.efi \
+    -kernel build/latest.efi \
     # ... rest of options same as above
   ```
 
@@ -109,45 +116,21 @@ This generates measurement files in the `build/` directory for attestation and v
 > See [bug report #1085370](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1085370)
 > for details.
 
-## Building Without Lima (Unsupported)
+## Building Without Lima
 
-### Prerequisites
-
-1. **Install Nix** (single user mode is sufficient):
-
-    ```bash
-    sh <(curl -L https://nixos.org/nix/install) --no-daemon
-    ```
-
-2. **Enable Nix experimental features** in `~/.config/nix/nix.conf`:
+1. Install [Nix](https://nixos.org/download/) and enable flakes in `~/.config/nix/nix.conf`:
 
     ```conf
     experimental-features = nix-command flakes
     ```
 
-3. **Install Debian archive keyring** (temporary requirement):
+2. Create a `.bypass-lima` file in the repo root:
 
     ```bash
-    # On Ubuntu/Debian
-    sudo apt install debian-archive-keyring
-    # On other systems, download via package manager or use Docker approach below
+    touch .bypass-lima
     ```
 
-### Building
-
-```bash
-# Enter the development environment
-nix develop -c $SHELL
-
-# Build a specific image
-mkosi --force -I bob.conf
-mkosi --force -I buildernet.conf
-
-# Build with profiles
-mkosi --force -I bob.conf --profile=devtools
-mkosi --force -I bob.conf --profile=azure
-mkosi --force -I bob.conf --profile=azure,devtools
-```
+Then build as normal with `make build IMAGE=...`.
 
 ### Troubleshooting
 
@@ -176,9 +159,9 @@ try to disable apparmor's restriction:
   sudo -c 'echo "kernel.apparmor_restrict_unprivileged_userns=0" >> /etc/sysctl.conf'
   ```
 
-- If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu.
+- If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu/Debian.
 
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
-- [BOB Module Guide](bob-common/readme.md) - Detailed documentation for the MEV searcher environment
+- [Flashbox L1 Module Guide](modules/flashbox/flashbox-l1/readme.md) - Detailed documentation for the MEV searcher environment

@@ -1,0 +1,14 @@
+[Unit]
+Description=Fetch some configuration variables from Vault
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fetch-config.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
