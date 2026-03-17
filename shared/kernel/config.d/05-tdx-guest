@@ -69,8 +69,9 @@ CONFIG_KSTACK_ERASE=y
 # CONFIG_IOMMU_DEFAULT_DMA_STRICT is not set
 CONFIG_IOMMU_DEFAULT_DMA_LAZY=y
 
-# KVM hypervisor
+# KVM hypervisor and host-side virt acceleration
 # CONFIG_KVM is not set
+# CONFIG_VHOST_NET is not set
 
 
 # ==========================================================================
@@ -122,9 +123,6 @@ CONFIG_PCI_IOV=y
 
 # -- TDX guest core --
 CONFIG_INTEL_TDX_GUEST=y
-
-# trust CPU RDRAND for entropy
-CONFIG_RANDOM_TRUST_CPU=y
 
 
 # ==========================================================================

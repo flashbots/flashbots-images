@@ -149,6 +149,15 @@ else
     rm -rf "${kernel_build_dir}"
 fi
 
+# Validate kernel config against Flashbots TDX requirements
+kernel_config="${cache_dir}/config"
+if [[ ! -f "${kernel_config}" ]]; then
+    echo "ERROR: kernel config not found at ${kernel_config}" >&2
+    exit 1
+fi
+echo "Validating kernel config: ${kernel_config}"
+python3 "${SRCDIR}/scripts/validate_kernel_config.py" --verbose "${kernel_config}"
+
 # Copy to PACKAGEDIR for mkosi VolatilePackages installation
 cp "${cached_deb}" "${PACKAGEDIR}/"
 echo "Kernel .deb copied to PACKAGEDIR"

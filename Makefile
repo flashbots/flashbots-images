@@ -26,7 +26,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure clean check-module
+.PHONY: all build build-dev setup measure clean check-module refresh-hardening
 
 # Default target
 all: build
@@ -52,6 +52,9 @@ measure: ## Export TDX measurements for the built EFI file
 measure-gcp: ## Export TDX measurements for GCP
 	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
 	echo "GCP Measurements exported to build/gcp_measurements.json"
+
+refresh-hardening: ## Regenerate 01-hardening from kernel-hardening-checker
+	@scripts/refresh_kernel_hardening.sh
 
 # Clean build artifacts
 clean: ## Remove cache and build artifacts
