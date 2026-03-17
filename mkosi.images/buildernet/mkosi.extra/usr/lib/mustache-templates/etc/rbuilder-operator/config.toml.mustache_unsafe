@@ -2,6 +2,7 @@ adjust_finalized_blocks = true
 bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
 blocklist = "{{rbuilder.blocklist}}"
 blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
+builder_name = "{{instance_name}}"
 chain = "mainnet"
 cl_node_url = ["http://127.0.0.1:3500"]
 coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
@@ -46,7 +47,6 @@ password = "{{rbuilder.clickhouse_password}}"
 disk_database_path = "/var/lib/persistent/rbuilder-operator/failed_clickhouse.db"
 disk_max_size_mb = 100000
 memory_max_size_mb = 1024
-builder_name = "{{instance_name}}"
 send_timeout_ms = 10000
 end_timeout_ms = 10000
 

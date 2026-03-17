@@ -3,12 +3,15 @@ set -euo pipefail
 
 echo "Installing rbuilder..."
 
+OPERATOR_VERSION="1.3.11"
+REBALANCER_VERSION="1.3.11"
+
 # rbuilder-operator
-EXPECTED_SHA256=266d7e26e17663a3b75177e098c20a401ccc4f85a30c8fbf34018979240bd7bc
-curl -sSfL https://github.com/flashbots/rbuilder/releases/download/v1.3.6/rbuilder-operator_1.v1.3.6_amd64.deb -o $PACKAGEDIR/rbuilder-operator.deb
+EXPECTED_SHA256=3ccdc85d2be2547df1cc3f5117e65ae31a8b3dbdf27eaab5515a6b9733f1acc0
+curl -sSfL https://github.com/flashbots/rbuilder/releases/download/v${OPERATOR_VERSION}/rbuilder-operator_1.v${OPERATOR_VERSION}_amd64.deb -o $PACKAGEDIR/rbuilder-operator.deb
 echo "${EXPECTED_SHA256}" $PACKAGEDIR/rbuilder-operator.deb | sha256sum --check
 
 # rbuilder-rebalancer
-EXPECTED_SHA256=8fbf5af475c76657a49d5ffec45e66a073dfa1c75c08f926b64578f3f8acd955
-curl -sSfL https://github.com/flashbots/rbuilder/releases/download/v1.3.6/rbuilder-rebalancer_1.v1.3.6_amd64.deb -o $PACKAGEDIR/rbuilder-rebalancer.deb
+EXPECTED_SHA256=d722bfbe6a85a7d47e83c2d0468d39cff2293866acbfc3f0b35565d65ae23f43
+curl -sSfL https://github.com/flashbots/rbuilder/releases/download/v${REBALANCER_VERSION}/rbuilder-rebalancer_1.v${REBALANCER_VERSION}_amd64.deb -o $PACKAGEDIR/rbuilder-rebalancer.deb
 echo "${EXPECTED_SHA256}" $PACKAGEDIR/rbuilder-rebalancer.deb | sha256sum --check
