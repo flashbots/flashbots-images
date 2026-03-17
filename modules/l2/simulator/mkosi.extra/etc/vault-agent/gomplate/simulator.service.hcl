@@ -17,7 +17,6 @@ template {
         # simulator
 
         systemctl daemon-reload
-        systemctl enable simulator
 
         # patterns longer than 15 chars result in 0 matches
         PID=$( pgrep node-health ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} | true; fi

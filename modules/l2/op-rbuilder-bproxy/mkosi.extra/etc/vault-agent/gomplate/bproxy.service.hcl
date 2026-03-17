@@ -15,7 +15,6 @@ template {
     command = ["/bin/sh", "-c",
       <<-EOT
         systemctl daemon-reload
-        systemctl enable bproxy
         systemctl restart bproxy
       EOT
     ]

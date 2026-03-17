@@ -4,13 +4,9 @@ set -euxo pipefail
 
 # Enable systemd services
 
-for service in \
+mkosi-chroot systemctl add-wants minimal.target \
     node-healthchecker.service \
     tdx-quote-provider.service
-do
-    mkosi-chroot systemctl enable "$service"
-    mkosi-chroot systemctl add-wants minimal.target "$service"
-done
 
 # Create users and groups
 mkosi-chroot groupadd -g 2000    optimism                             || true

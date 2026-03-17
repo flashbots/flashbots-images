@@ -4,7 +4,7 @@ set -euxo pipefail
 
 # Enable systemd services
 
-for service in \
+mkosi-chroot systemctl add-wants minimal.target \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
     google-cloud-ops-agent.service \
@@ -12,10 +12,6 @@ for service in \
     prometheus-process-exporter.service \
     ptlb-routes-nanny.timer \
     vault-agent.service
-do
-    mkosi-chroot systemctl enable "$service"
-    mkosi-chroot systemctl add-wants minimal.target "$service"
-done
 
 # Remove automatically generated vault cert
 
