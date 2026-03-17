@@ -3,6 +3,7 @@ Name=eth* en*
 
 [Network]
 DHCP=yes
+Domains=~internal
 DNSDefaultRoute=no
 DNSOverTLS=no
 
