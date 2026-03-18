@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+if [[ ! -f /usr/lib/systemd/system/serial-console.service ]]; then
+    exit 0
+fi
+
+# Override console service (we do it in postinst b/c profiles are applied last)
+
+cat <<EOF > /usr/lib/systemd/system/serial-console.service
+[Unit]
+Description=Disabled Direct Console Shell
+After=basic.target
+
+[Service]
+ExecStart=/usr/bin/true
+Type=oneshot
+
+[Install]
+WantedBy=minimal.target
+EOF

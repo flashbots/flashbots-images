@@ -4,7 +4,7 @@ set -euxo pipefail
 
 # Enable systemd services
 
-mkosi-chroot systemctl add-wants minimal.target \
+systemctl add-wants minimal.target  \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
     google-cloud-ops-agent.service \
@@ -19,17 +19,17 @@ rm -rf "$BUILDROOT/opt/vault/tls"
 
 # Fix permissions
 
-mkosi-chroot mkdir -p   /vault/secrets
-mkosi-chroot chmod 0770 /vault/secrets
+mkdir -p   /vault/secrets
+chmod 0770 /vault/secrets
 
-mkosi-chroot chmod        0750 /etc/vault-agent
-mkosi-chroot chmod        0750 /etc/vault-agent/gomplate
-mkosi-chroot sh -c "chmod 0640 /etc/vault-agent/gomplate/*"
+chmod 0750 /etc/vault-agent
+chmod 0750 /etc/vault-agent/gomplate
+chmod 0640 /etc/vault-agent/gomplate/*
 
 # Create /etc/sysconfig secrets injection
 
-mkosi-chroot mkdir -p /etc/sysconfig
+mkdir -p /etc/sysconfig
 
 # Limit root filesystem size to 4GB
 
-mkosi-chroot sed -i '1a mount -o remount,size=4G /' /init
+sed -i '1a mount -o remount,size=4G /' /init
