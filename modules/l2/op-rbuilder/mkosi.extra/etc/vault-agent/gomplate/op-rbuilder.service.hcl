@@ -17,16 +17,16 @@ template {
         # op-rbuilder
 
         systemctl daemon-reload
-        systemctl enable op-rbuilder
+        systemctl add-wants minimal.target op-rbuilder.service
 
         # patterns longer than 15 chars result in 0 matches
-        PID=$( pgrep node-health ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} | true; fi
+        PID=$( pgrep node-health ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
         sleep 5
 
-        PID=$( pgrep rproxy ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} | true; fi
+        PID=$( pgrep rproxy ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
 
-        systemctl restart op-rbuilder
-        systemctl restart node-healthchecker
+        systemctl restart op-rbuilder.service
+        systemctl restart node-healthchecker.service
       EOT
     ]
   }
