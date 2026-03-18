@@ -48,9 +48,9 @@ build_rust_package() {
     if [ -f "$cached_binary" ]; then
         echo "Using cached binary for $package version $version"
         if [ -n "${extra_features}" ]; then
-            echo "| \`$package\` | \`$version\` (\`$git_describe\`, features: ${extra_features}) | reused from cache |   |" ">> $BUILDDIR/manifest.md"
+            echo "| \`$package\`  | \`$version\` (\`$git_describe\`, features: ${extra_features})  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" ">> $BUILDDIR/manifest.md"
         else
-            echo "| \`$package\` | \`$version\` (\`$git_describe\` | reused from cache |   |" >> "$BUILDDIR/manifest.md"
+            echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
         fi
         cp "$cached_binary" "$dest_path"
         return
@@ -93,5 +93,5 @@ build_rust_package() {
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
 
-    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$( du -sh $cached_binary | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }

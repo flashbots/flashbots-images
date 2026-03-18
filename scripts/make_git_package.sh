@@ -34,7 +34,7 @@ make_git_package() {
     # Use cached artifacts if available
     if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
         echo "Using cached artifacts for $package version $version"
-        echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  |   |" >> "$BUILDDIR/manifest.md"
+        echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  | \`$( du -sh $cache_dir | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
         for artifact_map in "${@:5}"; do
             local src="${artifact_map%%:*}"
             local dest="${artifact_map#*:}"
@@ -80,5 +80,5 @@ make_git_package() {
         fi
     done
 
-    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$( du -sh $cache_dir | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }
