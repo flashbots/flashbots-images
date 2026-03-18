@@ -1,5 +1,10 @@
 #!/bin/bash
+
 set -euxo pipefail
+
+# Enable console service
+mkosi-chroot systemctl unmask serial-console.service
+mkosi-chroot systemctl add-wants minimal.target serial-console.service
 
 # Deterministically set root password
 PASSWORD="dqSPjo4p"
