@@ -40,11 +40,11 @@ preflight:
 
 # Build module
 build: setup ## Build the specified module
-	time $(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf
 
 # Build module with devtools profile
 build-dev: setup ## Build module with development tools
-	time $(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
 
 ##@ Utilities
 
