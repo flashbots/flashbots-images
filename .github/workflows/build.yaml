@@ -1,10 +1,11 @@
 # GitHub Actions workflow for building mkosi images using Nix.
 #
 # Triggers on:
-# - Pushes to main branch: Builds all images (bob-l1, bob-l2) in parallel
+# - Pushes to main branch: Builds all images (flashbox-l1, flashbox-l2) in parallel
 #
 # - Manual dispatch: Allows specifying:
 #   - Branch to build from (default: main)
+<<<<<<< pablo/box-49-add-repro-test-ci-on-main-for-flashbox-images
 #   - Images to build (default: bob-l1)
 #     - "all" → builds bob-l1 and bob-l2
 #     - "bob-l1" → builds only bob-l1
@@ -12,6 +13,13 @@
 #     - "bob-l1,bob-l2" → builds both
 #   - Reproducibility test (default: false)
 #     - Adds a second build on a separate runner and compares SHA256 hashes
+=======
+#   - Images to build (default: flashbox-l1)
+#     - "all" → builds flashbox-l1 and flashbox-l2
+#     - "flashbox-l1" → builds only flashbox-l1
+#     - "flashbox-l2" → builds only flashbox-l2
+#     - "flashbox-l1,flashbox-l2" → builds both
+>>>>>>> main
 
 name: Build mkosi images
 
@@ -27,9 +35,9 @@ on:
         default: 'main'
         type: string
       images:
-        description: 'Images to build (comma-separated: bob-l1,bob-l2 or "all")'
+        description: 'Images to build (comma-separated: flashbox-l1,flashbox-l2 or "all")'
         required: false
-        default: 'bob-l1'
+        default: 'flashbox-l1'
         type: string
       reprotest:
         description: 'Run reproducibility test (builds on 2 machines and compares hashes)'
@@ -54,7 +62,7 @@ jobs:
             import os
             import sys
 
-            VALID_IMAGES = ["bob-l1", "bob-l2"]
+            VALID_IMAGES = ["flashbox-l1", "flashbox-l2"]
 
             event = os.environ["EVENT_NAME"]
             requested = os.environ.get("INPUT_IMAGES", "all").strip()
@@ -106,7 +114,7 @@ jobs:
       - name: Build ${{ matrix.image }} image
         run: |
           umask 022
-          nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
+          nix develop --command mkosi --force -I images/${{ matrix.image }}.conf --image-id=${{ matrix.image }}
 
       - name: Fix permissions
         run: |

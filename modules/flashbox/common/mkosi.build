@@ -6,7 +6,7 @@ source scripts/build_rust_package.sh
 
 # Compile searchersh
 mkdir -p "$DESTDIR/usr/bin"
-mkosi-chroot gcc -o "$DESTDIR/usr/bin/searchersh" "$SRCDIR/bob-common/searchersh.c"
+mkosi-chroot gcc -o "$DESTDIR/usr/bin/searchersh" "$SRCDIR/modules/flashbox/common/searchersh.c"
 chmod 755 "$DESTDIR/usr/bin/searchersh"
 
 # Compile cryptsetup
@@ -16,7 +16,7 @@ make_git_package \
     "https://gitlab.com/cryptsetup/cryptsetup" \
     './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
     ".libs/cryptsetup:/usr/sbin/cryptsetup" \
-    ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
+    ".libs/libcryptsetup.so.12.11.0:/usr/lib/x86_64-linux-gnu/libcryptsetup.so.12"
 
 # Build delay-pipe
 build_rust_package \
