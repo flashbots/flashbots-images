@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -euxo pipefail
-
-mkosi-chroot systemctl add-wants minimal.target set-hostname.service
