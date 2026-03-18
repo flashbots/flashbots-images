@@ -170,7 +170,7 @@ jobs:
       - name: Build ${{ matrix.image }} image
         run: |
           umask 022
-          nix develop --command mkosi --force -I ${{ matrix.image }}.conf --image-id=${{ matrix.image }}
+          nix develop --command mkosi --force -I images/${{ matrix.image }}.conf --image-id=${{ matrix.image }}
           sudo chown -R $(id -u):$(id -g) build/
 
       - name: Generate SHA256 checksum
