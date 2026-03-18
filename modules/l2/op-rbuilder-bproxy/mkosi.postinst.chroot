@@ -4,14 +4,11 @@ set -euxo pipefail
 
 # Enable systemd services
 
-for service in \
+systemctl add-wants minimal.target \
     node-healthchecker.service \
     tdx-quote-provider.service
-do
-    systemctl enable "$service"
-    systemctl add-wants minimal.target "$service"
-done
 
 # Create users and groups
+
 groupadd -g 2000    optimism                             || true
 useradd  -u 2002 -g optimism -m -s /bin/bash op-rbuilder || true
