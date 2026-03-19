@@ -5,6 +5,7 @@ Name=eth* en*
 DHCP=yes
 DNSDefaultRoute=no
 DNSOverTLS=no
+Domains=~internal
 
 [DHCPv4]
 UseDNS=yes

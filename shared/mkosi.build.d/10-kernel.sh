@@ -51,10 +51,18 @@ cache_hash=$(
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
 cached_deb="$cache_dir/kernel.deb"
 
+cat <<EOF > $BUILDDIR/manifest.md
+| component  | version  | built / cached  | size  | duration  |
+| ---------- | -------- | --------------- | ----- | --------- |
+EOF
+
 # Use cached kernel .deb if available
 if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
     echo "Using cached kernel .deb: $cached_deb"
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | reused from cache  | \`$( du -sh $cached_deb | cut -f1 )\`  |   |" >> $BUILDDIR/manifest.md
 else
+    ts=$( date +%s )
+
     echo "Building kernel from source..."
 
     # Build directory layout (chroot-relative paths, then host paths derived from BUILDROOT)
@@ -139,6 +147,9 @@ else
     echo "Kernel version: ${kernel_version_string}"
     echo "Built .deb: $(basename "${built_deb}")"
 
+    seconds=$(( $( date +%s ) - ts ))
+    duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
+
     # Cache the .deb
     mkdir -p "${cache_dir}"
     cp "${built_deb}" "${cached_deb}"
@@ -147,6 +158,8 @@ else
     echo "Cached kernel to: ${cache_dir}"
 
     rm -rf "${kernel_build_dir}"
+
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh $cached_deb | cut -f1 )\`  | \`$duration\`  |" >> $BUILDDIR/manifest.md
 fi
 
 # Copy to PACKAGEDIR for mkosi VolatilePackages installation

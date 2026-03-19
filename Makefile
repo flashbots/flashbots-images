@@ -35,6 +35,9 @@ all: build
 setup: ## Install dependencies (Linux only)
 	@scripts/setup_deps.sh
 
+preflight:
+	@$(WRAPPER) echo "Ready to build"
+
 # Build module
 build: setup ## Build the specified module
 	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf

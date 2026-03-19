@@ -1,0 +1,9 @@
+[Unit]
+Description=Ensure presence of local routes required for passthrough load-balancer
+
+[Timer]
+OnCalendar=*-*-* *:*:5
+Unit=ptlb-routes-nanny.service
+
+[Install]
+WantedBy=multi-user.target

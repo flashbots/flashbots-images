@@ -1,0 +1,26 @@
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=TDX quote provider
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=tdx-quote-provider
+User=root
+Group=root
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+ExecStart=/usr/bin/tdx-quote-provider \
+    --service-host 127.0.0.1 \
+    --service-port 5757 \
+    --metrics \
+    --metrics-host 0.0.0.0 \
+    --metrics-port 9009 \
+    --log-level trace \
+    --log-format json

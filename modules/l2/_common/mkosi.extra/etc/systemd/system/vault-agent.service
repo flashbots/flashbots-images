@@ -1,0 +1,33 @@
+[Unit]
+Description=HashiCorp Vault Agent
+After=network.target network-setup.service
+Requires=automount-data.service
+Wants=network-setup.service
+
+[Service]
+Type=simple
+SyslogIdentifier=vault-agent
+User=root
+Group=root
+
+KillMode=process
+KillSignal=SIGINT
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30
+
+ExecStartPre=/usr/bin/gomplate \
+    --left-delim "[[" \
+    --right-delim "]]" \
+    --input-dir "/etc/vault-agent/gomplate" \
+    --output-dir "/etc/vault-agent" \
+    --include "*.hcl,*.ctmpl"
+
+ExecStart=/usr/bin/vault agent \
+    -config /etc/vault-agent \
+    -log-level info \
+    -log-format json
+
+[Install]
+WantedBy=default.target

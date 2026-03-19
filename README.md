@@ -104,7 +104,7 @@ sudo usermod -aG kvm $USER
   ```
 
 > [!NOTE]
-> 
+>
 > Depending on your Linux distro, these commands may require changing the
 > supplied OVMF paths or installing your distro's OVMF package.
 

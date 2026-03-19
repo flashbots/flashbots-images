@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+
+set -euxo pipefail
 
 hostname=$(curl --header "Metadata-Flavor: Google" --fail --silent --show-error \
   --retry 100 --retry-delay 1 --retry-all-errors \

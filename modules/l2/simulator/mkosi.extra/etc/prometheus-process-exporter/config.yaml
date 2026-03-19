@@ -1,0 +1,13 @@
+process_names:
+  - name: node-healthchecker
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*node-healthchecker[-.0-9a-zA-Z]* '
+  - name: rproxy
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*rproxy[-.0-9a-zA-Z]* '
+  - name: simulator
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*simulator[-.0-9a-zA-Z]* '
+  - name: vault-agent
+    cmdline:
+      - '^\/([-.0-9a-zA-Z]+\/)*vault[-.0-9a-zA-Z]* '

@@ -1,0 +1,15 @@
+[Unit]
+Description=Ensure presence of local routes required for passthrough load-balancer
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=2
+StartLimitBurst=2
+
+[Service]
+User=root
+Group=root
+Type=oneshot
+ExecStart=/usr/bin/ptlb-routes-nanny.sh
+
+[Install]
+WantedBy=multi-user.target

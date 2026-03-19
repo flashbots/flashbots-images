@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Enable systemd services
+
+systemctl add-wants minimal.target \
+    node-healthchecker.service \
+    tdx-quote-provider.service
+
+# Create users and groups
+
+groupadd -g 2000    optimism                             || true
+useradd  -u 2002 -g optimism -m -s /bin/bash op-rbuilder || true

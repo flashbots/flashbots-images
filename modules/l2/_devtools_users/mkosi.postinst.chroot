@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Create users and groups
+
+groupadd -g 1000    debian                        || true
+useradd  -u 1000 -g debian -m -s /bin/bash debian || true
+
+cat <<EOF > /etc/sudoers.d/debian
+debian ALL=(ALL) NOPASSWD:ALL
+EOF
+chmod 0440 /etc/sudoers.d/debian
+
+mkdir -p            /home/debian/.ssh
+chmod 0750          /home/debian/.ssh
+chown debian:debian /home/debian/.ssh
+
+touch               /home/debian/.ssh/authorized_keys
+chmod 0600          /home/debian/.ssh/authorized_keys
+chown debian:debian /home/debian/.ssh/authorized_keys
