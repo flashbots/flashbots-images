@@ -16,7 +16,7 @@ make_git_package \
     "https://gitlab.com/cryptsetup/cryptsetup" \
     './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
     ".libs/cryptsetup:/usr/sbin/cryptsetup" \
-    ".libs/libcryptsetup.so.12.11.0:/usr/lib/libcryptsetup.so.12"
+    ".libs/libcryptsetup.so.12.11.0:/usr/lib/x86_64-linux-gnu/libcryptsetup.so.12"
 
 # Build delay-pipe
 build_rust_package \
