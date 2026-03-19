@@ -24,20 +24,3 @@ else
     mkosi-chroot systemctl unmask ssh.service ssh.socket systemd-user-sessions.service
     mkosi-chroot systemctl add-wants minimal.target ssh.service systemd-user-sessions.service
 fi
-
-# Create users and groups
-mkosi-chroot groupadd -g 1000    debian                        || true
-mkosi-chroot useradd  -u 1000 -g debian -m -s /bin/bash debian || true
-
-cat <<EOF > "$BUILDROOT/etc/sudoers.d/debian"
-debian ALL=(ALL) NOPASSWD:ALL
-EOF
-mkosi-chroot chmod 0440 /etc/sudoers.d/debian
-
-mkosi-chroot mkdir -p            /home/debian/.ssh
-mkosi-chroot chmod 0750          /home/debian/.ssh
-mkosi-chroot chown debian:debian /home/debian/.ssh
-
-mkosi-chroot touch               /home/debian/.ssh/authorized_keys
-mkosi-chroot chmod 0600          /home/debian/.ssh/authorized_keys
-mkosi-chroot chown debian:debian /home/debian/.ssh/authorized_keys
