@@ -1,9 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
-OUTPUT="tdx-debian"
-EFI_FILE="${OUTPUTDIR}/${OUTPUT}.efi"
-VHD_FILE="${OUTPUTDIR}/${OUTPUT}.vhd"
+EFI_FILE="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
+VHD_FILE="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.vhd"
 WORK_DIR="${OUTPUTDIR}/azure-tmp"
 
 if [ ! -f "$EFI_FILE" ]; then

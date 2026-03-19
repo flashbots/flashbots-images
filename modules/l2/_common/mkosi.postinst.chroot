@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Enable systemd services
+
+systemctl add-wants minimal.target  \
+    automount-data.service \
+    google-cloud-ops-agent-fluent-bit.service \
+    google-cloud-ops-agent.service \
+    prometheus-node-exporter.service \
+    prometheus-process-exporter.service \
+    ptlb-routes-nanny.timer \
+    vault-agent.service
+
+# Remove automatically generated vault cert
+
+rm -rf "$BUILDROOT/opt/vault/tls"
+
+# Fix permissions
+
+mkdir -p   /vault/secrets
+chmod 0770 /vault/secrets
+
+chmod 0750 /etc/vault-agent
+chmod 0750 /etc/vault-agent/gomplate
+chmod 0640 /etc/vault-agent/gomplate/*
+
+# Create /etc/sysconfig secrets injection
+
+mkdir -p /etc/sysconfig
+
+# Limit root filesystem size to 4GB
+
+sed -i '1a mount -o remount,size=4G /' /init

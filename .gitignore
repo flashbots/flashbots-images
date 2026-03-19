@@ -1,12 +1,15 @@
-# mkosi artifacts
+# mkosi/build artifacts
 
-build/
+.bypass-lima
+*.qcow2
 build.*/
+build/
 env.json
 mkosi.builddir/
 mkosi.cache/
 mkosi.packages/
 mkosi/
+NvVars
 
 # temporary files
 
@@ -18,5 +21,3 @@ tmp/
 .claudeignore
 .claudesync/
 .vscode
-*.qcow2
-NvVars

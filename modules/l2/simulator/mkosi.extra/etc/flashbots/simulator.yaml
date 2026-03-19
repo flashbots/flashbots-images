@@ -1,0 +1,8 @@
+node_healthchecker:
+  git_reference: v0.1.11
+simulator:
+  git_reference: trunk
+rproxy:
+  git_reference: v0.0.11
+rust:
+  version: 1.93.0

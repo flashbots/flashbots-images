@@ -51,7 +51,7 @@
     };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
-      mkosi-unwrapped = pkgsForSystem.mkosi.override {
+      mkosi-unwrapped = (pkgsForSystem.mkosi.override {
         extraDeps = with pkgsForSystem;
           [
             apt
@@ -74,13 +74,29 @@
             jq
           ]
           ++ [reprepro];
-      };
+      }).overrideAttrs (old: {
+        src = pkgsForSystem.fetchFromGitHub {
+          owner = "systemd";
+          repo = "mkosi";
+          rev = "df51194bc2d890d4c267af644a1832d2d53339ac";
+          hash = "sha256-rGGzE9xIR8WvK07GBnaAmeLpmnM3Uy51wqyrmuHuWXo=";
+        };
+        # TODO: remove these patch hunks from upstream nixpkgs next time mkosi has a release
+        # The latest mkosi doesn't need them
+        patches = pkgs.lib.drop 2 old.patches;
+        postPatch = let fd = "${pkgs.patchutils}/bin/filterdiff"; in ''
+          { ${fd} -x '*/run.py' --hunks=x2   ${builtins.elemAt old.patches 0}
+            ${fd} -i '*/run.py' --hunks=x1-2 ${builtins.elemAt old.patches 0}
+            ${fd} --hunks=x1                 ${builtins.elemAt old.patches 1}
+          } | patch -p1
+        '';
+      });
     in
       # Create a wrapper script that runs mkosi with unshare
       # Unshare is needed to create files owned by multiple uids/gids
       pkgsForSystem.writeShellScriptBin "mkosi" ''
         exec ${pkgsForSystem.util-linux}/bin/unshare \
-          --map-auto --map-current-user \
+          --map-auto --map-root-user \
           --setuid=0 --setgid=0 \
           -- \
           env PATH="$PATH" \
@@ -93,7 +109,7 @@
         nativeBuildInputs = [(mkosi system) measured-boot measured-boot-gcp];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
-          touch mkosi.builddir/debian-backports.sources
+          touch mkosi.builddir/mkosi.sources
         '';
       };
     }) ["x86_64-linux" "aarch64-linux"]);

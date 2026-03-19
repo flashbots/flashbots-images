@@ -13,14 +13,14 @@ make_git_package() {
 
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
-    set +x
+    set +x # don't leak github token into logs
     echo "Cloning ${git_url}"
     if [ -f "$BUILDDIR/.ghtoken" ]; then
-        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$( cat $BUILDDIR/.ghtoken )@github.com}"
+        git_url="${git_url/#https:\/\/github.com/https:\/\/x-access-token:$(cat "$BUILDDIR/.ghtoken")@github.com}"
     fi
     git clone --depth 1 --branch "$version" "$git_url" "$build_dir" || (
         echo "Could not clone branch/tag, attempting to checkout the commit by sha"
-        git clone -"$git_url" "$build_dir" &&
+        git clone "$git_url" "$build_dir" &&
         git -C "$build_dir" checkout "$version"
     )
     set -x
@@ -34,7 +34,7 @@ make_git_package() {
     # Use cached artifacts if available
     if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
         echo "Using cached artifacts for $package version $version"
-        echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  |   |" >> "$BUILDDIR/manifest.md"
+        echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  | \`$( du -sh $cache_dir | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
         for artifact_map in "${@:5}"; do
             local src="${artifact_map%%:*}"
             local dest="${artifact_map#*:}"
@@ -51,7 +51,7 @@ make_git_package() {
 
     # Build from source
     local ts=$( date +%s )
-    mkosi-chroot bash -c "cd '/build/$package' && $build_cmd"
+    mkosi-chroot bash -c "unset DESTDIR && cd '/build/$package' && $build_cmd"
     local seconds=$(( $( date +%s ) - ts ))
     local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
 
@@ -80,5 +80,5 @@ make_git_package() {
         fi
     done
 
-    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
+    echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$( du -sh $cache_dir | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }

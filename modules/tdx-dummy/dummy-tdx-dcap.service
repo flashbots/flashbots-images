@@ -1,0 +1,17 @@
+[Unit]
+Description=Dummy TDX DCAP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=root
+Group=root
+ExecStart=/usr/bin/dummy-tdx-dcap --listen-addr 0.0.0.0:8080
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
