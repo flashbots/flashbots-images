@@ -14,7 +14,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        # simulator
+        printf "simulator: $s\n" "$( cat /etc/systemd/system/simulator.service | base64 -w 0 )"
 
         systemctl daemon-reload
         systemctl add-wants minimal.target simulator.service

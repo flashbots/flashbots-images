@@ -14,7 +14,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        # op-rbuilder
+        printf "op-rbuilder: $s\n" "$( cat /etc/systemd/system/op-rbuilder.service | base64 -w 0 )"
 
         systemctl daemon-reload
         systemctl add-wants minimal.target op-rbuilder.service
