@@ -14,6 +14,8 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
+        printf "bproxy: %s\n" "$( cat /etc/systemd/system/bproxy.service | base64 -w 0 )"
+
         systemctl daemon-reload
         systemctl add-wants minimal.target bproxy.service
         systemctl restart bproxy.service
