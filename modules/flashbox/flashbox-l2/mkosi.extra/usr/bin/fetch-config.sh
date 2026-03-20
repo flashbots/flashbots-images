@@ -14,7 +14,7 @@ if [ -f "$CONFIG_PATH" ]; then
 fi
 
 if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
-   [ -f /etc/systemd/system/serial-console.service ]; then
+   [ -f /etc/flashbox/devmode ]; then
     echo "Running in local QEMU dev image, using default test values"
 
     # Get default gateway (host in QEMU user-mode networking)
@@ -30,8 +30,8 @@ CONFIG_NETWORK_NAME='local-testnet'
 CONFIG_JWT_SECRET='1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 CONFIG_EL_STATIC_PEERS='enode://abc123@${GATEWAY}:30303'
 CONFIG_EL_PEERS_IPS='${GATEWAY}'
-CONFIG_SIMULATOR_RPC_URL='http://${GATEWAY}:8545'
-CONFIG_SIMULATOR_WS_URL='ws://${GATEWAY}:8546'
+CONFIG_SIMULATOR_RPC_URL='http://${GATEWAY}:8601'
+CONFIG_SIMULATOR_WS_URL='ws://${GATEWAY}:8600'
 CONFIG_SIMULATOR_IP='${GATEWAY}'
 EOF
 
