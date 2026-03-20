@@ -14,7 +14,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        printf "rproxy: %s\n" "$( cat /etc/systemd/system/rproxy.service | base64 -w 0 )"
+        printf '{"@level":"info","@message":"rendered template","@destination":"/etc/systemd/system/rproxy.service","@content":"%s"}\n' "$( cat /etc/systemd/system/rproxy.service | base64 -w 0 )"
 
         systemctl daemon-reload
         systemctl add-wants minimal.target rproxy.service
