@@ -20,12 +20,15 @@ template {
   }
 
   contents = <<-EOT
-    ((- printf "# %s\n\n" "simulator" -))
+    GOOGLE_CLOUD_QUOTA_PROJECT="[[ include "gcp" "project/project-id" ]]"
+    OTEL_EXPORTER_OTLP_ENDPOINT="https://telemetry.googleapis.com"
+    OTEL_EXPORTER_OTLP_HEADERS="x-goog-user-project=[[ include "gcp" "project/project-id" ]]"
+    OTEL_RESOURCE_ATTRIBUTES="gcp.project_id=[[ include "gcp" "project/project-id" ]]"
 
-    ((- $node := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/[[ gcp.Meta "name" ]]" ).Data.data -))
+    ((- $node := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/[[ gcp.Meta "name" ]]" ).Data.data -))(( "\n" ))
 
     ((- if $node.clickhouse_password -))
-    CLICKHOUSE_PASSWORD=(( $node.clickhouse_password ))(( "\n" ))
+    CLICKHOUSE_PASSWORD="(( $node.clickhouse_password ))"(( "\n" ))
     ((- end -))
   EOT
 }
