@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+REF=f325e69bfe66a10aa8efbf3b89e4ad37ba1b00da # v1.11.3 with the fixes
+CARGO_HOME="$BUILDDIR/.cargo"
+PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
+BUILDDIR="$BUILDDIR/reth"
+CARGO_TARGET_DIR="$BUILDDIR/target"
+export CARGO_HOME="$SRCDIR/mkosi.images/buildernet/mkosi.cache/cargo"
+export SOURCE_DATE=$SOURCE_DATE_EPOCH
+
+echo "Installing reth..."
+
+mkdir -p $BUILDDIR
+
+curl -sSfL https://api.github.com/repos/flashbots/reth/tarball/${REF} | \
+  tar xzf - -C $BUILDDIR --strip-components=1
+
+cd $BUILDDIR
+
+CARGO_TARGET_DIR=$CARGO_TARGET_DIR \
+make build-reth-reproducible
+
+mkdir -p $DESTDIR/usr/bin
+cp $CARGO_TARGET_DIR/x86_64-unknown-linux-gnu/reproducible/reth $DESTDIR/usr/bin/reth
