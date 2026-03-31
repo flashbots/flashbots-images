@@ -8,7 +8,7 @@ Wants=network-setup.service
 User=root
 Group=root
 Type=oneshot
-ExecStart=/usr/bin/set-hostname-gcp
+ExecStart=/usr/bin/set-hostname-gcp.sh
 
 [Install]
 WantedBy=default.target
