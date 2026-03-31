@@ -12,6 +12,7 @@ systemctl add-wants minimal.target  \
     google-cloud-ops-agent.service \
     prometheus-node-exporter.service \
     prometheus-process-exporter.service \
+    logrotate.timer \
     ptlb-routes-nanny.timer \
     rsyslog.service \
     vault-agent.service
