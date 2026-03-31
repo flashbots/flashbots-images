@@ -6,7 +6,7 @@ set -euxo pipefail
 
 systemctl unmask syslog.socket
 
-systemctl add-wants minimal.target  \
+systemctl add-wants minimal.target \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
     google-cloud-ops-agent.service \

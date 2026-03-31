@@ -74,8 +74,8 @@ ExecStart=/usr/bin/simulator node \
     --http.api 'admin,debug,eth,net,trace,txpool' \
     --http.corsdomain '*' \
     --http.port '18645' \
-    --log.stdout.format 'json' \
     --log-pool-transactions \
+    --log.stdout.format 'json' \
     --metrics '0.0.0.0:9001' \
     --port '40404' \
     --rollup.disable-tx-pool-gossip \

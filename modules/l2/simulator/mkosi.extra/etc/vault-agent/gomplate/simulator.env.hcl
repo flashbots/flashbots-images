@@ -2,6 +2,7 @@ template {
   left_delimiter  = "(("
   right_delimiter = "))"
 
+  source      = "/etc/vault-agent/simulator.env.ctmpl"
   destination = "/etc/sysconfig/simulator.env"
 
   user  = "root"
@@ -13,22 +14,18 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        # simulator.env
-        systemctl restart simulator
+        systemctl daemon-reload
+        systemctl add-wants minimal.target simulator.service
+
+        # patterns longer than 15 chars result in 0 matches
+        PID=$( pgrep node-health ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
+        sleep 5
+
+        PID=$( pgrep rproxy ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
+
+        systemctl restart simulator.service
+        systemctl restart node-healthchecker.service
       EOT
     ]
   }
-
-  contents = <<-EOT
-    GOOGLE_CLOUD_QUOTA_PROJECT="[[ include "gcp" "project/project-id" ]]"
-    OTEL_EXPORTER_OTLP_ENDPOINT="https://telemetry.googleapis.com"
-    OTEL_EXPORTER_OTLP_HEADERS="x-goog-user-project=[[ include "gcp" "project/project-id" ]]"
-    OTEL_RESOURCE_ATTRIBUTES="gcp.project_id=[[ include "gcp" "project/project-id" ]]"
-
-    ((- $node := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/[[ gcp.Meta "name" ]]" ).Data.data -))(( "\n" ))
-
-    ((- if $node.clickhouse_password -))
-    CLICKHOUSE_PASSWORD="(( $node.clickhouse_password ))"(( "\n" ))
-    ((- end -))
-  EOT
 }

@@ -1,5 +1,22 @@
 #!/bin/bash
 
+set -euxo pipefail
+
+# fluentbit
+
 if [ ! -f "$SRCDIR/mkosi.packages/fluent-bit.deb" ]; then
-    curl -sSfL https://packages.fluentbit.io/debian/bookworm/fluent-bit_3.1.6_amd64.deb -o "$SRCDIR/mkosi.packages/fluent-bit.deb"
+  curl \
+      --fail \
+      --location \
+      --output "$SRCDIR/mkosi.packages/fluent-bit.deb" \
+      --show-error \
+      --silent \
+    https://packages.fluentbit.io/debian/bookworm/fluent-bit_3.1.6_amd64.deb
+
+  #
+  # note: to find the SHA, run and locate the package:
+  #
+  #   curl https://packages.fluentbit.io/debian/bookworm/dists/bookworm/main/binary-amd64/Packages
+  #
+  echo "50ad0ab4a3788b2739c2dfd7e2f014329c02fe5d2a03f54c36a37f5e293fd38d  $SRCDIR/mkosi.packages/fluent-bit.deb" | sha256sum -c -
 fi

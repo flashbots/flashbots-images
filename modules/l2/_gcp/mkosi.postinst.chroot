@@ -4,4 +4,6 @@ set -euxo pipefail
 
 # Enable systemd services
 
-systemctl add-wants minimal.target set-hostname.service
+systemctl add-wants minimal.target \
+    otelcol-google.service \
+    set-hostname.service

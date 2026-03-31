@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# gcp otel collector
+
+if [ ! -f "$SRCDIR/mkosi.packages/otelcol-google.deb" ]; then
+  curl \
+      --fail \
+      --location \
+      --output "$SRCDIR/mkosi.packages/otelcol-google.deb" \
+      --show-error \
+      --silent \
+    https://us-apt.pkg.dev/projects/cloud-ops-agents-artifacts/pool/google-cloud-opentelemetry-collector-apt/otelcol-google_0.148.0_amd64_77774de65d4cb60dd5a03de3a315d171.deb
+
+  #
+  # note: to find the SHA, run and locate the package:
+  #
+  #   curl https://us-apt.pkg.dev/projects/cloud-ops-agents-artifacts/dists/google-cloud-opentelemetry-collector-apt/main/binary-amd64/Packages
+  #
+  echo "a81b715e97dce93f9ebdbf5bcfc3a060515e1ba6363ff81c84cce55527df4379  $SRCDIR/mkosi.packages/otelcol-google.deb" | sha256sum -c -
+fi

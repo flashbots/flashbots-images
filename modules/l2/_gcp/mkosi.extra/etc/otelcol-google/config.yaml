@@ -1,0 +1,50 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+
+      http:
+        endpoint: 127.0.0.1:4318
+        cors:
+          allowed_origins:
+            - http://*
+
+processors:
+  batch:
+    send_batch_max_size: 200
+    send_batch_size:     200
+    timeout:             5s
+
+  memory_limiter:
+    check_interval:         1s
+    limit_percentage:       65
+    spike_limit_percentage: 20
+
+  resourcedetection:
+    detectors: [gcp]
+    timeout:   10s
+
+exporters:
+  googlecloud:
+    log:
+      default_log_name: opentelemetry.io/collector-exported-log
+
+service:
+  pipelines:
+    logs:
+      receivers:  [otlp]
+      processors: [resourcedetection, memory_limiter, batch]
+      exporters:  [googlecloud]
+
+    traces:
+      receivers:  [otlp]
+      processors: [resourcedetection, memory_limiter, batch]
+      exporters:  [googlecloud]
+
+  telemetry:
+    logs:
+      level:              info
+      encoding:           json
+      output_paths:       [stdout]
+      error_output_paths: [stderr]
