@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# v0.49.0 is not building with rust 1.89.0
-REF=dc7e79278323d1323bcafe3741d7e258b0c37fb4 #v0.49.0
+REF=2b8b875681fbf4ef8da827650f75e936f16a36a4 #v0.54.0
 CARGO_HOME="$BUILDDIR/.cargo"
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
 BUILDDIR="$BUILDDIR/vector"
@@ -29,7 +28,7 @@ CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
 CARGO_TARGET_DIR="$BUILDDIR/target"
 
 cargo build --release --locked --no-default-features \
-  --features unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-aws_cloudwatch_logs,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics
+  --features unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-clickhouse,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics
 
 mkdir -p $DESTDIR/usr/bin
 cp $CARGO_TARGET_DIR/release/vector $DESTDIR/usr/bin/vector

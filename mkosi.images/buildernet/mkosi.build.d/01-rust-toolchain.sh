@@ -2,7 +2,7 @@
 
 set -eu -o pipefail
 
-RUST_VERSION="1.88.0"
+RUST_VERSION="1.93.0"
 
 if [[ -f $BUILDDIR/rust-toolchain/bin/rustc ]]; then
   exit 0

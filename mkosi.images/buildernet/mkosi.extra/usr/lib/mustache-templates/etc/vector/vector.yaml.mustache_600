@@ -1,11 +1,11 @@
-# AWS managed Prometheus limits:
-# - Request size: 1MB
-# - Labels per metric series: 150
-# - Label size: 7KB
-# - RemoteWrite API tps per workspace: 3000
-# For more see: https://docs.aws.amazon.com/prometheus/latest/userguide/AMP_quotas.html
+{{! AWS managed Prometheus limits: }}
+{{! - Request size: 1MB }}
+{{! - Labels per metric series: 150 }}
+{{! - Label size: 7KB }}
+{{! - RemoteWrite API tps per workspace: 3000 }}
+{{! For more see: https://docs.aws.amazon.com/prometheus/latest/userguide/AMP_quotas.html }}
 
-# Switch to erb style tags to avoid conflict with vectors's use of curly braces
+{{! Switch to erb style tags to avoid conflict with vectors's use of curly braces }}
 {{=<% %>=}}
 data_dir: /var/lib/persistent/vector
 
@@ -115,37 +115,97 @@ transforms:
       .tags.<%label_key%> = "<%label_value%>"
       <%/vector.prometheus_metrics.static_configs_default_labels%>
 
-  logs_journald_message_only:
-      type: remap
-      inputs:
-        - logs_journald
-      source: |-
-        . = {
-            "message": parse_json(.message) ?? .message,
-            "host": .host,
-            "service": get!(value: ., path: ["_SYSTEMD_UNIT"]) || "catchall"
-          }
+  logs_journald_map_to_otel:
+    type: remap
+    inputs:
+      - logs_journald
+    source: |-
+      # Capture fields before replacing the event
+      ts = .timestamp
+      msg = to_string(.message) ?? ""
+      hostname = to_string(.host) ?? ""
+      unit = replace(to_string(get!(value: ., path: ["_SYSTEMD_UNIT"])) ?? "unknown", r'\.service$', "")
+      priority = to_int(get!(value: ., path: ["PRIORITY"])) ?? 6
+      pid = to_string(get!(value: ., path: ["_PID"])) ?? ""
+      comm = to_string(get!(value: ., path: ["_COMM"])) ?? ""
+      transport = to_string(get!(value: ., path: ["_TRANSPORT"])) ?? ""
+      syslog_id = to_string(get!(value: ., path: ["SYSLOG_IDENTIFIER"])) ?? ""
+      exe = to_string(get!(value: ., path: ["_EXE"])) ?? ""
+
+      # Map syslog priority to OTEL severity
+      severity_text = "UNSPECIFIED"
+      severity_number = 0
+      if priority == 0 {
+        severity_text = "FATAL"
+        severity_number = 21
+      } else if priority == 1 {
+        severity_text = "FATAL"
+        severity_number = 22
+      } else if priority == 2 {
+        severity_text = "FATAL"
+        severity_number = 23
+      } else if priority == 3 {
+        severity_text = "ERROR"
+        severity_number = 17
+      } else if priority == 4 {
+        severity_text = "WARN"
+        severity_number = 13
+      } else if priority == 5 {
+        severity_text = "INFO"
+        severity_number = 10
+      } else if priority == 6 {
+        severity_text = "INFO"
+        severity_number = 9
+      } else if priority == 7 {
+        severity_text = "DEBUG"
+        severity_number = 5
+      }
+
+      # Build the OTEL event
+      . = {
+        "Timestamp": to_unix_timestamp!(ts, unit: "nanoseconds"),
+        "TraceId": "",
+        "SpanId": "",
+        "TraceFlags": 0,
+        "SeverityText": severity_text,
+        "SeverityNumber": severity_number,
+        "ServiceName": unit,
+        "Body": msg,
+        "ResourceSchemaUrl": "",
+        "ResourceAttributes": {
+          "host.name": hostname,
+          "process.pid": pid,
+          "process.command": comm,
+          "process.executable.path": exe
+        },
+        "ScopeSchemaUrl": "",
+        "ScopeName": "vector.service",
+        "ScopeVersion": "",
+        "ScopeAttributes": {},
+        "LogAttributes": {
+          "syslog.priority": to_string(priority),
+          "systemd.transport": transport,
+          "syslog.identifier": syslog_id
+        },
+        "EventName": ""
+      }
 
 sinks:
-<%#vector.cloudwatch_logs.sinks%>
-  cloudwatch_<%name%>:
-    type: aws_cloudwatch_logs
-    healthcheck:
-      enabled: false
-    encoding:
-      codec: json
+<%#vector.clickhouse_logs.sinks%>
+  clickhouse_<%name%>:
+    type: clickhouse
     inputs:
-      - logs_journald_message_only
-    group_name: "<%log_group_name%>"
-    stream_name: "{{ host }}-{{ service }}"
-    create_missing_group: true
-    create_missing_stream: true
-    compression: gzip
-    region: <%aws_credentials.region%>
+      - logs_journald_map_to_otel
+    endpoint: <%url%>
+    database: otel
+    table: otel_logs
     auth:
-      credentials_file: /etc/vector/aws-config
-      profile: <%aws_credentials.profile_name%>
-<%/vector.cloudwatch_logs.sinks%>
+      strategy: basic
+      user: <%username%>
+      password: <%password%>
+    healthcheck:
+      enabled: true
+<%/vector.clickhouse_logs.sinks%>
 
 <%#vector.prometheus_metrics.sinks%>
   prometheus_<%name%>:
