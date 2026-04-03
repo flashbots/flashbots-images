@@ -131,6 +131,10 @@ transforms:
       transport = to_string(get!(value: ., path: ["_TRANSPORT"])) ?? ""
       syslog_id = to_string(get!(value: ., path: ["SYSLOG_IDENTIFIER"])) ?? ""
       exe = to_string(get!(value: ., path: ["_EXE"])) ?? ""
+      buildernet_org_network = ""
+      <%#vector.prometheus_metrics.static_configs_default_labels%>
+      if "<%label_key%>" == "buildernet_org_network" { buildernet_org_network = "<%label_value%>" }
+      <%/vector.prometheus_metrics.static_configs_default_labels%>
 
       # Map syslog priority to OTEL severity
       severity_text = "UNSPECIFIED"
@@ -173,6 +177,7 @@ transforms:
         "Body": msg,
         "ResourceSchemaUrl": "",
         "ResourceAttributes": {
+          "deployment.environment.name": "buildernet-" + buildernet_org_network,
           "host.name": hostname,
           "process.pid": pid,
           "process.command": comm,
