@@ -137,33 +137,75 @@ transforms:
       <%/vector.prometheus_metrics.static_configs_default_labels%>
 
       # Map syslog priority to OTEL severity
-      severity_text = "UNSPECIFIED"
+      severity_text = "unspecified"
       severity_number = 0
       if priority == 0 {
-        severity_text = "FATAL"
+        severity_text = "fatal"
         severity_number = 21
       } else if priority == 1 {
-        severity_text = "FATAL"
+        severity_text = "fatal"
         severity_number = 22
       } else if priority == 2 {
-        severity_text = "FATAL"
+        severity_text = "fatal"
         severity_number = 23
       } else if priority == 3 {
-        severity_text = "ERROR"
+        severity_text = "error"
         severity_number = 17
       } else if priority == 4 {
-        severity_text = "WARN"
+        severity_text = "warn"
         severity_number = 13
       } else if priority == 5 {
-        severity_text = "INFO"
+        severity_text = "info"
         severity_number = 10
       } else if priority == 6 {
-        severity_text = "INFO"
+        severity_text = "info"
         severity_number = 9
       } else if priority == 7 {
-        severity_text = "DEBUG"
+        severity_text = "debug"
         severity_number = 5
       }
+
+      # Shared values used in both LogAttributes and Body envelope
+      ts_formatted = format_timestamp!(ts, format: "%Y-%m-%dT%H:%M:%S%.6f%:z")
+      str_priority = to_string(priority)
+
+      # Build LogAttributes
+      log_attrs = {
+        "procid": pid,
+        "source": syslog_id,
+        "sysloghost": hostname,
+        "severity": severity_text,
+        "@timestamp": ts_formatted,
+        "log.file.name": "journald",
+        "process.command": comm,
+        "process.executable.path": exe,
+        "syslog.priority": str_priority,
+        "syslog.identifier": syslog_id,
+        "systemd.transport": transport
+      }
+
+      # Try to parse JSON body and extract structured fields into LogAttributes
+      parsed = parse_json(msg) ?? {}
+      msg_ts = to_string(parsed.timestamp) ?? ""
+      if msg_ts != "" { log_attrs."message.timestamp" = msg_ts }
+      msg_level = to_string(parsed.level) ?? ""
+      if msg_level != "" { log_attrs."message.level" = msg_level }
+      msg_target = to_string(parsed.target) ?? ""
+      if msg_target != "" { log_attrs."message.target" = msg_target }
+      fields = object(parsed.fields) ?? {}
+      fields_msg = to_string(fields.message) ?? ""
+      if fields_msg != "" { log_attrs."message.fields.message" = fields_msg }
+
+      # Build composite Body wrapping raw message in syslog-like envelope
+      body = to_string(encode_json({
+        "@timestamp": ts_formatted,
+        "sysloghost": log_attrs.sysloghost,
+        "procid": log_attrs.procid,
+        "facility": "daemon",
+        "severity": log_attrs.severity,
+        "source": log_attrs.source,
+        "message": parsed
+      }))
 
       # Build the OTEL event
       . = {
@@ -174,24 +216,17 @@ transforms:
         "SeverityText": severity_text,
         "SeverityNumber": severity_number,
         "ServiceName": unit,
-        "Body": msg,
-        "ResourceSchemaUrl": "",
+        "Body": body,
+        "ResourceSchemaUrl": "https://opentelemetry.io/schemas/1.38.0",
         "ResourceAttributes": {
           "deployment.environment.name": "buildernet-" + buildernet_org_network,
-          "host.name": hostname,
-          "process.pid": pid,
-          "process.command": comm,
-          "process.executable.path": exe
+          "host.name": hostname
         },
         "ScopeSchemaUrl": "",
         "ScopeName": "vector.service",
         "ScopeVersion": "",
         "ScopeAttributes": {},
-        "LogAttributes": {
-          "syslog.priority": to_string(priority),
-          "systemd.transport": transport,
-          "syslog.identifier": syslog_id
-        },
+        "LogAttributes": log_attrs,
         "EventName": ""
       }
 
