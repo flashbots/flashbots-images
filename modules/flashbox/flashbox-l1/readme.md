@@ -6,7 +6,6 @@ Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun 
 - [TDX Mental Model](#tdx-mental-model)
 - [Image Overview](#image-overview)
 - [Firewall Rules](#firewall-rules)
-- [Machine Specs and Cost](#machine-specs-and-cost)
 - [Attestation Walkthrough](#attestation-walkthrough)
 - [Order Flow APIs](#order-flow-apis)
   - [Flashbots Protect](#searching-on-flashbots-protect-transactions)
@@ -95,40 +94,6 @@ iptables -A OUTPUT -p udp --dport 123 -j DROP
 **<u>ipv6</u>**
 
 iptables only covers ipv4. For security purposes, we block ipv6 with a kernel flag!
-
-Machine Specs and Cost
-------------------------
-
-Currently, we deploy Azure’s [DCesv5-series Confidential VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dcesv5-series?tabs=sizebasic). Unfortunately, these are expensive. For reference, Flashbots production TDX builders run in [Standard_EC32es_v5](https://buildernet.org/docs/operating-a-node#microsoft-azure-cloud) with 32 vCPUs and 2TB Disk, which is $2600/month. [Egress](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) (data transferred out of Azure data centers) costs ~$0.087/GB, and historically this costs TEE searchers $150/month.
-
-In the future, we hope to add bare metal support, which will lower this cost dramatically.
-
-We place searcher machines in Azure US East 2 to colocate with builders.
-
-**To begin integration, please message @astarinmymind on Telegram with your desired machine and disk size from the table below. Searchers who integrate will be expected to pay their monthly machine costs up front!**
-
-**<u>Machine</u>**
-| Name       | CPU | Mem (GB) | Price (USD) |
-|------------|-----|----------|-------------|
-| DC2es_v5   | 2   | 8        | $70.08      |
-| DC4es_v5   | 4   | 16       | $140.16     |
-| DC8es_v5   | 8   | 32       | $280.32     |
-| DC16es_v5  | 16  | 64       | $560.64     |
-| DC32es_v5  | 32  | 128      | $1,121.28   |
-| DC48es_v5  | 48  | 192      | $1,681.92   |
-| DC64es_v5  | 64  | 256      | $2,242.56   |
-| DC96es_v5  | 96  | 384      | $3,363.84   |
-
-**<u>Disk</u>**
-| Size | Price (USD) |
-|------|-------------|
-| 1TB  | $123        |
-| 2TB  | $235        |
-| 4TB  | $450        |
-
-**<u>Egress</u>**
-
-~$0.087/GB, current TEE searchers pay ~$150/month
 
 Attestation Walkthrough
 ------------------------
