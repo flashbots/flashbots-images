@@ -14,7 +14,7 @@ if [ -f "$CONFIG_PATH" ]; then
 fi
 
 if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
-   [ -f /etc/flashbox/devmode ]; then
+   [ -f /etc/devmode ]; then
     echo "Running in local QEMU dev image, using default test values"
 
     # Get default gateway (host in QEMU user-mode networking)
