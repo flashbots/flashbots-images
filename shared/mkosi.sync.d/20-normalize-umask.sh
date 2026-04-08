@@ -1,3 +1,3 @@
 #!/bin/bash
 set -euo pipefail
-chmod -cR go-w "$SRCDIR"
+find "$SRCDIR" -mindepth 1 -not -type l -exec chmod go-w {} +
