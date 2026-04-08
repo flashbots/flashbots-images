@@ -47,9 +47,16 @@ make build IMAGE=l2-builder
 # Build with development tools
 make build-dev IMAGE=flashbox-l1
 
+# Build dev image with serial console + password auth enabled
+make build-dev IMAGE=flashbox-l1 SERIAL_CONSOLE=true
+
 # View all available targets
 make help
 ```
+
+#### Serial console
+
+Pass `SERIAL_CONSOLE=true` to enable the serial console service and password authentication. This also sets a fixed root password (`dqSPjo4p`) for SSH login, so only use this for local development/debugging.
 
 ### Measuring TDX Boot Process
 
