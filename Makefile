@@ -5,6 +5,7 @@ SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
 FILE ?= build/latest.efi
+SERIAL_CONSOLE ?= false
 
 ##@ Help
 
@@ -43,8 +44,9 @@ build: setup ## Build the specified module
 	$(WRAPPER) mkosi --force --image-id $(IMAGE) --include=images/$(IMAGE).conf
 
 # Build module with devtools profile
+build-dev: SERIAL_CONSOLE_PROFILE := $(if $(filter true,$(SERIAL_CONSOLE)),serial-console,)
 build-dev: setup ## Build module with development tools
-	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools,$(SERIAL_CONSOLE_PROFILE) --include=images/$(IMAGE).conf
 
 ##@ Utilities
 
