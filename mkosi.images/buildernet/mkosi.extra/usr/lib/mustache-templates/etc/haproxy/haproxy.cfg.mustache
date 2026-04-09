@@ -4,6 +4,8 @@ global
   # System limits configuration
   ulimit-n 32768
 
+  log /dev/log local0
+
   stats socket /run/haproxy/admin.sock level admin mode 660
   tune.h2.initial-window-size 1048576
   # tune.h2.fe.rxbuf 5242880 # only supported in 3.2
@@ -16,20 +18,21 @@ defaults
   timeout server 60s
   timeout http-request 10s
   timeout http-keep-alive 30s
-  log global
-
   compression algo gzip
   compression type text/html text/plain application/json
 
 frontend default
   bind *:80
   bind *:443 ssl crt /var/lib/persistent/haproxy/certs/ strict-sni
+  log global
+  log-format '{"type":"request","src":"%ci","src_port":%cp,"status":%ST,"request":"%[capture.req.uri,json]","method":"%[capture.req.method,json]","sender":"%[var(txn.sender),json]","rate_limit_reason":"%[var(txn.rate_limit_reason),json]"}'
+  error-log-format '{"type":"error","src":"%ci","src_port":%cp,"status":%ST,"error":"%[fc_err_str,json]"}'
 
   # Force HTTPS redirect
   http-request redirect scheme https code 301 unless { ssl_fc }
 
   # Define ACLs for privileged IPs
-  acl privileged_ip src -f /etc/haproxy/privileged_ips.lst
+  acl privileged_ip src,map(/etc/haproxy/privileged_ips.map) -m found
 
   # Stick table to track connections and bandwidth
   stick-table type ip size 100k expire 5m store conn_rate(10s),bytes_in_rate(1m),conn_cur,http_req_rate(10s)
@@ -37,20 +40,31 @@ frontend default
   # Track client in stick table
   http-request track-sc0 src
 
+  # Resolve sender name from privileged IPs map
+  http-request set-var(txn.sender) src,map(/etc/haproxy/privileged_ips.map)
+
   # Connection rate limits (connections per 10 seconds)
+  http-request set-var(txn.rate_limit_reason) str(conn_rate) if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
   http-request deny deny_status 429 if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
+  http-request set-var(txn.rate_limit_reason) str(conn_rate) if privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
   http-request deny deny_status 429 if privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
 
   # Concurrent connections per IP
+  http-request set-var(txn.rate_limit_reason) str(total_conn) if !privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_regular}} }
   http-request deny deny_status 429 if !privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_regular}} }
+  http-request set-var(txn.rate_limit_reason) str(total_conn) if privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_privileged}} }
   http-request deny deny_status 429 if privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_privileged}} }
 
   # Bandwidth limits (bytes per minute)
+  http-request set-var(txn.rate_limit_reason) str(bytes_in_rate) if !privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_regular}} }
   http-request deny deny_status 429 if !privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_regular}} }
+  http-request set-var(txn.rate_limit_reason) str(bytes_in_rate) if privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_privileged}} }
   http-request deny deny_status 429 if privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_privileged}} }
 
   # HTTP request rate limits (requests per 10 seconds)
+  http-request set-var(txn.rate_limit_reason) str(http_req_rate) if !privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_regular}} }
   http-request deny deny_status 429 if !privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_regular}} }
+  http-request set-var(txn.rate_limit_reason) str(http_req_rate) if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
   http-request deny deny_status 429 if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
 
   http-request return status 200 content-type text/plain string "OK\n" if { path '/livez' }
