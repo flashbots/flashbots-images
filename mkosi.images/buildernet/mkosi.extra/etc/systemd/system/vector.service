@@ -9,6 +9,7 @@ User=vector
 SupplementaryGroups=systemd-journal
 ConfigurationDirectory=vector
 StateDirectory=persistent/vector
+Environment=VECTOR_LOG_FORMAT=json
 ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStartPre=/usr/bin/vector validate
 ExecStart=/usr/bin/vector

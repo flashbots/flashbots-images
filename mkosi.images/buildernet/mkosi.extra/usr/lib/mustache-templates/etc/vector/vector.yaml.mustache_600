@@ -96,6 +96,66 @@ transforms:
     source: |-
       .tags.job = "acme-le"
 
+  haproxy_logs_filter:
+    type: filter
+    inputs:
+      - logs_journald
+    condition:
+      type: vrl
+      source: |-
+        syslog_id = to_string(get!(value: ., path: ["SYSLOG_IDENTIFIER"])) ?? ""
+        syslog_id == "haproxy"
+
+  haproxy_logs_parse:
+    type: remap
+    inputs:
+      - haproxy_logs_filter
+    source: |-
+      parsed = parse_json!(.message)
+      .haproxy_type = to_string(parsed.type) ?? ""
+      .haproxy_status = to_string(parsed.status) ?? ""
+      .haproxy_src = to_string(parsed.src) ?? ""
+      .haproxy_sender = to_string(parsed.sender) ?? ""
+      .haproxy_rate_limit_reason = to_string(parsed.rate_limit_reason) ?? ""
+
+  haproxy_log_metrics:
+    type: log_to_metric
+    inputs:
+      - haproxy_logs_parse
+    metrics:
+      - type: counter
+        field: haproxy_type
+        namespace: haproxy
+        name: frontend_enriched_requests_total
+        tags:
+          status: "{{haproxy_status}}"
+          sender: "{{haproxy_sender}}"
+      - type: counter
+        field: haproxy_rate_limit_reason
+        namespace: haproxy
+        name: frontend_rate_limited_total
+        tags:
+          src: "{{haproxy_src}}"
+          sender: "{{haproxy_sender}}"
+          reason: "{{haproxy_rate_limit_reason}}"
+
+  haproxy_log_metrics_filter:
+    type: filter
+    inputs:
+      - haproxy_log_metrics
+    condition:
+      type: vrl
+      source: |-
+        # Only emit rate_limited_total when there is an actual reason
+        .name != "frontend_rate_limited_total" || ((to_string(.tags.reason) ?? "") != "" && (to_string(.tags.reason) ?? "") != "-" && (to_string(.tags.sender) ?? "") != "" && (to_string(.tags.sender) ?? "") != "-")
+
+  metrics_job_haproxy_logs:
+    type: remap
+    inputs:
+      - haproxy_log_metrics_filter
+    source: |-
+      .tags.job = "haproxy"
+
   metrics_cardinality_limit:
     type: tag_cardinality_limit
     inputs:
