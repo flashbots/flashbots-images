@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Note env variables: DESTDIR, BUILDROOT, GOCACHE, BUILDDIR
 
