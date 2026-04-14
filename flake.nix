@@ -113,7 +113,6 @@
           bash
           curl
           git
-          jq
         ];
         shellHook = ''
           mkdir -p mkosi.packages mkosi.cache mkosi.builddir ~/.cache/mkosi
