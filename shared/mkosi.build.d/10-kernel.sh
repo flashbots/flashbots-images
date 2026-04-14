@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 shopt -s inherit_errexit  # propagate errexit to $() subshells
 shopt -s nullglob         # non-matching globs expand to nothing
