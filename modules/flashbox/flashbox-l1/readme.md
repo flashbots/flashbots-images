@@ -105,8 +105,6 @@ In the future, we hope to add bare metal support, which will lower this cost dra
 
 We place searcher machines in Azure US East 2 to colocate with builders.
 
-**To begin integration, please message @astarinmymind on Telegram with your desired machine and disk size from the table below. Searchers who integrate will be expected to pay their monthly machine costs up front!**
-
 **<u>Machine</u>**
 | Name       | CPU | Mem (GB) | Price (USD) |
 |------------|-----|----------|-------------|
