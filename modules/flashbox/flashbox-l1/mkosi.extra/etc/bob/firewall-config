@@ -62,6 +62,11 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
+# Observability metrics endpoint (loaded from /etc/flashbox/observability.env)
+if [ -n "${METRICS_ENDPOINT:-}" ]; then
+    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT" $HTTPS_PORT "Metrics endpoint (Flashbots)"
+fi
+
 # Titan builder bundle endpoints (always on)
 # Security note: This is a side channel.
 # While the operator will not be able to see the content of the packets,
