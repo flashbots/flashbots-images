@@ -161,6 +161,19 @@ try to disable apparmor's restriction:
 
 - If you encounter `bootctl: unrecognized option '--root=/buildroot'`, you'll need to upgrade to a newer version of systemd (at least v250), which is only supported by recent versions of Ubuntu/Debian.
 
+## Benchmarking
+
+The `benchmark` mkosi profile adds benchmarking tools to any image. See [mkosi.profiles/benchmark/mkosi.conf](mkosi.profiles/benchmark/mkosi.conf) for installed packages.
+
+```bash
+# Build with benchmark profile
+make build-bench IMAGE=flashbox-l1
+```
+
+There are two benchmark suites that can be run separately or together: one for kernel-level overhead (useful for measuring impact of kernel config changes) and one for application-level performance (CPU, disk I/O, network, entropy). Run `bench-all.sh` inside the VM to execute both.
+
+Before benchmarking, a preflight check detects resource-heavy services (e.g. lighthouse, searcher) and offers to stop them so they don't skew results. A short warmup pass runs first to burn off cold-start spikes.
+
 ## 📖 Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Comprehensive guide for creating new modules and extending existing ones
