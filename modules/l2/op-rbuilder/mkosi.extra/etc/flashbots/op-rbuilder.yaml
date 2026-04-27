@@ -1,7 +1,7 @@
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
-  git_reference: op-rbuilder/v0.4.3-rc.8-payload-id-fix.1
+  git_reference: op-rbuilder/v0.4.3
 rproxy:
   git_reference: v0.0.11
 rust:
