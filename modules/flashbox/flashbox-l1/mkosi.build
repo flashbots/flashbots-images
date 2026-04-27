@@ -12,7 +12,7 @@ LIGHTHOUSE_BUILD_CMD="
     export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
     cargo build --bin lighthouse \
-        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,sysmalloc \
+        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,jemalloc-unprefixed \
         --profile release \
         --locked \
         --target x86_64-unknown-linux-gnu
