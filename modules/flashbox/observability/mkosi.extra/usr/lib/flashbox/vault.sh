@@ -1,12 +1,28 @@
 #!/bin/sh
-# Vault auth (GCP backend) and KV reads.
+# Vault auth (GCP backend) and secret fetch.
+#
+# Reads bootstrap config from GCE instance metadata, authenticates to Vault
+# using the instance identity JWT, fetches the shared secret blob, and
+# exports every key in the blob as an uppercase env var.
 
-# Authenticate to Vault using the GCE instance identity JWT.
-# Args: $1 = instance name (used as audience and role), $2 = vault addr,
-#       $3 = vault auth mount path (e.g. "auth/gcp/l1-flashbox")
-# Stdout: vault client token. Returns non-zero on failure.
-vault_login_gcp() {
-    local instance_name="$1" vault_addr="$2" auth_mount="$3"
+_gce_metadata_get() {
+    curl -sf --header "Metadata-Flavor: Google" \
+        "http://metadata/computeMetadata/v1/instance/$1"
+}
+
+# Authenticate to Vault and fetch the shared secret blob. Each key in the
+# secret is exported as `<UPPERCASE_KEY>=<value>` (e.g. `metrics_flashbots_url`
+# becomes `METRICS_FLASHBOTS_URL`).
+#
+# Returns non-zero on any failure (metadata unreachable, auth failure,
+# secret not found, malformed response). Exports nothing in that case.
+vault_fetch() {
+    local instance_name vault_addr auth_mount kv_path kv_common_suffix
+    instance_name=$(_gce_metadata_get name) || return 1
+    vault_addr=$(_gce_metadata_get attributes/vault_addr) || return 1
+    auth_mount=$(_gce_metadata_get attributes/vault_auth_mount_gcp) || return 1
+    kv_path=$(_gce_metadata_get attributes/vault_kv_path) || return 1
+    kv_common_suffix=$(_gce_metadata_get attributes/vault_kv_common_suffix) || return 1
 
     local gcp_token
     gcp_token=$(curl -sf \
@@ -14,24 +30,27 @@ vault_login_gcp() {
         --data-urlencode "audience=http://vault/${instance_name}" \
         --data-urlencode "format=full" \
         "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity") || return 1
-
     [ -n "$gcp_token" ] || return 1
 
-    curl -sf \
+    local vault_token
+    vault_token=$(curl -sf \
         --data "$(printf '{"role":"%s","jwt":"%s"}' "$instance_name" "$gcp_token")" \
         "${vault_addr}/v1/${auth_mount}/login" \
-        | jq -re .auth.client_token
-}
+        | jq -re .auth.client_token) || return 1
 
-# Read a Vault KV v2 secret.
-# Args: $1 = vault addr, $2 = vault token, $3 = full KV API path
-#       (e.g. "secret/data/foo/bar")
-# Stdout: the secret's `.data.data` JSON. Returns non-zero on failure.
-vault_kv_get() {
-    local vault_addr="$1" token="$2" path="$3"
+    local secret_data
+    secret_data=$(curl -sf \
+        --header "X-Vault-Token: ${vault_token}" \
+        "${vault_addr}/v1/${kv_path}/node/${kv_common_suffix}" \
+        | jq -ce .data.data) || return 1
 
-    curl -sf \
-        --header "X-Vault-Token: ${token}" \
-        "${vault_addr}/v1/${path}" \
-        | jq -ce .data.data
+    local keys
+    keys=$(echo "$secret_data" | jq -r 'keys[]') || return 1
+
+    local key upper_key value
+    for key in $keys; do
+        upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+        value=$(echo "$secret_data" | jq -rc --arg k "$key" '.[$k] // ""')
+        export "${upper_key}=${value}"
+    done
 }
