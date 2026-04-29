@@ -1,0 +1,109 @@
+#!/bin/sh
+set -eu -o pipefail
+
+# Boot-time observability setup:
+#   - reads instance metadata
+#   - authenticates to Vault (GCP backend) and fetches remote_write creds
+#   - writes /etc/flashbox/observability.env (sourced by firewall)
+#   - renders /etc/prometheus/prometheus.yml from the base config plus an
+#     optional remote_write fragment
+#
+# On any failure (Vault unreachable, missing secret, missing fields) this
+# script writes sane defaults and exits 0. Boot must never fail because of
+# observability.
+
+OBSERVABILITY_DIR=/etc/flashbox
+OBSERVABILITY_ENV_PATH="$OBSERVABILITY_DIR/observability.env"
+
+PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
+PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml
+PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
+
+. /usr/lib/flashbox/metadata.sh
+. /usr/lib/flashbox/vault.sh
+. /usr/lib/flashbox/render.sh
+
+mkdir -p "$OBSERVABILITY_DIR"
+
+write_firewall_env() {
+    local endpoint="${1:-}"
+    cat > "$OBSERVABILITY_ENV_PATH" <<EOF
+METRICS_ENDPOINT='${endpoint}'
+EOF
+}
+
+# Default state: base config only, firewall closed to metrics endpoint.
+cp "$PROMETHEUS_BASE" "$PROMETHEUS_CONFIG"
+write_firewall_env ""
+
+# Local QEMU dev: skip Vault entirely.
+if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
+   [ -f /etc/systemd/system/serial-console.service ]; then
+    echo "QEMU dev environment, skipping observability config fetch"
+    exit 0
+fi
+
+echo "Fetching observability config from Vault..."
+
+instance_name=$(gce_metadata_get name) || {
+    echo "WARNING: could not fetch instance name from GCE metadata, skipping"
+    exit 0
+}
+vault_addr=$(gce_metadata_get attributes/vault_addr) || {
+    echo "WARNING: could not fetch vault_addr from GCE metadata, skipping"
+    exit 0
+}
+vault_auth_mount=$(gce_metadata_get attributes/vault_auth_mount_gcp) || {
+    echo "WARNING: could not fetch vault_auth_mount_gcp from GCE metadata, skipping"
+    exit 0
+}
+vault_kv_path=$(gce_metadata_get attributes/vault_kv_path) || {
+    echo "WARNING: could not fetch vault_kv_path from GCE metadata, skipping"
+    exit 0
+}
+vault_kv_common_suffix=$(gce_metadata_get attributes/vault_kv_common_suffix) || {
+    echo "WARNING: could not fetch vault_kv_common_suffix from GCE metadata, skipping"
+    exit 0
+}
+
+vault_token=$(vault_login_gcp "$instance_name" "$vault_addr" "$vault_auth_mount") || {
+    echo "WARNING: could not authenticate with Vault, skipping"
+    exit 0
+}
+
+secret_data=$(vault_kv_get "$vault_addr" "$vault_token" "${vault_kv_path}/node/${vault_kv_common_suffix}") || {
+    echo "WARNING: could not fetch Vault data, skipping"
+    exit 0
+}
+
+METRICS_URL=$(echo "$secret_data" | jq -rc '.metrics_flashbots_url // ""')
+METRICS_USERNAME=$(echo "$secret_data" | jq -rc '.metrics_flashbots_username // ""')
+METRICS_PASSWORD=$(echo "$secret_data" | jq -rc '.metrics_flashbots_password // ""')
+
+if [ -z "$METRICS_URL" ]; then
+    echo "No metrics URL configured, remote_write disabled"
+    exit 0
+fi
+
+if [ -z "$METRICS_USERNAME" ] || [ -z "$METRICS_PASSWORD" ]; then
+    echo "WARNING: metrics URL set but basic_auth credentials are missing, remote_write disabled"
+    exit 0
+fi
+
+# Extract IPv4 literal for firewall egress allowlist.
+endpoint=$(echo "$METRICS_URL" | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | head -1 || true)
+if [ -z "$endpoint" ]; then
+    echo "WARNING: metrics URL is not an IPv4 literal, firewall egress will not be opened — remote_write will be blocked"
+fi
+
+write_firewall_env "$endpoint"
+
+# Append the remote_write fragment to the base prometheus config.
+export METRICS_URL METRICS_USERNAME METRICS_PASSWORD
+fragment=$(mktemp)
+trap 'rm -f "$fragment"' EXIT
+
+render_envsubst "$PROMETHEUS_REMOTE_WRITE" "$fragment"
+cat "$fragment" >> "$PROMETHEUS_CONFIG"
+
+echo "Observability config written (endpoint: ${endpoint:-none})"
