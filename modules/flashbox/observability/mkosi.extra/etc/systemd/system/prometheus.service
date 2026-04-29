@@ -1,15 +1,13 @@
 [Unit]
 Description=Prometheus Monitoring System
 Documentation=https://prometheus.io/docs/introduction/overview/
-After=network-online.target fetch-observability-config.service
+After=network-online.target flashbox-observability-setup.service
 Wants=network-online.target
-Requires=fetch-observability-config.service
 
 [Service]
 Type=simple
 User=prometheus
 Group=prometheus
-ExecStartPre=+/usr/bin/gomplate -f /etc/prometheus/prometheus.yml.tmpl -o /etc/prometheus/prometheus.yml -d config=/etc/flashbox/observability-config.json
 ExecStart=/usr/bin/prometheus \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/var/lib/prometheus/ \
