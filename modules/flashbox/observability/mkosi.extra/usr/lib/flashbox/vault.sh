@@ -11,8 +11,9 @@ _gce_metadata_get() {
 }
 
 # Authenticate to Vault and fetch the shared secret blob. Each key in the
-# secret is exported as `<UPPERCASE_KEY>=<value>` (e.g. `metrics_flashbots_url`
-# becomes `METRICS_FLASHBOTS_URL`).
+# secret is exported as `<KEY>=<value>` verbatim — store keys in Vault with
+# the exact casing you want as the env var name (UPPER_SNAKE_CASE by
+# convention).
 #
 # Returns non-zero on any failure (metadata unreachable, auth failure,
 # secret not found, malformed response). Exports nothing in that case.
@@ -47,10 +48,9 @@ vault_fetch() {
     local keys
     keys=$(echo "$secret_data" | jq -r 'keys[]') || return 1
 
-    local key upper_key value
+    local key value
     for key in $keys; do
-        upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
         value=$(echo "$secret_data" | jq -rc --arg k "$key" '.[$k] // ""')
-        export "${upper_key}=${value}"
+        export "${key}=${value}"
     done
 }
