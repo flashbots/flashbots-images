@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Ensure prometheus owns its data directory
+mkosi-chroot chown -R prometheus:prometheus /var/lib/prometheus
+
+# Enable observability services
+mkosi-chroot systemctl add-wants minimal.target \
+    flashbox-observability-setup.service \
+    prometheus.service \
+    node-exporter.service \
+    process-exporter.service

@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu -o pipefail
+
+# Boot-time observability setup: fetch metrics creds from Vault, render
+# /etc/prometheus/prometheus.yml, and write the firewall env file.
+#
+# On any failure (Vault unreachable, missing secret, missing fields) this
+# script writes sane defaults and exits 0. Boot must never fail because of
+# observability.
+
+OBSERVABILITY_DIR=/etc/flashbox
+OBSERVABILITY_ENV_PATH="$OBSERVABILITY_DIR/observability.env"
+
+PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
+PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml
+PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
+
+. /usr/lib/flashbox/vault.sh
+. /usr/lib/flashbox/render.sh
+
+mkdir -p "$OBSERVABILITY_DIR"
+
+write_firewall_env() {
+    cat > "$OBSERVABILITY_ENV_PATH" <<EOF
+METRICS_ENDPOINT='${1:-}'
+EOF
+}
+
+# Default state: base config only, firewall closed to metrics endpoint.
+cp "$PROMETHEUS_BASE" "$PROMETHEUS_CONFIG"
+write_firewall_env ""
+
+# Local QEMU dev: skip Vault entirely.
+if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
+   [ -f /etc/systemd/system/serial-console.service ]; then
+    echo "QEMU dev environment, skipping observability config fetch"
+    exit 0
+fi
+
+echo "Fetching observability config from Vault..."
+
+if ! vault_fetch; then
+    echo "WARNING: could not fetch observability config from Vault, using defaults"
+    exit 0
+fi
+
+if [ -z "${METRICS_FLASHBOTS_URL:-}" ]; then
+    echo "No metrics URL configured, remote_write disabled"
+    exit 0
+fi
+
+if [ -z "${METRICS_FLASHBOTS_USERNAME:-}" ] || [ -z "${METRICS_FLASHBOTS_PASSWORD:-}" ]; then
+    echo "WARNING: metrics URL set but basic_auth credentials are missing, remote_write disabled"
+    exit 0
+fi
+
+# Extract IPv4 literal for firewall egress allowlist.
+endpoint=$(echo "$METRICS_FLASHBOTS_URL" | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | head -1 || true)
+if [ -z "$endpoint" ]; then
+    echo "WARNING: metrics URL is not an IPv4 literal, firewall egress will not be opened — remote_write will be blocked"
+fi
+
+write_firewall_env "$endpoint"
+
+render_template "$PROMETHEUS_CONFIG" \
+    "METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_USERNAME METRICS_FLASHBOTS_PASSWORD" \
+    "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
+
+echo "Observability config written (endpoint: ${endpoint:-none})"
