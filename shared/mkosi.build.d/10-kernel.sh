@@ -1,5 +1,5 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -euxo pipefail
 shopt -s inherit_errexit  # propagate errexit to $() subshells
 shopt -s nullglob         # non-matching globs expand to nothing
 
@@ -11,7 +11,7 @@ if [[ -z "${KERNEL_VERSION:-}" ]]; then
 fi
 
 # Read distribution info from mkosi config JSON
-snapshot=$(jq -re '.Snapshot' "$MKOSI_CONFIG")
+snapshot=$(jq -r '.Snapshot' "$MKOSI_CONFIG")
 release=$(jq -re '.Release' "$MKOSI_CONFIG")
 echo "Snapshot: $snapshot"
 echo "Release: $release"
@@ -51,7 +51,7 @@ cache_hash=$(
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
 cached_deb="$cache_dir/kernel.deb"
 
-cat <<EOF > $BUILDDIR/manifest.md
+cat <<EOF > "$BUILDDIR/manifest.md"
 | component  | version  | built / cached  | size  | duration  |
 | ---------- | -------- | --------------- | ----- | --------- |
 EOF
@@ -59,7 +59,7 @@ EOF
 # Use cached kernel .deb if available
 if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
     echo "Using cached kernel .deb: $cached_deb"
-    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | reused from cache  | \`$( du -sh $cached_deb | cut -f1 )\`  |   |" >> $BUILDDIR/manifest.md
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | reused from cache  | \`$( du -sh "$cached_deb" | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
 else
     ts=$( date +%s )
 
@@ -159,7 +159,7 @@ else
 
     rm -rf "${kernel_build_dir}"
 
-    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh $cached_deb | cut -f1 )\`  | \`$duration\`  |" >> $BUILDDIR/manifest.md
+    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh "$cached_deb" | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 fi
 
 # Copy to PACKAGEDIR for mkosi VolatilePackages installation
