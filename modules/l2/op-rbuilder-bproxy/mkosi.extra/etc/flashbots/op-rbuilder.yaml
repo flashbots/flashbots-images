@@ -1,9 +1,9 @@
 bproxy:
-  git_reference: v0.0.92-hf.3
+  git_reference: v0.0.93
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
-  git_reference: op-rbuilder/v0.4.0
+  git_reference: op-rbuilder/v0.4.3
 rust:
   version: 1.94.0
 tdx_quote_provider:
