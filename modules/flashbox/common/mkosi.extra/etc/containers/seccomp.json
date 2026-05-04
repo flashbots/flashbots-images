@@ -433,6 +433,11 @@
 					"index": 0,
 					"value": 40,
 					"op": "SCMP_CMP_NE"
+				},
+				{
+					"index": 0,
+					"value": 38,
+					"op": "SCMP_CMP_NE"
 				}
 			]
 		},
