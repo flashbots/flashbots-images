@@ -36,8 +36,14 @@ CONFIG_IP_NF_MANGLE=y
 CONFIG_IP_NF_RAW=y
 CONFIG_NET_SCHED=y
 
-# For tdx-init
-CONFIG_CRYPTO_USER_API_HASH=y
-CONFIG_CRYPTO_USER_API_SKCIPHER=y
-CONFIG_CRYPTO_USER_API_RNG=y
-CONFIG_CRYPTO_USER_API_AEAD=y
+# AF_ALG userspace crypto API.
+# Not used by anything on this image: tdx-init uses Go-stdlib HMAC and
+# shells out to cryptsetup (libgcrypt + libargon2 in userspace; dm-crypt
+# uses the in-kernel skcipher API directly, not AF_ALG). lighthouse and
+# the rest of the userspace use ring/aes-gcm. Disabled to remove the
+# attack surface for CVE-2026-31431 (copy.fail) and similar.
+# CONFIG_CRYPTO_USER_API is not set
+# CONFIG_CRYPTO_USER_API_HASH is not set
+# CONFIG_CRYPTO_USER_API_SKCIPHER is not set
+# CONFIG_CRYPTO_USER_API_RNG is not set
+# CONFIG_CRYPTO_USER_API_AEAD is not set
