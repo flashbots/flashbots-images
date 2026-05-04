@@ -47,3 +47,11 @@ CONFIG_NET_SCHED=y
 # CONFIG_CRYPTO_USER_API_SKCIPHER is not set
 # CONFIG_CRYPTO_USER_API_RNG is not set
 # CONFIG_CRYPTO_USER_API_AEAD is not set
+
+# Authenticated encryption template combining cipher + HMAC + Extended
+# Sequence Number handling. Only in-tree consumer is IPsec/XFRM with the
+# ESN flag set, but IPsec is disabled on this image (see 01-sane-defaults:
+# CONFIG_INET_AH/ESP/INET6_AH/INET6_ESP not set). authencesn was the
+# specific algorithm at the heart of CVE-2026-31431 (copy.fail); pinning
+# it off removes the algorithm from the kernel as defense in depth.
+# CONFIG_CRYPTO_AUTHENCESN is not set
