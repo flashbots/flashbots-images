@@ -8,9 +8,6 @@ mount -t devtmpfs none /dev
 mount -t tmpfs none /run
 mount -t configfs none /sys/kernel/config
 
-# Log measurements if present
-/usr/bin/print-measurements
-
 # Workaround to make pivot_root work
 # https://aconz2.github.io/2024/07/29/container-from-initramfs.html
 exec unshare --mount sh -c '

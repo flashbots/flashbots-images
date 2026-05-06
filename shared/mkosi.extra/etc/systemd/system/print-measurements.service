@@ -1,0 +1,12 @@
+[Unit]
+Description=Log TDX measurements
+After=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/print-measurements
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=minimal.target

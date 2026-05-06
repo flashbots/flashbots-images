@@ -2,7 +2,7 @@
 
 my $errmsg = "Measurements not available on this platform\n";
 my $b = "\0" x 1088;
-sysopen F, "/dev/tdx_guest", 2 or warn $errmsg and exit 0;
-ioctl F, 0xc4405401, $b or die $!;
+sysopen F, "/dev/tdx_guest", 2 or do { warn $errmsg; exit 0; };
+ioctl F, 0xc4405401, $b or do { warn $errmsg; exit 0; };
 my @r = unpack "(H96)4", substr $b, 784, 192;
 print "RTMR$_: $r[$_]\n" for 0..3;
