@@ -50,6 +50,7 @@ done
 # Enable chrony service
 mkosi-chroot systemctl add-wants minimal.target \
     chrony.service \
+    print-measurements.service \
     systemd-resolved.service \
     systemd-networkd.service \
     systemd-networkd-wait-online.service
