@@ -14,6 +14,7 @@ Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun 
 - [Disk Persistence](#disk-persistence)
 - [Searcher Commands and Services](#searcher-commands-and-services)
 - [Developer Notes](#developer-notes)
+- [Security](#security)
 
 TDX Mental Model
 ------------------------
@@ -622,3 +623,7 @@ journalctl -fu searcher-container
 ssh -4 -i /root/.ssh/id_ed25519 -p 10022 root@127.0.0.1
 ssh -4 -i /root/.ssh/id_ed25519 searcher@127.0.0.1 toggle
 ```
+
+### Security
+
+Flashbots may temporarily pause orderflow to a TEE searcher instance if we identify a security issue that may affect the host configuration or running instance. This is a precautionary measure while we investigate, assess impact, and prepare mitigations, and does not necessarily mean that the searcher instance, data, or credentials were compromised. During a pause, transaction streaming may be disabled and login access may be unavailable until the instance is remediated or migrated to an updated image. Once remediation is complete, Flashbots will share next steps for restoring access and safely resuming order flow.
