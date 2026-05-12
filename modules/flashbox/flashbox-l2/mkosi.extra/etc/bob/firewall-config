@@ -50,9 +50,11 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
-# Observability metrics endpoint (loaded from /etc/flashbox/observability.env)
-if [ -n "${METRICS_ENDPOINT:-}" ]; then
-    accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$METRICS_ENDPOINT" $HTTPS_PORT "Metrics endpoint (Flashbots)"
+# Observability metrics endpoints (loaded from /etc/flashbox/observability.env)
+if [ -n "${METRICS_ENDPOINTS:-}" ]; then
+    for ip in $METRICS_ENDPOINTS; do
+        accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$ip" $HTTPS_PORT "Metrics endpoint (Flashbots)"
+    done
 fi
 
 ###########################################################################
