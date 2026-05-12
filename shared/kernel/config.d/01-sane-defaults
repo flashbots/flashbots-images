@@ -215,6 +215,7 @@ CONFIG_MEMORY_BALLOON=y
 # CONFIG_ISO9660_FS is not set
 # CONFIG_KVM_XEN is not set
 # CONFIG_L2TP is not set
+# CONFIG_MCTP is not set
 # CONFIG_NET_DEVMEM is not set
 # CONFIG_NET_FOU is not set
 # CONFIG_NET_IPGRE_DEMUX is not set
