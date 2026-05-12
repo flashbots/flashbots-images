@@ -2,7 +2,9 @@
 set -eu -o pipefail
 
 # Boot-time observability setup: fetch metrics creds from Vault, render
-# /etc/prometheus/prometheus.yml, and write the firewall env file.
+# /etc/prometheus/prometheus.yml, write the firewall env file, and pin the
+# metrics endpoint's FQDN → IPs mapping in /etc/hosts so Prometheus can
+# reconnect after the host firewall locks down (production mode blocks DNS).
 #
 # On any failure (Vault unreachable, missing secret, missing fields) this
 # script writes sane defaults and exits 0. Boot must never fail because of
@@ -15,8 +17,11 @@ PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
 PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml.tmpl
 PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
 
+HOSTS_MARKER=flashbox-observability
+
 . /usr/lib/flashbox/vault.sh
 . /usr/lib/flashbox/render.sh
+. /usr/lib/flashbox/hosts.sh
 
 mkdir -p "$OBSERVABILITY_DIR"
 
@@ -33,29 +38,12 @@ METRICS_ENDPOINTS='${1:-}'
 EOF
 }
 
-# Resolve a URL (or bare host) to a space-separated list of IPv4 addresses
-# for the firewall egress allowlist. We resolve here because the orchestrator
-# runs *before* searcher-firewall locks the box down — DNS is still available
-# at this point. Production mode blocks DNS, so once the firewall is up the
-# only way to refresh stale IPs is a full reboot.
-#
-# Empty input or unresolvable host → empty output.
-resolve_to_ips() {
-    local input="${1:-}"
-    [ -n "$input" ] || { echo ""; return; }
-
-    local host
-    host=$(echo "$input" | sed -E 's|^[a-z]+://||; s|/.*||; s|:.*||')
-    if echo "$host" | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
-        echo "$host"
-    else
-        getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ' | sed 's/ *$//'
-    fi
-}
-
-# Default state: base config rendered with external_labels, firewall closed.
+# Default state: base config rendered with external_labels, firewall closed,
+# /etc/hosts sentinel block cleared. The success path below re-populates the
+# block; until then any stale entries are removed.
 render_template "$PROMETHEUS_CONFIG" "FLASHBOX_VM" "$PROMETHEUS_BASE"
 write_firewall_env ""
+hosts_clean_block "$HOSTS_MARKER"
 
 # Local QEMU dev: skip Vault entirely.
 if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
@@ -84,14 +72,16 @@ if [ -z "${METRICS_FLASHBOTS_REGION:-}" ] \
 fi
 
 endpoints=$(resolve_to_ips "$METRICS_FLASHBOTS_URL")
+host=$(url_to_host "$METRICS_FLASHBOTS_URL")
 if [ -z "$endpoints" ]; then
     echo "WARNING: could not resolve metrics URL host, firewall egress will not be opened — remote_write will be blocked"
 fi
 
 write_firewall_env "$endpoints"
+hosts_write_block "$HOSTS_MARKER" "$host" "$endpoints"
 
 render_template "$PROMETHEUS_CONFIG" \
     "FLASHBOX_VM METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_REGION METRICS_FLASHBOTS_ACCESS_KEY METRICS_FLASHBOTS_SECRET_KEY" \
     "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
 
-echo "Observability config written (endpoints: ${endpoints:-none})"
+echo "Observability config written (host: ${host:-none}, endpoints: ${endpoints:-none})"
