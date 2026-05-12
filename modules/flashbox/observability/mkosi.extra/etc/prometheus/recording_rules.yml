@@ -11,8 +11,12 @@ groups:
   - name: flashbox_health
     interval: 30s
     rules:
+      # Binary: 1 if process-exporter is up AND at least one process is in the
+      # searcher-container cgroup; 0 otherwise.
       - record: flashbox:container_alive
-        expr: up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"}
+        expr: >
+          (up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"})
+          > bool 0
 
       # Spike-guarded: current 15m avg must be under 80%,
       # AND the 10m max ending 5m ago must have been under 70%
