@@ -29,8 +29,28 @@ export FLASHBOX_VM
 
 write_firewall_env() {
     cat > "$OBSERVABILITY_ENV_PATH" <<EOF
-METRICS_ENDPOINT='${1:-}'
+METRICS_ENDPOINTS='${1:-}'
 EOF
+}
+
+# Resolve a URL (or bare host) to a space-separated list of IPv4 addresses
+# for the firewall egress allowlist. We resolve here because the orchestrator
+# runs *before* searcher-firewall locks the box down — DNS is still available
+# at this point. Production mode blocks DNS, so once the firewall is up the
+# only way to refresh stale IPs is a full reboot.
+#
+# Empty input or unresolvable host → empty output.
+resolve_to_ips() {
+    local input="${1:-}"
+    [ -n "$input" ] || { echo ""; return; }
+
+    local host
+    host=$(echo "$input" | sed -E 's|^[a-z]+://||; s|/.*||; s|:.*||')
+    if echo "$host" | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+        echo "$host"
+    else
+        getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ' | sed 's/ *$//'
+    fi
 }
 
 # Default state: base config rendered with external_labels, firewall closed.
@@ -56,21 +76,22 @@ if [ -z "${METRICS_FLASHBOTS_URL:-}" ]; then
     exit 0
 fi
 
-if [ -z "${METRICS_FLASHBOTS_USERNAME:-}" ] || [ -z "${METRICS_FLASHBOTS_PASSWORD:-}" ]; then
-    echo "WARNING: metrics URL set but basic_auth credentials are missing, remote_write disabled"
+if [ -z "${METRICS_FLASHBOTS_REGION:-}" ] \
+   || [ -z "${METRICS_FLASHBOTS_ACCESS_KEY:-}" ] \
+   || [ -z "${METRICS_FLASHBOTS_SECRET_KEY:-}" ]; then
+    echo "WARNING: metrics URL set but SigV4 credentials are incomplete (need REGION, ACCESS_KEY, SECRET_KEY), remote_write disabled"
     exit 0
 fi
 
-# Extract IPv4 literal for firewall egress allowlist.
-endpoint=$(echo "$METRICS_FLASHBOTS_URL" | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | head -1 || true)
-if [ -z "$endpoint" ]; then
-    echo "WARNING: metrics URL is not an IPv4 literal, firewall egress will not be opened — remote_write will be blocked"
+endpoints=$(resolve_to_ips "$METRICS_FLASHBOTS_URL")
+if [ -z "$endpoints" ]; then
+    echo "WARNING: could not resolve metrics URL host, firewall egress will not be opened — remote_write will be blocked"
 fi
 
-write_firewall_env "$endpoint"
+write_firewall_env "$endpoints"
 
 render_template "$PROMETHEUS_CONFIG" \
-    "FLASHBOX_VM METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_USERNAME METRICS_FLASHBOTS_PASSWORD" \
+    "FLASHBOX_VM METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_REGION METRICS_FLASHBOTS_ACCESS_KEY METRICS_FLASHBOTS_SECRET_KEY" \
     "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
 
-echo "Observability config written (endpoint: ${endpoint:-none})"
+echo "Observability config written (endpoints: ${endpoints:-none})"

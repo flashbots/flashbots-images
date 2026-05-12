@@ -8,6 +8,7 @@ remote_write:
       - source_labels: [__name__]
         regex: 'flashbox:.*'
         action: keep
-    basic_auth:
-      username: ${METRICS_FLASHBOTS_USERNAME}
-      password: ${METRICS_FLASHBOTS_PASSWORD}
+    sigv4:
+      region: ${METRICS_FLASHBOTS_REGION}
+      access_key: ${METRICS_FLASHBOTS_ACCESS_KEY}
+      secret_key: ${METRICS_FLASHBOTS_SECRET_KEY}
