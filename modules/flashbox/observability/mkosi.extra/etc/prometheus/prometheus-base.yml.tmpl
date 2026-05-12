@@ -1,6 +1,11 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  # Stamped onto every series sent via remote_write so the central
+  # Prometheus / AMP can distinguish samples coming from different
+  # flashbox VMs.
+  external_labels:
+    host: ${FLASHBOX_VM}
 
 # Recording rules for aggregated metrics
 rule_files:

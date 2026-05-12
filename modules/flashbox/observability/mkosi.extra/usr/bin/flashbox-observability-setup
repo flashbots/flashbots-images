@@ -12,7 +12,7 @@ OBSERVABILITY_DIR=/etc/flashbox
 OBSERVABILITY_ENV_PATH="$OBSERVABILITY_DIR/observability.env"
 
 PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
-PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml
+PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml.tmpl
 PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
 
 . /usr/lib/flashbox/vault.sh
@@ -20,14 +20,21 @@ PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
 
 mkdir -p "$OBSERVABILITY_DIR"
 
+# Read the GCE instance name and expose it to prometheus-base.yml.tmpl's
+# external_labels — every remote_write sample is stamped with `host=<vm>`
+# so the central Prometheus can distinguish flashbox VMs.
+FLASHBOX_VM=$(curl -sf --header "Metadata-Flavor: Google" \
+    "http://metadata/computeMetadata/v1/instance/name" || echo "unknown")
+export FLASHBOX_VM
+
 write_firewall_env() {
     cat > "$OBSERVABILITY_ENV_PATH" <<EOF
 METRICS_ENDPOINT='${1:-}'
 EOF
 }
 
-# Default state: base config only, firewall closed to metrics endpoint.
-cp "$PROMETHEUS_BASE" "$PROMETHEUS_CONFIG"
+# Default state: base config rendered with external_labels, firewall closed.
+render_template "$PROMETHEUS_CONFIG" "FLASHBOX_VM" "$PROMETHEUS_BASE"
 write_firewall_env ""
 
 # Local QEMU dev: skip Vault entirely.
@@ -63,7 +70,7 @@ fi
 write_firewall_env "$endpoint"
 
 render_template "$PROMETHEUS_CONFIG" \
-    "METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_USERNAME METRICS_FLASHBOTS_PASSWORD" \
+    "FLASHBOX_VM METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_USERNAME METRICS_FLASHBOTS_PASSWORD" \
     "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
 
 echo "Observability config written (endpoint: ${endpoint:-none})"
