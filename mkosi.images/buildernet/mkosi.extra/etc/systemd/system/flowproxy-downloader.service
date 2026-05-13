@@ -1,0 +1,19 @@
+[Unit]
+Description=Fetch flowproxy
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=FLOWPROXY_SHA256SUM=61b24ff6be0059e3cbc2f5685aac59e4a7c733e71ddc51ce662415824cb3e9e0 \
+            FLOWPROXY_TAG=v2.2.0 \
+            FLOWPROXY_REPO=flowproxy-private \
+            FLOWPROXY_ARTIFACT=flowproxy
+EnvironmentFile=%E/gh_token.env
+ExecStart=/bin/bash -c '[[ -f /usr/bin/flowproxy ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$FLOWPROXY_REPO" --tag "$FLOWPROXY_TAG" \
+  --artifact-name "$FLOWPROXY_ARTIFACT" --output-file /usr/bin/flowproxy'
+ExecStart=/bin/bash -c '[[ -f /usr/bin/flowproxy ]] || \
+  echo "$FLOWPROXY_SHA256SUM" /usr/bin/flowproxy | sha256sum --check'
+ExecStart=/bin/chmod +x /usr/bin/flowproxy
+RemainAfterExit=yes

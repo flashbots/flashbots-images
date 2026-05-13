@@ -12,7 +12,8 @@ Type=oneshot
 User=reth
 ConfigurationDirectory=reth-sync
 StateDirectory=persistent/reth
-ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
+LoadCredential=rclone.conf:%E/reth-sync/rclone.conf
+Environment=RCLONE_CONFIG=%d/rclone.conf
 ExecStart=/usr/bin/reth-sync
 
 [Install]

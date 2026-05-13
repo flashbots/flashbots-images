@@ -336,7 +336,7 @@ sinks:
     endpoint: "<%url%>"
     <%#sigv4%>
     auth:
-      credentials_file: /etc/vector/aws-config
+      credentials_file: ${CREDENTIALS_DIRECTORY}/aws-config
       profile: <%aws_credentials.profile_name%>
       strategy: aws
     aws:

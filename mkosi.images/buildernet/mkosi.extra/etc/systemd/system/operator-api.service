@@ -12,7 +12,6 @@ ConfigurationDirectory=operator-api
 StateDirectory=persistent/operator-api
 RuntimeDirectory=operator-api
 Environment=SHELL_TO_USE=/bin/bash
-ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
 ExecStart=/usr/bin/operator-api --config %E/operator-api/config.toml
 
 #CapabilityBoundingSet=

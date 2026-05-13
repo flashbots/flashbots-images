@@ -5,11 +5,11 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_BIDDING_SHA256SUM=1672efc517cbfa706b15026f6956068d1e2fe39f5844e4d018d178e30e225dc3 \
-            RBUILDER_BIDDING_TAG=v1.3.14 \
+Environment=RBUILDER_BIDDING_SHA256SUM=5b8ad48a27ae3390977a45be20eb3c748f290f1746737f30ffb76c2018d7b0ca \
+            RBUILDER_BIDDING_TAG=v1.3.17 \
             RBUILDER_BIDDING_REPO=rbuilder-bidding-service \
             RBUILDER_BIDDING_ARTIFACT=bidding-service
-EnvironmentFile=%E/rbuilder-bidding/gh_token.env
+EnvironmentFile=%E/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-bidding ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$RBUILDER_BIDDING_REPO" --tag "$RBUILDER_BIDDING_TAG" \
   --artifact-name "$RBUILDER_BIDDING_ARTIFACT" --output-file /usr/bin/rbuilder-bidding'

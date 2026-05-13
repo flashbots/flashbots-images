@@ -6,8 +6,8 @@ source /usr/bin/helper-functions.sh
 
 RBUILDER_PERSISTENT_DIR="/var/lib/persistent/rbuilder-operator"
 RBUILDER_STATUS_FLAG_FILE="${RBUILDER_PERSISTENT_DIR}/rbuilder.enabled"
-# locally exposed BuilderHub API proxied through CVM proxy
 RBUILDER_BIDDING_CONFIG_DIR="/etc/rbuilder-bidding"
+# locally exposed BuilderHub API proxied through flowproxy
 BHUB_URL_PROXIED_CONFIGURATION="http://localhost:7937/api/l1-builder/v1/configuration"
 BHUB_URL_PROXIED_ACTIVE_BUILDERS="http://localhost:7937/api/l1-builder/v1/builders"
 BHUB_CONFIG_FILE="$RUNTIME_DIRECTORY/init-config-watchdog.json"

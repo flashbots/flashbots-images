@@ -9,6 +9,8 @@ DynamicUser=yes
 ConfigurationDirectory=flowproxy
 StateDirectory=persistent/flowproxy
 EnvironmentFile=%E/flowproxy/flowproxy.env
+LoadCredential=api-keys.toml:%E/flowproxy/api-keys.toml
+Environment=API_KEYS_FILE=%d/api-keys.toml
 ExecStart=/usr/bin/flowproxy
 LimitNOFILE=65535
 Restart=on-failure

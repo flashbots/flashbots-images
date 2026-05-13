@@ -1,5 +1,8 @@
 [Unit]
-After=reth.service
+Description=rbuilder is an open-source, blazingly fast, cutting edge implementation of a Ethereum MEV-Boost block builder written in Rust.
+Documentation=https://github.com/flashbots/rbuilder
+Wants=network-online.target rbuilder-operator-rebalancer-downloader.service
+After=network.target network-online.target reth.service rbuilder-operator-rebalancer-downloader.service
 ConditionPathExists=/var/lib/persistent/rbuilder-operator/rbuilder.enabled
 StartLimitIntervalSec=0
 
@@ -8,14 +11,14 @@ Type=exec
 DynamicUser=no
 User=rbuilder-operator
 ConfigurationDirectory=rbuilder-operator
-StateDirectory=
 StateDirectory=persistent/rbuilder-operator
 StateDirectoryMode=0775
 RuntimeDirectory=rbuilder-operator
 EnvironmentFile=%E/rbuilder-operator/rbuilder-operator.env
-ExecStartPre=+/bin/bash -c 'cd $CONFIGURATION_DIRECTORY && chown -R $USER .'
+LoadCredential=config.toml:%E/rbuilder-operator/config.toml
 ExecStartPre=/bin/bash -c '[[ -f $STATE_DIRECTORY/rbuilder.blocklist.json ]] || \
              echo "[]" > $STATE_DIRECTORY/rbuilder.blocklist.json'
+ExecStart=/usr/bin/rbuilder-operator run %d/config.toml
 Restart=on-failure
 RestartSec=5s
 RestartSteps=5

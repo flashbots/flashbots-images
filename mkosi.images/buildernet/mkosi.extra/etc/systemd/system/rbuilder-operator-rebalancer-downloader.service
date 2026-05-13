@@ -1,0 +1,33 @@
+[Unit]
+Description=Fetch rbuilder-operator and rbuilder-rebalancer
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=RBUILDER_OPERATOR_SHA256SUM=22b8f8ae395746aae36791ded97439e51435aa52d98a30640c4c55f3760dcdc0 \
+            RBUILDER_OPERATOR_TAG=v1.3.17 \
+            RBUILDER_OPERATOR_REPO=rbuilder-prism \
+            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.3.17-x86_64-unknown-linux-gnu \
+            RBUILDER_REBALANCER_SHA256SUM=c5b9f9aae4f4d564a7700d468227be71916b47cf2f0cbd4154dd8e26a96f2724 \
+            RBUILDER_REBALANCER_TAG=v1.3.17 \
+            RBUILDER_REBALANCER_REPO=rbuilder-prism \
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.3.17-x86_64-unknown-linux-gnu
+EnvironmentFile=%E/gh_token.env
+
+# rbuilder-operator
+ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$RBUILDER_OPERATOR_REPO" --tag "$RBUILDER_OPERATOR_TAG" \
+  --artifact-name "$RBUILDER_OPERATOR_ARTIFACT" --output-file /usr/bin/rbuilder-operator'
+ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator ]] || \
+  echo "$RBUILDER_OPERATOR_SHA256SUM" /usr/bin/rbuilder-operator | sha256sum --check'
+
+# rbuilder-rebalancer
+ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$RBUILDER_REBALANCER_REPO" --tag "$RBUILDER_REBALANCER_TAG" \
+  --artifact-name "$RBUILDER_REBALANCER_ARTIFACT" --output-file /usr/bin/rbuilder-rebalancer'
+ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || \
+  echo "$RBUILDER_REBALANCER_SHA256SUM" /usr/bin/rbuilder-rebalancer | sha256sum --check'
+
+ExecStart=/bin/chmod +x /usr/bin/rbuilder-operator /usr/bin/rbuilder-rebalancer
+RemainAfterExit=yes
