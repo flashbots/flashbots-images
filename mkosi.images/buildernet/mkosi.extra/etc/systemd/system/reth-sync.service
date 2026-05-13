@@ -10,7 +10,6 @@ ConditionPathIsDirectory=!/var/lib/persistent/reth
 [Service]
 Type=oneshot
 User=reth
-ConfigurationDirectory=reth-sync
 StateDirectory=persistent/reth
 LoadCredential=rclone.conf:%E/reth-sync/rclone.conf
 Environment=RCLONE_CONFIG=%d/rclone.conf

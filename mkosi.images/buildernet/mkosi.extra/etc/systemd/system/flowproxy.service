@@ -6,7 +6,6 @@ After=network.target network-online.target flowproxy-downloader.service
 [Service]
 Type=exec
 DynamicUser=yes
-ConfigurationDirectory=flowproxy
 StateDirectory=persistent/flowproxy
 EnvironmentFile=%E/flowproxy/flowproxy.env
 LoadCredential=api-keys.toml:%E/flowproxy/api-keys.toml

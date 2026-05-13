@@ -7,7 +7,6 @@ After=network.target network-online.target
 Type=exec
 User=vector
 SupplementaryGroups=systemd-journal
-ConfigurationDirectory=vector
 StateDirectory=persistent/vector
 LoadCredential=vector.yaml:%E/vector/vector.yaml
 LoadCredential=aws-config:%E/vector/aws-config
@@ -15,7 +14,7 @@ Environment=VECTOR_LOG_FORMAT=json \
             VECTOR_CONFIG_YAML=%d/vector.yaml
 ExecStartPre=/usr/bin/vector validate
 ExecStart=/usr/bin/vector
-ExecReload=/usr/bin/vector validate --no-environment
+ExecReload=/usr/bin/vector validate
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 

@@ -7,7 +7,6 @@ After=network.target network-online.target rbuilder-operator.service rbuilder-op
 [Service]
 Type=exec
 DynamicUser=yes
-ConfigurationDirectory=rbuilder-rebalancer
 EnvironmentFile=%E/rbuilder-rebalancer/rbuilder-rebalancer.env
 ExecStart=/usr/bin/rbuilder-rebalancer %E/rbuilder-rebalancer/config.toml
 

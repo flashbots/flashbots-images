@@ -8,7 +8,6 @@ Requires=operator-api-journald-pipe.service
 Type=exec
 User=operator-api
 SupplementaryGroups=rbuilder-operator
-ConfigurationDirectory=operator-api
 StateDirectory=persistent/operator-api
 RuntimeDirectory=operator-api
 Environment=SHELL_TO_USE=/bin/bash

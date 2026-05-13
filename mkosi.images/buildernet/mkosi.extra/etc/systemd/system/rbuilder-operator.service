@@ -10,7 +10,6 @@ StartLimitIntervalSec=0
 Type=exec
 DynamicUser=no
 User=rbuilder-operator
-ConfigurationDirectory=rbuilder-operator
 StateDirectory=persistent/rbuilder-operator
 StateDirectoryMode=0775
 RuntimeDirectory=rbuilder-operator
