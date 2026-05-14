@@ -47,7 +47,7 @@ ExecStart=/usr/bin/op-rbuilder node \
     ((- if $service.genesis_json ))
     --chain '/var/opt/optimism/rbuilder/genesis.json' \
     ((- else ))(( if $service.network_name ))
-    --chain '(( $service.network_name ))' \
+    --chain '(( $service.network_name | trimSuffix "-mainnet" ))' \
     ((- end ))(( end ))
     --color 'never' \
     --datadir '/var/opt/optimism/rbuilder' \

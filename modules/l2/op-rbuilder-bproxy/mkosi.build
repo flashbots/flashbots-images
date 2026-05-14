@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-ENV_YAML="$SRCDIR/modules/l2/op-rbuilder/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
+ENV_YAML="$SRCDIR/modules/l2/op-rbuilder-bproxy/mkosi.extra/etc/flashbots/op-rbuilder.yaml"
 
 BPROXY_REF=$(mkosi-chroot yq -r .bproxy.git_reference < "$ENV_YAML")
 NODE_HEALTHCHECKER_REF=$(mkosi-chroot yq -r .node_healthchecker.git_reference < "$ENV_YAML")
