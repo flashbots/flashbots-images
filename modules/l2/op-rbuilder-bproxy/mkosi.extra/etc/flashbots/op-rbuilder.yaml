@@ -1,5 +1,5 @@
 bproxy:
-  git_reference: v0.0.93
+  git_reference: v0.0.94
 node_healthchecker:
   git_reference: v0.1.11
 op_rbuilder:
