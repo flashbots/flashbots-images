@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 #
-# Note env variables: DESTDIR, BUILDROOT, GOCACHE, BUILDDIR
+# Env vars:
+#   Required (set by mkosi):
+#     DESTDIR, BUILDROOT, BUILDDIR, GOCACHE
+#   Optional (caller-controlled):
+#     MAKE_GIT_PACKAGE_CACHE_KEY_EXTRA — extra input to the cache key.
+#       Set by callers in mkosi.build to invalidate cached binaries
+#       when build-env state outside $build_cmd changes. See the
+#       env_hash computation in make_git_package below.
 
 make_git_package() {
     local package="$1"
@@ -29,7 +36,18 @@ make_git_package() {
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
     printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
 
-    local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}"
+    local env_hash=$(
+        {
+            # We hash the build_cmd into the cache dire to catch 
+            # RUSTFLAGS / GOFLAGS / cargo profile / command shape changes.
+            printf '%s' "$build_cmd"
+            # Callers can also inject additional inputs. Useful for things like
+            # RUST_VERSION (if installed via rustup), so that changing
+            # the Rust toolchain invalidates cached Rust binaries.
+            printf '%s' "${MAKE_GIT_PACKAGE_CACHE_KEY_EXTRA:-}"
+        } | sha256sum | cut -c1-12
+    )
+    local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}-${env_hash}"
 
     # Use cached artifacts if available
     if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
