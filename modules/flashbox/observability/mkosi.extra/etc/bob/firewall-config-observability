@@ -1,0 +1,15 @@
+# Observability drop-in for /etc/bob/firewall-config.d/
+#
+# Loaded by init-firewall.sh after the per-image firewall-config.
+# Owns:
+#   - sourcing the metrics endpoint env file written by
+#     flashbox-observability-setup at boot
+#   - the egress allowlist for the metrics endpoint IPs
+
+[ -f /etc/flashbox/observability.env ] && . /etc/flashbox/observability.env
+
+if [ -n "${METRICS_ENDPOINTS:-}" ]; then
+    for ip in $METRICS_ENDPOINTS; do
+        accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$ip" $HTTPS_PORT "Metrics endpoint (Flashbots)"
+    done
+fi

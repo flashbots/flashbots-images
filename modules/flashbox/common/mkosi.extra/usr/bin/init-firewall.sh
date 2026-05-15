@@ -151,7 +151,12 @@ drop_dst_ip() {
 #
 # `source` is not supported in dash
 ###########################################################################
+
 . /etc/bob/firewall-config
+
+# Observability rule (sourced only if the observability module is included
+# in the image — it owns its own egress rule + env-file dependency).
+[ -f /etc/bob/firewall-config-observability ] && . /etc/bob/firewall-config-observability
 
 ###########################################################################
 # (6) Start in Maintenance Mode

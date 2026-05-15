@@ -1,0 +1,14 @@
+
+# Remote write configuration (dynamically configured)
+remote_write:
+  # Flashbots endpoint
+  - url: ${METRICS_FLASHBOTS_URL}
+    write_relabel_configs:
+      # Only send flashbox: prefixed metrics
+      - source_labels: [__name__]
+        regex: 'flashbox:.*'
+        action: keep
+    sigv4:
+      region: ${METRICS_FLASHBOTS_REGION}
+      access_key: ${METRICS_FLASHBOTS_ACCESS_KEY}
+      secret_key: ${METRICS_FLASHBOTS_SECRET_KEY}

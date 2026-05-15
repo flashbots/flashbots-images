@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  # Stamped onto every series sent via remote_write so the central
+  # Prometheus / AMP can distinguish samples coming from different
+  # flashbox VMs.
+  external_labels:
+    host: ${FLASHBOX_VM}
+
+# Recording rules for aggregated metrics
+rule_files:
+  - /etc/prometheus/recording_rules.yml
+
+# Scrape configurations
+scrape_configs:
+  # Node exporter on localhost
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    metric_relabel_configs:
+      # Only keep aggregated metrics for remote write
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat)_.*'
+        action: keep
+
+  # Process exporter for container monitoring
+  - job_name: 'process'
+    static_configs:
+      - targets: ['localhost:9256']

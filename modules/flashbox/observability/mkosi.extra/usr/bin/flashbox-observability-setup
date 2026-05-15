@@ -1,0 +1,87 @@
+#!/bin/sh
+set -eu -o pipefail
+
+# Boot-time observability setup: fetch metrics creds from Vault, render
+# /etc/prometheus/prometheus.yml, write the firewall env file, and pin the
+# metrics endpoint's FQDN → IPs mapping in /etc/hosts so Prometheus can
+# reconnect after the host firewall locks down (production mode blocks DNS).
+#
+# On any failure (Vault unreachable, missing secret, missing fields) this
+# script writes sane defaults and exits 0. Boot must never fail because of
+# observability.
+
+OBSERVABILITY_DIR=/etc/flashbox
+OBSERVABILITY_ENV_PATH="$OBSERVABILITY_DIR/observability.env"
+
+PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
+PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml.tmpl
+PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
+
+HOSTS_MARKER=flashbox-observability
+
+. /usr/lib/flashbox/vault.sh
+. /usr/lib/flashbox/render.sh
+. /usr/lib/flashbox/hosts.sh
+
+mkdir -p "$OBSERVABILITY_DIR"
+
+# Read the GCE instance name and expose it to prometheus-base.yml.tmpl's
+# external_labels — every remote_write sample is stamped with `host=<vm>`
+# so the central Prometheus can distinguish flashbox VMs.
+FLASHBOX_VM=$(curl -sf --header "Metadata-Flavor: Google" \
+    "http://metadata/computeMetadata/v1/instance/name" || echo "unknown")
+export FLASHBOX_VM
+
+write_firewall_env() {
+    cat > "$OBSERVABILITY_ENV_PATH" <<EOF
+METRICS_ENDPOINTS='${1:-}'
+EOF
+}
+
+# Default state: base config rendered with external_labels, firewall closed,
+# /etc/hosts sentinel block cleared. The success path below re-populates the
+# block; until then any stale entries are removed.
+render_template "$PROMETHEUS_CONFIG" "FLASHBOX_VM" "$PROMETHEUS_BASE"
+write_firewall_env ""
+hosts_clean_block "$HOSTS_MARKER"
+
+# Local QEMU dev: skip Vault entirely.
+if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
+   [ -f /etc/systemd/system/serial-console.service ]; then
+    echo "QEMU dev environment, skipping observability config fetch"
+    exit 0
+fi
+
+echo "Fetching observability config from Vault..."
+
+if ! vault_fetch; then
+    echo "WARNING: could not fetch observability config from Vault, using defaults"
+    exit 0
+fi
+
+if [ -z "${METRICS_FLASHBOTS_URL:-}" ]; then
+    echo "No metrics URL configured, remote_write disabled"
+    exit 0
+fi
+
+if [ -z "${METRICS_FLASHBOTS_REGION:-}" ] \
+   || [ -z "${METRICS_FLASHBOTS_ACCESS_KEY:-}" ] \
+   || [ -z "${METRICS_FLASHBOTS_SECRET_KEY:-}" ]; then
+    echo "WARNING: metrics URL set but SigV4 credentials are incomplete (need REGION, ACCESS_KEY, SECRET_KEY), remote_write disabled"
+    exit 0
+fi
+
+endpoints=$(resolve_to_ips "$METRICS_FLASHBOTS_URL")
+host=$(url_to_host "$METRICS_FLASHBOTS_URL")
+if [ -z "$endpoints" ]; then
+    echo "WARNING: could not resolve metrics URL host, firewall egress will not be opened — remote_write will be blocked"
+fi
+
+write_firewall_env "$endpoints"
+hosts_write_block "$HOSTS_MARKER" "$host" "$endpoints"
+
+render_template "$PROMETHEUS_CONFIG" \
+    "FLASHBOX_VM METRICS_FLASHBOTS_URL METRICS_FLASHBOTS_REGION METRICS_FLASHBOTS_ACCESS_KEY METRICS_FLASHBOTS_SECRET_KEY" \
+    "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
+
+echo "Observability config written (host: ${host:-none}, endpoints: ${endpoints:-none})"

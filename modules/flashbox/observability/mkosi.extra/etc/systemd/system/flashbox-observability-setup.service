@@ -1,0 +1,14 @@
+[Unit]
+Description=Flashbox observability setup (fetch creds, render Prometheus config)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flashbox-observability-setup
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
