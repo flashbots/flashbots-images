@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # mkosi adds IMAGE_VERSION tag to /usr/lib/os-release, if it's set.
