@@ -36,8 +36,30 @@ CONFIG_IP_NF_MANGLE=y
 CONFIG_IP_NF_RAW=y
 CONFIG_NET_SCHED=y
 
-# For tdx-init
+# AF_ALG userspace crypto API.
+# Debian's cryptsetup 2.8.1 is built with KERNEL_CAPI (see `cryptsetup
+# --version` flags) and libcryptsetup hard-fails at startup with
+# "Cannot initialize crypto backend" if AF_ALG is unavailable -- the
+# openssl/gcrypt userspace backends are not compiled into this binary.
+# tdx-init shells out to cryptsetup for LUKS2 format/open/resize, so
+# AF_ALG is needed to mount the persistent disk. Verified on a dev
+# image with strace + cryptsetup --debug: cryptsetup uses SKCIPHER
+# (AES-XTS keyslot encryption) and HASH (PBKDF fallback / MAC) during
+# the LUKS2 default flow.
+#
+# Re-enable only what cryptsetup actually needs; keep _AEAD and _RNG
+# off as kernel attack-surface hardening (_RNG is unused by cryptsetup,
+# which reads /dev/urandom directly).
+CONFIG_CRYPTO_USER_API=y
 CONFIG_CRYPTO_USER_API_HASH=y
 CONFIG_CRYPTO_USER_API_SKCIPHER=y
-CONFIG_CRYPTO_USER_API_RNG=y
-CONFIG_CRYPTO_USER_API_AEAD=y
+# CONFIG_CRYPTO_USER_API_RNG is not set
+# CONFIG_CRYPTO_USER_API_AEAD is not set
+
+# Authenticated encryption template combining cipher + HMAC + Extended
+# Sequence Number handling. Only in-tree consumer is IPsec/XFRM with the
+# ESN flag set, but IPsec is disabled on this image (see 01-sane-defaults:
+# CONFIG_INET_AH/ESP/INET6_AH/INET6_ESP not set). authencesn was the
+# specific algorithm at the heart of CVE-2026-31431 (copy.fail); pinning
+# it off removes the algorithm from the kernel as defense in depth.
+# CONFIG_CRYPTO_AUTHENCESN is not set
