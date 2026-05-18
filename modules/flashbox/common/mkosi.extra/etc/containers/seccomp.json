@@ -915,6 +915,102 @@
           "op": "SCMP_CMP_EQ"
         }
       ]
+    },
+    {
+      "names": [
+        "socket"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 97,
+      "comment": "Block AF_KCM (41). sibling of the MSG_SPLICE_PAGES family that contains Fragnesia (XFRM ESP-in-TCP).",
+      "args": [
+        {
+          "index": 0,
+          "value": 41,
+          "op": "SCMP_CMP_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "socket"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 97,
+      "comment": "Block AF_QIPCRTR (42). Qualcomm IPC router",
+      "args": [
+        {
+          "index": 0,
+          "value": 42,
+          "op": "SCMP_CMP_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "socket"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 97,
+      "comment": "Block AF_SMC (43)",
+      "args": [
+        {
+          "index": 0,
+          "value": 43,
+          "op": "SCMP_CMP_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "socket"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 97,
+      "comment": "Defense in depth on top of CONFIG_XDP_SOCKETS=n: block AF_XDP (44).",
+      "args": [
+        {
+          "index": 0,
+          "value": 44,
+          "op": "SCMP_CMP_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "pidfd_getfd"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "Block 25 cap-gates pidfd_getfd on CAP_SYS_PTRACE"
+    },
+    {
+      "names": [
+        "io_uring_setup",
+        "io_uring_enter",
+        "io_uring_register"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38,
+      "comment": "Defense in depth on top of CONFIG_IO_URING=n"
+    },
+    {
+      "names": [
+        "userfaultfd"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "userfaultfd is a recurring race-window primitive in kernel LPEs (it lets userspace pause kernel-side page faults)"
+    },
+    {
+      "names": [
+        "add_key",
+        "request_key",
+        "keyctl"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38,
+      "comment": "Kernel keyring API"
     }
   ]
 }
