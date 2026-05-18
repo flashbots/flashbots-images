@@ -467,10 +467,11 @@
         "socket"
       ],
       "action": "SCMP_ACT_ALLOW",
+      "comment": "Blocks AF_ALG (38), AF_VSOCK (40), AF_KCM (41), AF_QIPCRTR (42), AF_SMC (43), AF_XDP (44), AF_MCTP (45) via the default ERRNO.",
       "args": [
         {
           "index": 0,
-          "value": 40,
+          "value": 45,
           "op": "SCMP_CMP_GT"
         }
       ]
@@ -897,81 +898,6 @@
         {
           "index": 0,
           "value": 33,
-          "op": "SCMP_CMP_EQ"
-        }
-      ]
-    },
-    {
-      "names": [
-        "socket"
-      ],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 97,
-      "comment": "Defense in depth on top of CONFIG_MCTP=n",
-      "args": [
-        {
-          "index": 0,
-          "value": 45,
-          "op": "SCMP_CMP_EQ"
-        }
-      ]
-    },
-    {
-      "names": [
-        "socket"
-      ],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 97,
-      "comment": "Block AF_KCM (41). sibling of the MSG_SPLICE_PAGES family that contains Fragnesia (XFRM ESP-in-TCP).",
-      "args": [
-        {
-          "index": 0,
-          "value": 41,
-          "op": "SCMP_CMP_EQ"
-        }
-      ]
-    },
-    {
-      "names": [
-        "socket"
-      ],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 97,
-      "comment": "Block AF_QIPCRTR (42). Qualcomm IPC router",
-      "args": [
-        {
-          "index": 0,
-          "value": 42,
-          "op": "SCMP_CMP_EQ"
-        }
-      ]
-    },
-    {
-      "names": [
-        "socket"
-      ],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 97,
-      "comment": "Block AF_SMC (43)",
-      "args": [
-        {
-          "index": 0,
-          "value": 43,
-          "op": "SCMP_CMP_EQ"
-        }
-      ]
-    },
-    {
-      "names": [
-        "socket"
-      ],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 97,
-      "comment": "Defense in depth on top of CONFIG_XDP_SOCKETS=n: block AF_XDP (44).",
-      "args": [
-        {
-          "index": 0,
-          "value": 44,
           "op": "SCMP_CMP_EQ"
         }
       ]
