@@ -14,6 +14,8 @@ Environment=VECTOR_LOG_FORMAT=json \
             VECTOR_CONFIG_YAML=%d/vector.yaml
 ExecStartPre=/usr/bin/vector validate
 ExecStart=/usr/bin/vector
+# Reload does not work because of LoadCredential
+# Fixed in systemd v260 (https://github.com/systemd/systemd/commit/71de0a22ff805954b3e6df95868ee82f9c7ff092)
 ExecReload=/usr/bin/vector validate
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
