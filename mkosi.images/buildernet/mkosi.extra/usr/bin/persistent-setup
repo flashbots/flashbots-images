@@ -6,6 +6,7 @@ source /usr/bin/helper-functions.sh
 # Initialize variables
 DEVICE_LUN=""
 DEVICE_NAME=""
+DEVICE_SERIAL=""
 KEY_FILE=""
 USE_TPM2=false
 
@@ -20,6 +21,10 @@ while [[ $# -gt 0 ]]; do
       DEVICE_NAME="$2"
       shift 2
       ;;
+    --device-serial)
+      DEVICE_SERIAL="$2"
+      shift 2
+      ;;
     --key-file)
       KEY_FILE="$2"
       shift 2
@@ -30,11 +35,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       echo "Usage: $(basename "$0") [OPTIONS]"
-      echo "  --device-lun <LUN>    Specify device by LUN number"
-      echo "  --device-name <NAME>  Specify device by name"
-      echo "  --key-file <FILE>     Path to file containing passphrase"
-      echo "  --tpm2                Enable TPM2 encryption"
-      echo "  -h, --help           Show this help message"
+      echo "  --device-lun <LUN>       Specify device by LUN number"
+      echo "  --device-name <NAME>     Specify device by /dev/disk/by-id name"
+      echo "  --device-serial <SERIAL> Specify device by serial (matches any bus prefix)"
+      echo "  --key-file <FILE>        Path to file containing passphrase"
+      echo "  --tpm2                   Enable TPM2 encryption"
+      echo "  -h, --help               Show this help message"
       echo ""
       echo "Encryption options:"
       echo "  --key-file only:      Passphrase-based encryption"
@@ -50,15 +56,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Validate arguments
-if [[ -z "$DEVICE_LUN" && -z "$DEVICE_NAME" ]]; then
-  echo "Error: Either --device-lun or --device-name must be specified" >&2
+# Validate arguments: exactly one device selector must be set
+SELECTOR_COUNT=0
+[[ -n "$DEVICE_LUN"    ]] && SELECTOR_COUNT=$((SELECTOR_COUNT+1))
+[[ -n "$DEVICE_NAME"   ]] && SELECTOR_COUNT=$((SELECTOR_COUNT+1))
+[[ -n "$DEVICE_SERIAL" ]] && SELECTOR_COUNT=$((SELECTOR_COUNT+1))
+if [[ $SELECTOR_COUNT -ne 1 ]]; then
+  echo "Error: Exactly one of --device-lun, --device-name, or --device-serial must be specified" >&2
   echo "Usage: $(basename "$0") [OPTIONS]" >&2
-  exit 1
-fi
-
-if [[ -n "$DEVICE_LUN" && -n "$DEVICE_NAME" ]]; then
-  echo "Error: Cannot specify both --device-lun and --device-name" >&2
   exit 1
 fi
 
@@ -104,11 +109,25 @@ function find_target_device_by_name {
   return 1
 }
 
+# Match /dev/disk/by-id/<bus>-<serial> regardless of bus prefix (virtio-, scsi-, nvme-, ...).
+# The trailing -<serial> is end-anchored, so partition links (...-partN) are not matched.
+function find_target_device_by_serial {
+  local serial="$1"
+  local candidates=(/dev/disk/by-id/*-${serial})
+  if [[ -e "${candidates[0]}" ]]; then
+    readlink -f "${candidates[0]}"
+    return 0
+  fi
+  return 1
+}
+
 function find_target_device {
   if [[ -n "$DEVICE_LUN" ]]; then
     find_target_device_by_lun "$DEVICE_LUN"
   elif [[ -n "$DEVICE_NAME" ]]; then
     find_target_device_by_name "$DEVICE_NAME"
+  elif [[ -n "$DEVICE_SERIAL" ]]; then
+    find_target_device_by_serial "$DEVICE_SERIAL"
   else
     return 1
   fi
@@ -117,18 +136,18 @@ function find_target_device {
 INTERVAL=2
 
 if [[ -n "$DEVICE_LUN" ]]; then
-  log "persistent-setup: Waiting for device with LUN ${DEVICE_LUN} to appear..."
+  DEVICE_DESCRIPTOR="LUN ${DEVICE_LUN}"
+elif [[ -n "$DEVICE_NAME" ]]; then
+  DEVICE_DESCRIPTOR="name ${DEVICE_NAME}"
 else
-  log "persistent-setup: Waiting for device named ${DEVICE_NAME} to appear..."
+  DEVICE_DESCRIPTOR="serial ${DEVICE_SERIAL}"
 fi
+
+log "persistent-setup: Waiting for device with ${DEVICE_DESCRIPTOR} to appear..."
 
 while true; do
   if TARGET_DEVICE=$(find_target_device); then
-    if [[ -n "$DEVICE_LUN" ]]; then
-      log "persistent-setup: Found device ${TARGET_DEVICE} for LUN ${DEVICE_LUN}"
-    else
-      log "persistent-setup: Found device ${TARGET_DEVICE} for name ${DEVICE_NAME}"
-    fi
+    log "persistent-setup: Found device ${TARGET_DEVICE} for ${DEVICE_DESCRIPTOR}"
     break
   fi
 
@@ -241,8 +260,4 @@ elif [[ "$USE_TPM2" == true ]]; then
   ENCRYPTION_METHOD="TPM2-only encryption"
 fi
 
-if [[ -n "$DEVICE_LUN" ]]; then
-  log "persistent-setup: Completed setup for LUN ${DEVICE_LUN} on device ${TARGET_DEVICE} with ${ENCRYPTION_METHOD}"
-else
-  log "persistent-setup: Completed setup for device ${DEVICE_NAME} on ${TARGET_DEVICE} with ${ENCRYPTION_METHOD}"
-fi
+log "persistent-setup: Completed setup for ${DEVICE_DESCRIPTOR} on device ${TARGET_DEVICE} with ${ENCRYPTION_METHOD}"
