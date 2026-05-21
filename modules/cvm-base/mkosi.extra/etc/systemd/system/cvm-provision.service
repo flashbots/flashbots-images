@@ -1,0 +1,18 @@
+[Unit]
+Description=CVM Provisioner — receives manifest, extends RTMR3, runs workload
+After=network-online.target persistent-mount.service
+Wants=network-online.target
+Requires=persistent-mount.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cvm-provisioner --listen :8888 --state-dir /persistent/cvm-provisioner --runtime-dir /run/cvm-provisioner --mode real
+RuntimeDirectory=cvm-provisioner
+RuntimeDirectoryMode=0700
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
