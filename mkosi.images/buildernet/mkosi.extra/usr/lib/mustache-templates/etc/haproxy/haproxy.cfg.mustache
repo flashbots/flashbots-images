@@ -67,6 +67,9 @@ frontend default
   http-request set-var(txn.rate_limit_reason) str(http_req_rate) if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
   http-request deny deny_status 429 if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
 
+  http-request del-header X-Forwarded-For
+  http-request set-header X-Forwarded-For %[src]
+
   http-request return status 200 content-type text/plain string "OK\n" if { path '/livez' }
   http-request return status 200 content-type text/plain string "${ACCOUNT_URL}\n" if { path '/acme-account-url' }
   http-request return status 200 content-type text/html file "/usr/lib/haproxy/index.html" hdr "cache-control" "max-age=604800" if { method GET } { path / }
