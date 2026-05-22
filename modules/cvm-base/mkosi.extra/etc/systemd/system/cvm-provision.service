@@ -6,6 +6,8 @@ Requires=wait-for-key.service
 
 [Service]
 Type=simple
+# Production default; devtools profile overrides to `auto` via a drop-in.
+Environment=CVM_PROVISIONER_MODE=real
 ExecStart=/usr/bin/cvm-provisioner \
     --listen 0.0.0.0:8888 \
     --listen-loopback 127.0.0.1:8889 \
@@ -13,7 +15,7 @@ ExecStart=/usr/bin/cvm-provisioner \
     --persistent-mount /persistent \
     --tdx-init-binary /usr/bin/tdx-init \
     --authorized-pubkey-file /etc/searcher_key \
-    --mode auto
+    --mode ${CVM_PROVISIONER_MODE}
 RuntimeDirectory=cvm-provisioner
 RuntimeDirectoryMode=0700
 Restart=on-failure
