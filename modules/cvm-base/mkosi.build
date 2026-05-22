@@ -3,15 +3,8 @@ set -euxo pipefail
 
 source scripts/make_git_package.sh
 
-# Compile the restricted operator shell.
-mkdir -p "$DESTDIR/usr/bin"
-mkosi-chroot gcc -O2 -Wall -o "$DESTDIR/usr/bin/cvm-shell" "$SRCDIR/modules/cvm-base/cvm-shell.c"
-chmod 755 "$DESTDIR/usr/bin/cvm-shell"
-
-# tdx-init: LUKS bring-up + SSH pubkey delivery.
-# Same package flashbox uses. Operator POSTs their SSH pubkey to :8080,
-# SSHes in as `searcher`, then runs `sudo tdx-init set-passphrase` to
-# format/open the LUKS-backed /persistent.
+# tdx-init: LUKS bring-up driven via stdin by cvm-provisioner's /init handler.
+# (No longer invoked over SSH; the binary is reused as a subprocess.)
 make_git_package \
     "tdx-init" \
     "v0.3.2" \
@@ -19,14 +12,25 @@ make_git_package \
     'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/tdx-init' \
     "build/tdx-init:/usr/bin/tdx-init"
 
-# cvm-provisioner: in-CVM agent that takes over once /persistent is mounted.
-# Receives docker-compose via HTTP, extends RTMR3 with sha384(compose),
-# launches the workload via podman-compose.
+# cvm-provisioner v1: single Go service owning LUKS bring-up + manifest deploy
+# behind mTLS. Listens 0.0.0.0:8888 TLS (user direct) and 127.0.0.1:8889
+# plaintext (cvm-reverse-proxy forwards into this for aTLS-fronted read access).
+# TODO: switch branch to main after v1 lands.
 make_git_package \
     "cvm-provisioner" \
-    "main" \
+    "moe/v1-collapsed" \
     "https://github.com/flashbots/cvm-provisioner" \
     'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/cvm-provisioner ./cmd/cvm-provisioner && \
      go build -trimpath -ldflags "-s -w -buildid=" -o ./build/compute-expected-rtmr3 ./cmd/compute-expected-rtmr3' \
     "build/cvm-provisioner:/usr/bin/cvm-provisioner" \
     "build/compute-expected-rtmr3:/usr/bin/compute-expected-rtmr3"
+
+# cvm-reverse-proxy: aTLS front for the read endpoints. Listens 0.0.0.0:8745
+# with attested TLS, forwards to http://127.0.0.1:8889 (cvm-provisioner
+# read-only mux). Same binary flashbox uses.
+make_git_package \
+    "cvm-reverse-proxy" \
+    "v0.1.9" \
+    "https://github.com/flashbots/cvm-reverse-proxy" \
+    "make build-proxy-server" \
+    "build/proxy-server:/usr/bin/cvm-reverse-proxy"

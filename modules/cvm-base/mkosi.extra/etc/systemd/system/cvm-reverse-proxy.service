@@ -1,0 +1,18 @@
+[Unit]
+Description=cvm-reverse-proxy — aTLS front for cvm-provisioner read endpoints
+After=cvm-provision.service
+Requires=cvm-provision.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cvm-reverse-proxy \
+    --listen-addr=0.0.0.0:8745 \
+    --target-addr=http://127.0.0.1:8889 \
+    --server-attestation-type=auto
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target

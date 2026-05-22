@@ -1,1 +1,0 @@
-searcher ALL=(root) NOPASSWD: /usr/bin/tdx-init set-passphrase, /sbin/reboot

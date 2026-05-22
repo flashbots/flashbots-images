@@ -1,12 +1,19 @@
 [Unit]
-Description=CVM Provisioner — receives manifest, extends RTMR3, runs workload
-After=network-online.target persistent-mount.service
+Description=CVM Provisioner — mTLS API for /init, /manifest, /reboot, /status
+After=network-online.target wait-for-key.service
 Wants=network-online.target
-Requires=persistent-mount.service
+Requires=wait-for-key.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/cvm-provisioner --listen :8888 --state-dir /persistent/cvm-provisioner --runtime-dir /run/cvm-provisioner --mode real
+ExecStart=/usr/bin/cvm-provisioner \
+    --listen 0.0.0.0:8888 \
+    --listen-loopback 127.0.0.1:8889 \
+    --runtime-dir /run/cvm-provisioner \
+    --persistent-mount /persistent \
+    --tdx-init-binary /usr/bin/tdx-init \
+    --authorized-pubkey-file /etc/searcher_key \
+    --mode auto
 RuntimeDirectory=cvm-provisioner
 RuntimeDirectoryMode=0700
 Restart=on-failure
