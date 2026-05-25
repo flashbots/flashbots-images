@@ -14,7 +14,7 @@ template {
 
     command = ["/bin/sh", "-c",
       <<-EOT
-        # op-rbuilder
+        printf '{"@level":"info","@message":"rendered template","@destination":"/etc/systemd/system/op-rbuilder.service","@content":"%s"}\n' "$( cat /etc/systemd/system/op-rbuilder.service | base64 -w 0 )"
 
         systemctl daemon-reload
         systemctl add-wants minimal.target op-rbuilder.service
@@ -23,7 +23,7 @@ template {
         PID=$( pgrep node-health ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
         sleep 5
 
-        PID=$( pgrep rproxy ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
+        PID=$( pgrep bproxy ); if [ 0${PID} -gt 0 ]; then kill -1 ${PID} || true; fi
 
         systemctl restart op-rbuilder.service
         systemctl restart node-healthchecker.service

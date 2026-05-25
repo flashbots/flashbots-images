@@ -4,13 +4,17 @@ set -euxo pipefail
 
 # Enable systemd services
 
+systemctl unmask syslog.socket
+
 systemctl add-wants minimal.target  \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
     google-cloud-ops-agent.service \
+    logrotate.timer \
     prometheus-node-exporter.service \
     prometheus-process-exporter.service \
     ptlb-routes-nanny.timer \
+    rsyslog.service \
     vault-agent.service
 
 # Remove automatically generated vault cert

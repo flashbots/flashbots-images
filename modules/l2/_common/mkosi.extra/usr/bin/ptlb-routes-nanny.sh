@@ -20,16 +20,22 @@ for line in "$(
 
   for idx in $(
     curl \
+        --fail \
         --header "metadata-flavor: Google" \
-        --max-time 1 \
+        --retry 100 \
+        --retry-all-errors \
+        --retry-delay 1 \
         --show-error \
         --silent \
       http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/forwarded-ips/
   ); do
     ip=$(
       curl \
+          --fail \
           --header "metadata-flavor: Google" \
-          --max-time 1 \
+          --retry 100 \
+          --retry-all-errors \
+          --retry-delay 1 \
           --show-error \
           --silent \
         http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/forwarded-ips/${idx}
