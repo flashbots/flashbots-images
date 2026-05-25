@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euxo pipefail
 
 source scripts/make_git_package.sh
@@ -12,14 +12,14 @@ LIGHTHOUSE_BUILD_CMD="
     export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
     cargo build --bin lighthouse \
-        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,sysmalloc \
+        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,jemalloc-unprefixed \
         --profile release \
         --locked \
         --target x86_64-unknown-linux-gnu
 "
 make_git_package \
     "lighthouse" \
-    "v8.1.2" \
+    "v8.1.3" \
     "https://github.com/sigp/lighthouse.git" \
     "$LIGHTHOUSE_BUILD_CMD" \
     "target/x86_64-unknown-linux-gnu/release/lighthouse:/usr/bin/lighthouse"

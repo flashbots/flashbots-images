@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -eu -o pipefail
 
@@ -10,11 +10,20 @@ cp ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX
 find ${OUTPUTDIR}/esp -exec touch -d "@${SOURCE_DATE_EPOCH}" {} +
 rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
 
-# Hack to use the newer systemd-repart from nix instead of mkosi.tools one
-# TODO: remove after updating mkosi
-PATH="${PATH#/usr/bin:/usr/sbin:}" systemd-repart --empty=create \
-  --size=1G \
-  --definitions=mkosi.profiles/gcp/repart.d \
+# Dynamically size ESP partition and disk from EFI file
+MIB=$((1024 * 1024))
+EFI_BYTES=$(stat -c%s "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi")
+ESP_BYTES=$(( EFI_BYTES + 32 * MIB ))
+DISK_GIB=$(numfmt --to-unit=1Gi --round=up $(( ESP_BYTES + MIB ))) # + 1MiB GPT overhead
+
+REPART_TMPDIR=$(mktemp -d)
+cp mkosi.profiles/gcp/repart.d/00-uki.conf "${REPART_TMPDIR}/00-uki.conf"
+echo "SizeMinBytes=${ESP_BYTES}" >> "${REPART_TMPDIR}/00-uki.conf"
+echo "SizeMaxBytes=${ESP_BYTES}" >> "${REPART_TMPDIR}/00-uki.conf"
+
+systemd-repart --empty=create \
+  --size=${DISK_GIB}G \
+  --definitions="${REPART_TMPDIR}" \
   --copy-source=${OUTPUTDIR} \
   --seed=630b5f72-a36a-4e83-b23d-6ef47c82fd9c \
   --dry-run=no \
