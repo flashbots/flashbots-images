@@ -1,18 +1,17 @@
 #!/bin/sh
 set -eu -o pipefail
 
-# Boot-time observability setup: fetch metrics creds from Vault and render
-# /etc/prometheus/prometheus.yml from the single template.
+# Boot-time observability setup: authenticate to Vault, fetch + validate the
+# Prometheus remote_write secret, and render /etc/prometheus/prometheus.yml.
 #
-# Prometheus ships flashbox:* metrics to AWS Managed Prometheus via the
-# internal TCP-proxy LB at a fixed IP (10.88.0.100) — no DNS, no /etc/hosts
-# pinning; the host firewall statically allows that IP, and TLS is validated
-# via tls_config.server_name in the template.
+# Prometheus ships flashbox:* metrics to Prometheus via the internal TCP-proxy
+# at a fixed IP (10.88.0.100); the host firewall statically allows that IP, and
+# TLS is validated via tls_config.server_name in the template.
 #
 # Fail-safe: on any failure (QEMU dev, Vault unreachable, missing/invalid
-# secret) this script writes NO config and exits 0. prometheus.service has
-# ConditionPathExists=/etc/prometheus/prometheus.yml, so it is cleanly skipped
-# (inactive, not failed) until a later boot renders the config. Boot never
+# secret) this writes NO config and exits 0. Because prometheus.service has
+# ConditionPathExists=/etc/prometheus/prometheus.yml, it is cleanly skipped
+# (inactive, not failed) until a later boot renders a config — boot never
 # fails because of observability.
 
 PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
@@ -20,36 +19,27 @@ PROMETHEUS_TEMPLATE=/etc/prometheus/prometheus.yml.tmpl
 
 . /usr/lib/flashbox/vault.sh
 
-# Start clean: never leave a stale config from a previous boot.
+# Always start clean — never leave a stale config from a previous boot.
 rm -f "$PROMETHEUS_CONFIG"
 
-# Read the GCE instance name for external_labels (host=<vm>), so the central
-# Prometheus can distinguish flashbox VMs.
-FLASHBOX_VM=$(_meta name || echo "unknown")
+# host=<vm> external label, from the GCE instance name.
+FLASHBOX_VM=$(curl -sf --header "Metadata-Flavor: Google" \
+    "http://metadata/computeMetadata/v1/instance/name") || FLASHBOX_VM=unknown
+printf '%s' "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
 export FLASHBOX_VM
 
-# Local QEMU dev: no Vault, no config (Prometheus stays disabled).
+# Local QEMU dev image: no Vault, no config (Prometheus stays disabled).
 if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
    [ -f /etc/systemd/system/serial-console.service ]; then
     echo "QEMU dev environment, leaving Prometheus disabled"
     exit 0
 fi
 
-echo "Fetching observability config from Vault..."
-
-token=$(vault_login) || {
-    echo "WARNING: Vault login failed, leaving Prometheus disabled"
+# Fetch + validate the four metrics variables (exported by vault_fetch).
+if ! vault_fetch; then
+    echo "WARNING: Vault fetch/validation failed, leaving Prometheus disabled"
     exit 0
-}
-
-vault_fetch "$token" \
-    METRICS_FLASHBOTS_WORKSPACE \
-    METRICS_FLASHBOTS_REGION \
-    METRICS_FLASHBOTS_ACCESS_KEY \
-    METRICS_FLASHBOTS_SECRET_KEY || {
-    echo "WARNING: could not fetch/validate metrics secret, leaving Prometheus disabled"
-    exit 0
-}
+fi
 
 # Single render: only the five curated variables are substituted; every other
 # token in the template (e.g. [__name__]) is left untouched.
