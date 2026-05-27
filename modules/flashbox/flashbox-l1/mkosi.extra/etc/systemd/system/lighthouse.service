@@ -20,6 +20,7 @@ ExecStart=/usr/bin/lighthouse bn \
 		--datadir "/persistent/lighthouse" \
         --disable-optimistic-finalized-sync \
         --disable-quic \
+        --state-cache-size 32 \
         --logfile-dir /persistent/lighthouse_logs \
         --logfile-format JSON \
         --logfile-debug-level debug \
