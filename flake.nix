@@ -51,30 +51,43 @@
     };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
+      mkosiTools = with pkgsForSystem; [
+        apt
+        dpkg
+        gnupg
+        debootstrap
+        dosfstools
+        e2fsprogs
+        mtools
+        gptfdisk
+        util-linux
+        zstd
+        which
+        qemu-utils
+        parted
+        jq
+        reprepro
+        systemd
+        bash
+        coreutils
+        findutils
+        gnused
+        gnugrep
+        gnutar
+        gzip
+        xz
+        curl
+        git
+        patch
+        ncurses
+      ];
+      mkosiToolsEnv = pkgsForSystem.buildEnv {
+        name = "mkosi-tools";
+        paths = mkosiTools;
+      };
       mkosi-unwrapped =
         (pkgsForSystem.mkosi.override {
-          extraDeps = with pkgsForSystem;
-            [
-              apt
-              dpkg
-              gnupg
-              debootstrap
-              squashfsTools
-              dosfstools
-              e2fsprogs
-              mtools
-              mustache-go
-              cryptsetup
-              gptfdisk
-              util-linux
-              zstd
-              which
-              qemu-utils
-              parted
-              unzip
-              jq
-            ]
-            ++ [reprepro];
+          extraDeps = mkosiTools;
         }).overrideAttrs (old: {
           src = pkgsForSystem.fetchFromGitHub {
             owner = "systemd";
@@ -102,7 +115,7 @@
           --map-auto --map-root-user \
           --setuid=0 --setgid=0 \
           -- \
-          env PATH="$PATH" \
+          env PATH="${mkosiToolsEnv}/bin" \
           ${mkosi-unwrapped}/bin/mkosi "$@"
       '';
   in {
