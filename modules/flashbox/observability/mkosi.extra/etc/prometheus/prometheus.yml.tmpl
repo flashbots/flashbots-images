@@ -11,7 +11,6 @@ global:
 rule_files:
   - /etc/prometheus/recording_rules.yml
 
-# Scrape configurations
 scrape_configs:
   # Node exporter on localhost
   - job_name: 'node'
@@ -27,3 +26,21 @@ scrape_configs:
   - job_name: 'process'
     static_configs:
       - targets: ['localhost:9256']
+
+# Remote write to AWS Managed Prometheus via the internal TCP-proxy LB.
+# Host is the fixed LB IP (10.88.0.100, see terraform amp-proxy.tf), so no DNS
+# resolution happens on the VM; TLS SNI + cert validation are overridden to
+# AMP's real regional hostname via tls_config.server_name.
+remote_write:
+  - url: https://10.88.0.100/workspaces/${METRICS_FLASHBOTS_WORKSPACE}/api/v1/remote_write
+    write_relabel_configs:
+      # Only send flashbox: prefixed metrics
+      - source_labels: [__name__]
+        regex: 'flashbox:.*'
+        action: keep
+    tls_config:
+      server_name: aps-workspaces.${METRICS_FLASHBOTS_REGION}.amazonaws.com
+    sigv4:
+      region: ${METRICS_FLASHBOTS_REGION}
+      access_key: ${METRICS_FLASHBOTS_ACCESS_KEY}
+      secret_key: ${METRICS_FLASHBOTS_SECRET_KEY}

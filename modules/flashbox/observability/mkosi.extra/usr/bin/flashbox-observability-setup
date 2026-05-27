@@ -2,64 +2,58 @@
 set -eu -o pipefail
 
 # Boot-time observability setup: fetch metrics creds from Vault and render
-# /etc/prometheus/prometheus.yml.
+# /etc/prometheus/prometheus.yml from the single template.
 #
 # Prometheus ships flashbox:* metrics to AWS Managed Prometheus via the
-# internal TCP-proxy load balancer at a fixed IP (10.88.0.100). Because the
-# remote_write URL is an IP literal there's no DNS to resolve on the VM and no
-# /etc/hosts pinning — the host firewall statically allows egress to that IP
-# (see /etc/bob/firewall-config-observability), and TLS cert validation is
-# handled by tls_config.server_name in prometheus-remote-write.yml.tmpl.
+# internal TCP-proxy LB at a fixed IP (10.88.0.100) — no DNS, no /etc/hosts
+# pinning; the host firewall statically allows that IP, and TLS is validated
+# via tls_config.server_name in the template.
 #
-# On any failure (Vault unreachable, missing/invalid secret) this script
-# renders the base config without remote_write and exits 0. Boot must never
-# fail because of observability.
+# Fail-safe: on any failure (QEMU dev, Vault unreachable, missing/invalid
+# secret) this script writes NO config and exits 0. prometheus.service has
+# ConditionPathExists=/etc/prometheus/prometheus.yml, so it is cleanly skipped
+# (inactive, not failed) until a later boot renders the config. Boot never
+# fails because of observability.
 
 PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
-PROMETHEUS_BASE=/etc/prometheus/prometheus-base.yml.tmpl
-PROMETHEUS_REMOTE_WRITE=/etc/prometheus/prometheus-remote-write.yml.tmpl
+PROMETHEUS_TEMPLATE=/etc/prometheus/prometheus.yml.tmpl
 
 . /usr/lib/flashbox/vault.sh
-. /usr/lib/flashbox/render.sh
 
-# Read the GCE instance name and expose it to prometheus-base.yml.tmpl's
-# external_labels — every remote_write sample is stamped with `host=<vm>`
-# so the central Prometheus can distinguish flashbox VMs.
-FLASHBOX_VM=$(curl -sf --header "Metadata-Flavor: Google" \
-    "http://metadata/computeMetadata/v1/instance/name" || echo "unknown")
+# Start clean: never leave a stale config from a previous boot.
+rm -f "$PROMETHEUS_CONFIG"
+
+# Read the GCE instance name for external_labels (host=<vm>), so the central
+# Prometheus can distinguish flashbox VMs.
+FLASHBOX_VM=$(_meta name || echo "unknown")
 export FLASHBOX_VM
 
-# Default state: base config only (no remote_write). The success path below
-# re-renders with the remote_write block once creds are in hand.
-render_template "$PROMETHEUS_CONFIG" "FLASHBOX_VM" "$PROMETHEUS_BASE"
-
-# Local QEMU dev: skip Vault entirely.
+# Local QEMU dev: no Vault, no config (Prometheus stays disabled).
 if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
    [ -f /etc/systemd/system/serial-console.service ]; then
-    echo "QEMU dev environment, skipping observability config fetch"
+    echo "QEMU dev environment, leaving Prometheus disabled"
     exit 0
 fi
 
 echo "Fetching observability config from Vault..."
 
-# Fetch only the keys we need; vault_fetch enforces this allowlist and
-# validates each value before exporting (see vault.sh).
-if ! vault_fetch METRICS_FLASHBOTS_WORKSPACE METRICS_FLASHBOTS_REGION \
-                 METRICS_FLASHBOTS_ACCESS_KEY METRICS_FLASHBOTS_SECRET_KEY; then
-    echo "WARNING: could not fetch observability config from Vault, using defaults"
+token=$(vault_login) || {
+    echo "WARNING: Vault login failed, leaving Prometheus disabled"
     exit 0
-fi
+}
 
-if [ -z "${METRICS_FLASHBOTS_WORKSPACE:-}" ] \
-   || [ -z "${METRICS_FLASHBOTS_REGION:-}" ] \
-   || [ -z "${METRICS_FLASHBOTS_ACCESS_KEY:-}" ] \
-   || [ -z "${METRICS_FLASHBOTS_SECRET_KEY:-}" ]; then
-    echo "WARNING: incomplete observability config from Vault (need WORKSPACE, REGION, ACCESS_KEY, SECRET_KEY), remote_write disabled"
+vault_fetch "$token" \
+    METRICS_FLASHBOTS_WORKSPACE \
+    METRICS_FLASHBOTS_REGION \
+    METRICS_FLASHBOTS_ACCESS_KEY \
+    METRICS_FLASHBOTS_SECRET_KEY || {
+    echo "WARNING: could not fetch/validate metrics secret, leaving Prometheus disabled"
     exit 0
-fi
+}
 
-render_template "$PROMETHEUS_CONFIG" \
-    "FLASHBOX_VM METRICS_FLASHBOTS_WORKSPACE METRICS_FLASHBOTS_REGION METRICS_FLASHBOTS_ACCESS_KEY METRICS_FLASHBOTS_SECRET_KEY" \
-    "$PROMETHEUS_BASE" "$PROMETHEUS_REMOTE_WRITE"
+# Single render: only the five curated variables are substituted; every other
+# token in the template (e.g. [__name__]) is left untouched.
+envsubst '$FLASHBOX_VM $METRICS_FLASHBOTS_WORKSPACE $METRICS_FLASHBOTS_REGION $METRICS_FLASHBOTS_ACCESS_KEY $METRICS_FLASHBOTS_SECRET_KEY' \
+    < "$PROMETHEUS_TEMPLATE" > "$PROMETHEUS_CONFIG"
 
 echo "Observability config written (workspace: ${METRICS_FLASHBOTS_WORKSPACE})"
