@@ -1,15 +1,11 @@
 # Observability drop-in for /etc/bob/firewall-config.d/
 #
-# Loaded by init-firewall.sh after the per-image firewall-config.
-# Owns:
-#   - sourcing the metrics endpoint env file written by
-#     flashbox-observability-setup at boot
-#   - the egress allowlist for the metrics endpoint IPs
-
-[ -f /etc/flashbox/observability.env ] && . /etc/flashbox/observability.env
-
-if [ -n "${METRICS_ENDPOINTS:-}" ]; then
-    for ip in $METRICS_ENDPOINTS; do
-        accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp "$ip" $HTTPS_PORT "Metrics endpoint (Flashbots)"
-    done
-fi
+# Loaded by init-firewall.sh after the per-image firewall-config. Opens host
+# egress to AWS Managed Prometheus, reached via the internal TCP-proxy load
+# balancer at a fixed RFC1918 address (provisioned in terraform:
+# gcp/flashbots-l1-flashbox/us-east4/amp-proxy.tf -> amp_proxy_ip).
+#
+# Static IP -> the rule is measured into the image; no boot-time DNS
+# resolution and no env file. Placed in ALWAYS_OUT so it survives the
+# maintenance -> production mode toggle (production drops general egress).
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp 10.88.0.100 $HTTPS_PORT "Metrics endpoint (AMP via internal LB)"

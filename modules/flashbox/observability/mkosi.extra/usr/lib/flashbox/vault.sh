@@ -3,20 +3,22 @@
 #
 # Reads bootstrap config from GCE instance metadata, authenticates to Vault
 # using the instance identity JWT, fetches the shared secret blob, and
-# exports every key in the blob as an env var.
+# exports the explicitly-requested keys as env vars.
 
 _gce_metadata_get() {
     curl -sf --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/$1"
 }
 
-# Authenticate to Vault and fetch the shared secret blob. Each key in the
-# secret is exported as `<KEY>=<value>` verbatim — store keys in Vault with
-# the exact casing you want as the env var name (UPPER_SNAKE_CASE by
-# convention).
+# Authenticate to Vault and fetch the shared secret blob, then export ONLY
+# the keys named in the arguments (an allowlist) — never the whole blob.
+# Usage: vault_fetch KEY [KEY ...]. Keys are exported verbatim, so store them
+# in Vault with the exact UPPER_SNAKE_CASE env var name you want. Each value
+# is charset-validated before export to prevent env/YAML injection from a
+# tampered secret; missing/empty/invalid values are skipped with a warning.
 #
-# On failure, logs a specific reason to stderr and returns non-zero without
-# exporting anything.
+# On auth/fetch failure, logs a specific reason to stderr and returns
+# non-zero without exporting anything.
 vault_fetch() {
     local instance_name vault_addr auth_mount vault_role kv_path kv_common_suffix
     instance_name=$(_gce_metadata_get name) || {
@@ -60,13 +62,24 @@ vault_fetch() {
         | jq -ce .data.data) || {
         echo "WARNING: vault_fetch: KV read failed at ${kv_path}/node/${kv_common_suffix}" >&2; return 1; }
 
-    local keys
-    keys=$(echo "$secret_data" | jq -r 'keys[]') || {
-        echo "WARNING: vault_fetch: could not enumerate keys in secret payload" >&2; return 1; }
-
+    # Export ONLY the requested keys (the allowlist passed as args). This
+    # bounds what a tampered/compromised secret can inject into our env — an
+    # unexpected key (PATH, LD_PRELOAD, ...) is never exported. Each value is
+    # charset-restricted to block YAML/env injection via crafted values
+    # (newlines, quotes, $, backticks, spaces).
     local key value
-    for key in $keys; do
+    for key in "$@"; do
         value=$(echo "$secret_data" | jq -rc --arg k "$key" '.[$k] // ""')
+        if [ -z "$value" ]; then
+            echo "WARNING: vault_fetch: key '${key}' missing or empty in secret" >&2
+            continue
+        fi
+        case "$value" in
+            *[!A-Za-z0-9._/+=-]*)
+                echo "WARNING: vault_fetch: value for '${key}' has disallowed characters, skipping" >&2
+                continue
+                ;;
+        esac
         export "${key}=${value}"
     done
 }
