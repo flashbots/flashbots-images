@@ -18,7 +18,7 @@ make_git_package \
 # TODO: switch branch to main after v1 lands.
 make_git_package \
     "cvm-provisioner" \
-    "moe/v1-collapsed" \
+    "main" \
     "https://github.com/flashbots/cvm-provisioner" \
     'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/cvm-provisioner ./cmd/cvm-provisioner && \
      go build -trimpath -ldflags "-s -w -buildid=" -o ./build/compute-expected-rtmr3 ./cmd/compute-expected-rtmr3' \
