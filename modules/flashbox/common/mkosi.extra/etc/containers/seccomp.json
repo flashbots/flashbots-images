@@ -52,6 +52,10 @@
 		{
 			"architecture": "SCMP_ARCH_RISCV64",
 			"subArchitectures": null
+		},
+		{
+			"architecture": "SCMP_ARCH_LOONGARCH64",
+			"subArchitectures": null
 		}
 	],
 	"syscalls": [
@@ -174,6 +178,7 @@
 				"getuid",
 				"getuid32",
 				"getxattr",
+				"getxattrat",
 				"inotify_add_watch",
 				"inotify_init",
 				"inotify_init1",
@@ -199,7 +204,9 @@
 				"link",
 				"linkat",
 				"listen",
+				"listmount",
 				"listxattr",
+				"listxattrat",
 				"llistxattr",
 				"_llseek",
 				"lremovexattr",
@@ -232,6 +239,7 @@
 				"mq_timedsend_time64",
 				"mq_unlink",
 				"mremap",
+				"mseal",
 				"msgctl",
 				"msgget",
 				"msgrcv",
@@ -281,10 +289,12 @@
 				"recvmsg",
 				"remap_file_pages",
 				"removexattr",
+				"removexattrat",
 				"rename",
 				"renameat",
 				"renameat2",
 				"restart_syscall",
+				"riscv_hwprobe",
 				"rmdir",
 				"rseq",
 				"rt_sigaction",
@@ -350,6 +360,7 @@
 				"setuid",
 				"setuid32",
 				"setxattr",
+				"setxattrat",
 				"shmat",
 				"shmctl",
 				"shmdt",
@@ -367,6 +378,7 @@
 				"stat64",
 				"statfs",
 				"statfs64",
+				"statmount",
 				"statx",
 				"symlink",
 				"symlinkat",
@@ -398,6 +410,7 @@
 				"uname",
 				"unlink",
 				"unlinkat",
+				"uretprobe",
 				"utime",
 				"utimensat",
 				"utimensat_time64",
@@ -431,8 +444,35 @@
 			"args": [
 				{
 					"index": 0,
-					"value": 40,
-					"op": "SCMP_CMP_NE"
+					"value": 38,
+					"op": "SCMP_CMP_LT"
+				}
+			]
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 39,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"comment": "Blocks AF_ALG (38), AF_VSOCK (40), AF_KCM (41), AF_QIPCRTR (42), AF_SMC (43), AF_XDP (44), AF_MCTP (45) via the default ERRNO.",
+			"args": [
+				{
+					"index": 0,
+					"value": 45,
+					"op": "SCMP_CMP_GT"
 				}
 			]
 		},
@@ -602,6 +642,9 @@
 				"fsopen",
 				"fspick",
 				"lookup_dcookie",
+				"lsm_get_self_attr",
+				"lsm_list_modules",
+				"lsm_set_self_attr",
 				"mount",
 				"mount_setattr",
 				"move_mount",
@@ -828,6 +871,72 @@
 					"CAP_PERFMON"
 				]
 			}
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 97,
+			"comment": "Defense in depth on top of CONFIG_NET_KEY=n.",
+			"args": [
+				{
+					"index": 0,
+					"value": 15,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
+			"names": [
+				"socket"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 97,
+			"comment": "Defense in depth on top of CONFIG_AF_RXRPC=n.",
+			"args": [
+				{
+					"index": 0,
+					"value": 33,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
+			"names": [
+				"pidfd_getfd"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block 25 cap-gates pidfd_getfd on CAP_SYS_PTRACE"
+		},
+		{
+			"names": [
+				"io_uring_setup",
+				"io_uring_enter",
+				"io_uring_register"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 38,
+			"comment": "Defense in depth on top of CONFIG_IO_URING=n"
+		},
+		{
+			"names": [
+				"userfaultfd"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "userfaultfd is a recurring race-window primitive in kernel LPEs (it lets userspace pause kernel-side page faults)"
+		},
+		{
+			"names": [
+				"add_key",
+				"request_key",
+				"keyctl"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 38,
+			"comment": "Kernel keyring API"
 		}
 	]
 }
