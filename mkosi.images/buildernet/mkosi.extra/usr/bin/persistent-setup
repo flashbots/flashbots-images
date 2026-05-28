@@ -207,12 +207,12 @@ else
     log "persistent-setup: Setting up dual authentication (passphrase + TPM2)"
     cryptsetup luksFormat --type luks2 --key-file="$KEY_FILE" "$TARGET_DEVICE"
     systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=11 --unlock-key-file="$KEY_FILE" "$TARGET_DEVICE"
-    cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent
+    cryptsetup open --key-file="$KEY_FILE" --perf-no_read_workqueue --perf-no_write_workqueue "$TARGET_DEVICE" persistent
   elif [[ -n "$KEY_FILE" ]]; then
     # Passphrase-only setup
     log "persistent-setup: Setting up passphrase-based encryption"
     cryptsetup luksFormat --type luks2 --key-file="$KEY_FILE" "$TARGET_DEVICE"
-    cryptsetup open --key-file="$KEY_FILE" "$TARGET_DEVICE" persistent
+    cryptsetup open --key-file="$KEY_FILE" --perf-no_read_workqueue --perf-no_write_workqueue "$TARGET_DEVICE" persistent
   elif [[ "$USE_TPM2" == true ]]; then
     # TPM2-only setup
     log "persistent-setup: Setting up TPM2-only encryption"
@@ -222,7 +222,7 @@ else
     # Allow only unlocking with TPM
     systemd-cryptenroll --wipe-slot=0 "$TARGET_DEVICE"
     unset TEMP_ENC_PASS
-    cryptsetup open "$TARGET_DEVICE" persistent
+    cryptsetup open --perf-no_read_workqueue --perf-no_write_workqueue "$TARGET_DEVICE" persistent
   fi
 
   mkfs.ext4 /dev/mapper/persistent
