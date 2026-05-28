@@ -44,8 +44,8 @@
       src = pkgs.fetchFromGitHub {
         owner = "flashbots";
         repo = "dstack-mr-gcp";
-        rev = "ecf3284b72a507fd005de91d49f7372490cf6995";
-        sha256 = "sha256-1rcm9sIZuvCojNN2HMPrsECYn9sd8eVChsgwleo8nFY=";
+        rev = "ed23e96785ebfb1ff153503b01cfbfb10cffae67";
+        sha256 = "sha256-jrHcAEp4OYmOMTJ1BWIULoqKycqqQBWIRLjhKmiZor4=";
       };
       vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
