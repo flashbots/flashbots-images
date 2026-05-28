@@ -1,9 +1,8 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
-  # Stamped onto every series sent via remote_write so the central
-  # Prometheus / AMP can distinguish samples coming from different
-  # flashbox VMs.
+  # Stamped onto every series sent via remote_write so the upstream can
+  # distinguish samples coming from different flashbox VMs.
   external_labels:
     host: ${FLASHBOX_VM}
 
@@ -27,10 +26,10 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9256']
 
-# Remote write to AWS Managed Prometheus via the internal TCP-proxy LB.
-# Host is the fixed LB IP (10.88.0.100, see terraform amp-proxy.tf), so no DNS
-# resolution happens on the VM; TLS SNI + cert validation are overridden to
-# AMP's real regional hostname via tls_config.server_name.
+# Remote write via the internal Prometheus metrics proxy at the fixed proxy IP,
+# so no DNS resolution happens on the VM; TLS SNI + cert validation are
+# overridden via tls_config.server_name to match the cert the proxy's upstream
+# presents.
 remote_write:
   - url: https://10.88.0.100/workspaces/${METRICS_FLASHBOTS_WORKSPACE}/api/v1/remote_write
     write_relabel_configs:

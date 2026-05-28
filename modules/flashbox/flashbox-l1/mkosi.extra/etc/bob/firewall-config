@@ -74,6 +74,9 @@ accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $TITAN_IP $TITAN_BUNDLE_PORT "Titan bui
 # they can observe the presence or absence of packets.
 accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $FLASHBOTS_BUNDLE_1,$FLASHBOTS_BUNDLE_2 $HTTPS_PORT "Flashbots bundle"
 
+# Prometheus metrics proxy (searcher netns has a DROP on this IP — see init-container.sh)
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp 10.88.0.100 $HTTPS_PORT "Prometheus metrics proxy"
+
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
 ###########################################################################

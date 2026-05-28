@@ -154,10 +154,6 @@ drop_dst_ip() {
 
 . /etc/bob/firewall-config
 
-# Observability rule (sourced only if the observability module is included
-# in the image — it owns its own static egress rule for the metrics LB IP).
-[ -f /etc/bob/firewall-config-observability ] && . /etc/bob/firewall-config-observability
-
 ###########################################################################
 # (6) Start in Maintenance Mode
 ###########################################################################
