@@ -105,6 +105,9 @@
               ${fd} -i '*/run.py' --hunks=x1-2 ${builtins.elemAt old.patches 0}
               ${fd} --hunks=x1                 ${builtins.elemAt old.patches 1}
             } | patch -p1
+
+            # Don't add /usr/bin and /usr/sbin to the PATH, only use /nix
+            sed -i -E '\#^\s+"/usr/(bin|sbin)",$#d' mkosi/run.py
           '';
         });
     in
