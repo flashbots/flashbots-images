@@ -71,10 +71,16 @@ transforms:
       - metrics_rbuilder
     source: |-
       .tags.job = "rbuilder"
+  metrics_flowproxy_filtered:
+    type: filter
+    inputs:
+      - metrics_flowproxy
+    # blows up metric cardinality by logging tokio runtime thread pid
+    condition: '.name != "flowproxy_process_thread_usage"'
   metrics_job_flowproxy:
     type: remap
     inputs:
-      - metrics_flowproxy
+      - metrics_flowproxy_filtered
     source: |-
       .tags.job = "flowproxy"
   metrics_job_haproxy:
@@ -156,18 +162,10 @@ transforms:
     source: |-
       .tags.job = "haproxy"
 
-  metrics_cardinality_limit:
-    type: tag_cardinality_limit
-    inputs:
-      - metrics_job_*
-    mode: exact
-    value_limit: 149
-    limit_exceeded_action: drop_tag
-
   metrics_relabel:
     type: remap
     inputs:
-      - metrics_cardinality_limit
+      - metrics_job_*
     source: |-
       .tags.instance_name = "<%instance_name%>"
       .tags.instance = .tags.instance_name
