@@ -112,7 +112,7 @@ function fetch_github_actions_artifact {
 function sha256_verify {
   local sha256sums_file=$1
 
-  sha256sum -c "${sha256sums_file}" --ignore-missing
+  sha256sum -c "${sha256sums_file}"
   return 0
 }
 
