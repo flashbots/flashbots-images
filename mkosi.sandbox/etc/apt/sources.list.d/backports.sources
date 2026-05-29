@@ -1,5 +1,0 @@
-Types: deb deb-src
-URIs: https://snapshot.debian.org/archive/debian/20260430T025253Z/
-Suites: trixie-backports
-Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
