@@ -34,9 +34,9 @@ FLASHBOX_VM=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: 
 echo "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
 export FLASHBOX_VM
 
-# Skip Vault under local QEMU
-if grep -q QEMU /sys/class/dmi/id/sys_vendor 2>/dev/null; then
-    echo "QEMU environment (no Vault), leaving Prometheus disabled"
+# Vault auth uses the GCE instance-identity JWT, so it only works on GCP.
+if ! grep -q Google /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    echo "Not running on GCP, leaving Prometheus disabled"
     exit 0
 fi
 
@@ -46,8 +46,13 @@ if ! vault_fetch; then
     exit 0
 fi
 
-# Single render: only the five curated variables are substituted; every other
-# token in the template (e.g. [__name__]) is left untouched.
+# The rendered config holds the SigV4 secret
+touch "$PROMETHEUS_CONFIG"
+chown root:prometheus "$PROMETHEUS_CONFIG"
+chmod 640 "$PROMETHEUS_CONFIG"
+
+# Single render: only the curated variables are substituted; every other token in
+# the template (e.g. [__name__]) is left untouched.
 envsubst '$FLASHBOX_VM $PROMETHEUS_PROXY_IP $METRICS_FLASHBOTS_WORKSPACE $METRICS_FLASHBOTS_REGION $METRICS_FLASHBOTS_ACCESS_KEY $METRICS_FLASHBOTS_SECRET_KEY' \
     < "$PROMETHEUS_TEMPLATE" > "$PROMETHEUS_CONFIG"
 
