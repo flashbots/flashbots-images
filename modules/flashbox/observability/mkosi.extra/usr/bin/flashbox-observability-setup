@@ -34,9 +34,9 @@ FLASHBOX_VM=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: 
 echo "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
 export FLASHBOX_VM
 
-# Local dev image (devtools profile): no Vault, no config (Prometheus stays disabled).
-if [ -f /etc/devmode ]; then
-    echo "Dev image, leaving Prometheus disabled"
+# Skip Vault under local QEMU
+if grep -q QEMU /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    echo "QEMU environment (no Vault), leaving Prometheus disabled"
     exit 0
 fi
 
