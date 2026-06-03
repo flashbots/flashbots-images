@@ -4,19 +4,21 @@ groups:
   - name: local_container_metrics
     interval: 30s
     rules:
+      # Percent of total machine CPU capacity (normalized by core count, so the
+      # 0-100 scale holds regardless of how many vCPUs the VM has).
       - record: local:container_cpu_percent
-        expr: sum(rate(namedprocess_namegroup_cpu_seconds_total{groupname=~".*searcher-container.*"}[5m])) * 100
+        expr: >
+          sum(rate(namedprocess_namegroup_cpu_seconds_total{groupname="searcher-container"}[5m])) * 100
+          / count(node_cpu_seconds_total{mode="idle"})
 
   # Forwarded metrics — flashbox: prefix, picked up by remote_write
   - name: flashbox_health
     interval: 30s
     rules:
-      # Binary: 1 if process-exporter is up AND at least one process is in the
-      # searcher-container cgroup; 0 otherwise.
+      # 1 if at least one process is running in the searcher-container group,
+      # absent if process-exporter isn't reporting it.
       - record: flashbox:container_alive
-        expr: >
-          (up{job="process"} * on(instance) group_left(cgroup) namedprocess_namegroup_num_procs{groupname=~".*searcher-container.*"})
-          > bool 0
+        expr: namedprocess_namegroup_num_procs{groupname="searcher-container"} > bool 0
 
       # Spike-guarded: current 15m avg must be under 80%,
       # AND the 10m max ending 5m ago must have been under 70%

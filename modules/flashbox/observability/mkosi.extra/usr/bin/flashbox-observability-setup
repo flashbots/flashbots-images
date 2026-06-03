@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eu -o pipefail
 
 # Boot-time observability setup: authenticate to Vault, fetch + validate the
@@ -23,15 +23,14 @@ PROMETHEUS_TEMPLATE=/etc/prometheus/prometheus.yml.tmpl
 rm -f "$PROMETHEUS_CONFIG"
 
 # host=<vm> external label, from the GCE instance name.
-FLASHBOX_VM=$(curl -sf --header "Metadata-Flavor: Google" \
+FLASHBOX_VM=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
     "http://metadata/computeMetadata/v1/instance/name") || FLASHBOX_VM=unknown
 printf '%s' "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
 export FLASHBOX_VM
 
-# Local QEMU dev image: no Vault, no config (Prometheus stays disabled).
-if dmidecode -s system-manufacturer 2>/dev/null | grep -q "QEMU" && \
-   [ -f /etc/systemd/system/serial-console.service ]; then
-    echo "QEMU dev environment, leaving Prometheus disabled"
+# Local dev image (devtools profile): no Vault, no config (Prometheus stays disabled).
+if [ -f /etc/devmode ]; then
+    echo "Dev image, leaving Prometheus disabled"
     exit 0
 fi
 

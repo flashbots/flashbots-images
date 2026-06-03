@@ -1,42 +1,42 @@
-#!/bin/sh
-# Vault auth (GCP backend) + fetch/validate the Prometheus remote_write secret.
+#!/bin/bash
+# Vault GCP auth + fetch of the Prometheus remote_write secret.
 # Sourced by flashbox-observability-setup.
 #
-# vault_fetch authenticates with the GCE instance-identity JWT, reads the
-# shared secret, and exports the four metrics variables — each checked against
-# its expected format, so a malformed or tampered value can never reach the
-# rendered config (and can't carry shell/YAML metacharacters). Any failure
-# returns non-zero and exports nothing usable; the caller then writes no config.
-#
-# Note: values are piped with `printf '%s'`, never `echo` — dash's echo
-# interprets backslash escapes (\n, \c, ...) and would corrupt JSON / values.
+# vault_fetch logs in with the GCE instance-identity JWT, reads the shared
+# secret, and exports the four METRICS_FLASHBOTS_* vars. Each value is
+# format-checked before export; any failure returns non-zero and the caller
+# writes no config.
 
 vault_fetch() {
     local addr mount role kv suffix jwt token data
 
+    # curl --retry: this runs early in boot, so the metadata server and Vault
+    # may not be reachable on the first try. Without retries a transient miss
+    # would disable metrics until the next reboot.
+
     # 1. Bootstrap config from GCE instance metadata.
-    addr=$(curl -sf --header "Metadata-Flavor: Google" \
+    addr=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/attributes/vault_addr") || return 1
-    mount=$(curl -sf --header "Metadata-Flavor: Google" \
+    mount=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/attributes/vault_auth_mount_gcp") || return 1
-    role=$(curl -sf --header "Metadata-Flavor: Google" \
+    role=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/attributes/vault_role") || return 1
-    kv=$(curl -sf --header "Metadata-Flavor: Google" \
+    kv=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/attributes/vault_kv_path") || return 1
-    suffix=$(curl -sf --header "Metadata-Flavor: Google" \
+    suffix=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         "http://metadata/computeMetadata/v1/instance/attributes/vault_kv_common_suffix") || return 1
 
     # 2. Authenticate: GCE identity JWT -> Vault token.
-    jwt=$(curl -sf --header "Metadata-Flavor: Google" \
+    jwt=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
         --data-urlencode "audience=http://vault/${role}" \
         --data-urlencode "format=full" \
         "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity") || return 1
-    token=$(curl -sf \
+    token=$(curl -sf --retry 5 --retry-connrefused \
         --data "$(printf '{"role":"%s","jwt":"%s"}' "$role" "$jwt")" \
         "${addr}/v1/${mount}/login" | jq -re .auth.client_token) || return 1
 
     # 3. Read the shared secret blob.
-    data=$(curl -sf --header "X-Vault-Token: ${token}" \
+    data=$(curl -sf --retry 5 --retry-connrefused --header "X-Vault-Token: ${token}" \
         "${addr}/v1/${kv}/node/${suffix}" | jq -ce .data.data) || return 1
 
     # 4. Extract each variable and validate it against its expected format.
