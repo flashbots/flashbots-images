@@ -40,20 +40,20 @@ vault_fetch() {
         "${addr}/v1/${kv}/node/${suffix}" | jq -ce .data.data) || return 1
 
     # 4. Extract each variable and validate it against its expected format.
-    METRICS_FLASHBOTS_WORKSPACE=$(printf '%s' "$data" | jq -re .METRICS_FLASHBOTS_WORKSPACE) || return 1
-    printf '%s' "$METRICS_FLASHBOTS_WORKSPACE" | grep -qE '^ws-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' \
+    METRICS_FLASHBOTS_WORKSPACE=$(echo "$data" | jq -re .METRICS_FLASHBOTS_WORKSPACE) || return 1
+    echo "$METRICS_FLASHBOTS_WORKSPACE" | grep -qE '^ws-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' \
         || { echo "vault_fetch: WORKSPACE is not an AMP workspace id" >&2; return 1; }
 
-    METRICS_FLASHBOTS_REGION=$(printf '%s' "$data" | jq -re .METRICS_FLASHBOTS_REGION) || return 1
-    printf '%s' "$METRICS_FLASHBOTS_REGION" | grep -qE '^[a-z]{2}-[a-z]+-[0-9]+$' \
+    METRICS_FLASHBOTS_REGION=$(echo "$data" | jq -re .METRICS_FLASHBOTS_REGION) || return 1
+    echo "$METRICS_FLASHBOTS_REGION" | grep -qE '^[a-z]{2}-[a-z]+-[0-9]+$' \
         || { echo "vault_fetch: REGION is not an AWS region" >&2; return 1; }
 
-    METRICS_FLASHBOTS_ACCESS_KEY=$(printf '%s' "$data" | jq -re .METRICS_FLASHBOTS_ACCESS_KEY) || return 1
-    printf '%s' "$METRICS_FLASHBOTS_ACCESS_KEY" | grep -qE '^[A-Z0-9]{20}$' \
+    METRICS_FLASHBOTS_ACCESS_KEY=$(echo "$data" | jq -re .METRICS_FLASHBOTS_ACCESS_KEY) || return 1
+    echo "$METRICS_FLASHBOTS_ACCESS_KEY" | grep -qE '^[A-Z0-9]{20}$' \
         || { echo "vault_fetch: ACCESS_KEY is not an AWS access key id" >&2; return 1; }
 
-    METRICS_FLASHBOTS_SECRET_KEY=$(printf '%s' "$data" | jq -re .METRICS_FLASHBOTS_SECRET_KEY) || return 1
-    printf '%s' "$METRICS_FLASHBOTS_SECRET_KEY" | grep -qE '^[A-Za-z0-9/+]{40}$' \
+    METRICS_FLASHBOTS_SECRET_KEY=$(echo "$data" | jq -re .METRICS_FLASHBOTS_SECRET_KEY) || return 1
+    echo "$METRICS_FLASHBOTS_SECRET_KEY" | grep -qE '^[A-Za-z0-9/+]{40}$' \
         || { echo "vault_fetch: SECRET_KEY is not an AWS secret key" >&2; return 1; }
 
     # 5. All present and well-formed — publish to the environment for envsubst.

@@ -31,7 +31,7 @@ rm -f "$PROMETHEUS_CONFIG"
 # host=<vm> external label, from the GCE instance name.
 FLASHBOX_VM=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
     "http://metadata/computeMetadata/v1/instance/name") || FLASHBOX_VM=unknown
-printf '%s' "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
+echo "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
 export FLASHBOX_VM
 
 # Local dev image (devtools profile): no Vault, no config (Prometheus stays disabled).
