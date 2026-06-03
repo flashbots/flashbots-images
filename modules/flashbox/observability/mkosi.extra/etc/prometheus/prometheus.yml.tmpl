@@ -31,7 +31,7 @@ scrape_configs:
 # overridden via tls_config.server_name to match the cert the proxy's upstream
 # presents.
 remote_write:
-  - url: https://10.88.0.100/workspaces/${METRICS_FLASHBOTS_WORKSPACE}/api/v1/remote_write
+  - url: https://${PROMETHEUS_PROXY_IP}/workspaces/${METRICS_FLASHBOTS_WORKSPACE}/api/v1/remote_write
     write_relabel_configs:
       # Only send flashbox: prefixed metrics
       - source_labels: [__name__]

@@ -17,6 +17,12 @@ set -eu -o pipefail
 PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
 PROMETHEUS_TEMPLATE=/etc/prometheus/prometheus.yml.tmpl
 
+# Internal metrics proxy IP, injected into the template so the literal isn't
+# duplicated there. Must match the host firewall rule (firewall-config) and the
+# container netns DROP (init-container.sh).
+PROMETHEUS_PROXY_IP=10.88.0.100
+export PROMETHEUS_PROXY_IP
+
 . /usr/lib/flashbox/vault.sh
 
 # Always start clean — never leave a stale config from a previous boot.
@@ -42,7 +48,7 @@ fi
 
 # Single render: only the five curated variables are substituted; every other
 # token in the template (e.g. [__name__]) is left untouched.
-envsubst '$FLASHBOX_VM $METRICS_FLASHBOTS_WORKSPACE $METRICS_FLASHBOTS_REGION $METRICS_FLASHBOTS_ACCESS_KEY $METRICS_FLASHBOTS_SECRET_KEY' \
+envsubst '$FLASHBOX_VM $PROMETHEUS_PROXY_IP $METRICS_FLASHBOTS_WORKSPACE $METRICS_FLASHBOTS_REGION $METRICS_FLASHBOTS_ACCESS_KEY $METRICS_FLASHBOTS_SECRET_KEY' \
     < "$PROMETHEUS_TEMPLATE" > "$PROMETHEUS_CONFIG"
 
 echo "Observability config written (workspace: ${METRICS_FLASHBOTS_WORKSPACE})"
