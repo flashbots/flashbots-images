@@ -1,0 +1,5 @@
+process_names:
+  # Monitor the searcher container (conmon + all children via --children flag)
+  - name: "searcher-container"
+    cmdline:
+    - 'conmon.*searcher-container'

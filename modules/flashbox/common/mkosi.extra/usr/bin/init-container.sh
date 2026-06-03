@@ -8,6 +8,9 @@ SEARCHER_SSH_PORT=10022
 SEARCHER_INPUT_UDP_PORT=27017  # External UDP input channel
 SEARCHER_INPUT_TCP_PORT=27018  # External TCP input channel
 
+# ENDPOINTS
+PROMETHEUS_PROXY_IP=10.88.0.100  # host firewall allows in ALWAYS_OUT
+
 # Run extra commands which are customized per image,
 # see bob*/mkosi.extra/etc/bob/searcher-container-before-init
 #
@@ -72,6 +75,9 @@ ns_iptables() {
 }
 
 ns_iptables -A OUTPUT -d 169.254.169.254 -j DROP
+
+# Block container from reaching the internal Prometheus Proxy
+ns_iptables -A OUTPUT -d $PROMETHEUS_PROXY_IP -j DROP
 
 # Block consensus layer P2P port (TCP and UDP)
 ns_iptables -A OUTPUT -p tcp --dport 9000 -j DROP

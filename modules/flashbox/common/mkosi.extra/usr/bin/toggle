@@ -45,6 +45,9 @@ CHAIN_MAINTENANCE_OUT="MAINTENANCE_OUT"
 CHAIN_PRODUCTION_IN="PRODUCTION_IN"
 CHAIN_PRODUCTION_OUT="PRODUCTION_OUT"
 
+# Endpoints
+PROMETHEUS_PROXY_IP="10.88.0.100"
+
 # Source image-specific configuration if available
 TOGGLE_CONFIG="/etc/bob/toggle-config"
 if [ -f "$TOGGLE_CONFIG" ]; then
@@ -217,11 +220,13 @@ check_searcher_namespace_rules() {
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27017 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27018 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 123 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 123 -j DROP 2>/dev/null; then
-        echo "OK: searcher-container firewall rules (DROP tcp/udp dport 9000/123, tcp/udp sport 27017, tcp sport 27018) are ACTIVE."
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 123 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -d 169.254.169.254 -j DROP 2>/dev/null \
+       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -d $PROMETHEUS_PROXY_IP -j DROP 2>/dev/null; then
+        echo "OK: searcher-container firewall rules (DROP tcp/udp dport 9000/123, tcp/udp sport 27017, tcp sport 27018, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are ACTIVE."
         return 0
     else
-        echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/27018/123) are NOT found."
+        echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/27018/123, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are NOT found."
         return 1
     fi
 }

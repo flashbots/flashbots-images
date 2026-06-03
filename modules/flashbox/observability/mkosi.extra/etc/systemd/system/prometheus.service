@@ -1,0 +1,29 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target flashbox-observability-setup.service
+Wants=network-online.target
+
+# flashbox-observability-setup writes this file only when Vault creds are
+# fetched + validated. If it's absent (Vault down, dev image, bad secret) the
+# unit is cleanly skipped — inactive, not failed, no Restart= crash-loop — and
+# self-heals on the next boot that renders a config.
+ConditionPathExists=/etc/prometheus/prometheus.yml
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus/ \
+  --storage.tsdb.retention.time=24h \
+  --web.console.templates=/usr/share/prometheus/consoles \
+  --web.console.libraries=/usr/share/prometheus/console_libraries \
+  --web.listen-address=127.0.0.1:9090
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=minimal.target

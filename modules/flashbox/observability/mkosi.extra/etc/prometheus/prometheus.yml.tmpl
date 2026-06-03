@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  # Stamped onto every series sent via remote_write so the upstream can
+  # distinguish samples coming from different flashbox VMs.
+  external_labels:
+    host: ${FLASHBOX_VM}
+
+# Recording rules for aggregated metrics
+rule_files:
+  - /etc/prometheus/recording_rules.yml
+
+scrape_configs:
+  # Node exporter on localhost
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    metric_relabel_configs:
+      # Only keep aggregated metrics for remote write
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat)_.*'
+        action: keep
+
+  # Process exporter for container monitoring
+  - job_name: 'process'
+    static_configs:
+      - targets: ['localhost:9256']
+
+# Remote write via the internal Prometheus metrics proxy at the fixed proxy IP,
+# so no DNS resolution happens on the VM; TLS SNI + cert validation are
+# overridden via tls_config.server_name to match the cert the proxy's upstream
+# presents.
+remote_write:
+  - url: https://${PROMETHEUS_PROXY_IP}/workspaces/${METRICS_FLASHBOTS_WORKSPACE}/api/v1/remote_write
+    write_relabel_configs:
+      # Only send flashbox: prefixed metrics
+      - source_labels: [__name__]
+        regex: 'flashbox:.*'
+        action: keep
+    tls_config:
+      server_name: aps-workspaces.${METRICS_FLASHBOTS_REGION}.amazonaws.com
+    sigv4:
+      region: ${METRICS_FLASHBOTS_REGION}
+      access_key: ${METRICS_FLASHBOTS_ACCESS_KEY}
+      secret_key: ${METRICS_FLASHBOTS_SECRET_KEY}

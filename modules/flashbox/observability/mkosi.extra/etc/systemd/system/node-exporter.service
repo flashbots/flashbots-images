@@ -1,0 +1,26 @@
+[Unit]
+Description=Prometheus Node Exporter
+Documentation=https://github.com/prometheus/node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/bin/prometheus-node-exporter \
+  --web.listen-address=127.0.0.1:9100 \
+  --collector.disable-defaults \
+  --collector.cpu \
+  --collector.meminfo \
+  --collector.diskstats \
+  --collector.filesystem \
+  --collector.netdev \
+  --collector.loadavg \
+  --collector.vmstat \
+  --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker)($|/)
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=minimal.target
