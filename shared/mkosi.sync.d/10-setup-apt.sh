@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Adds mkosi sources. See https://github.com/systemd/mkosi/issues/1755
 SNAPSHOT=$(jq -r .Snapshot /work/config.json)

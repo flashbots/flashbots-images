@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euxo pipefail
 
@@ -10,9 +10,9 @@ systemctl add-wants minimal.target  \
     automount-data.service \
     google-cloud-ops-agent-fluent-bit.service \
     google-cloud-ops-agent.service \
+    logrotate.timer \
     prometheus-node-exporter.service \
     prometheus-process-exporter.service \
-    logrotate.timer \
     ptlb-routes-nanny.timer \
     rsyslog.service \
     vault-agent.service

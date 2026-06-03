@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Core systemd units to keep
@@ -50,6 +50,7 @@ done
 # Enable chrony service
 mkosi-chroot systemctl add-wants minimal.target \
     chrony.service \
+    print-measurements.service \
     systemd-resolved.service \
     systemd-networkd.service \
     systemd-networkd-wait-online.service

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euxo pipefail
 
 EFI_FILE="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
