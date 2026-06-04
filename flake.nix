@@ -5,53 +5,57 @@
     self,
     nixpkgs,
   }: let
-    system = "x86_64-linux";
-    pkgs = import nixpkgs {inherit system;};
-    reprepro = pkgs.stdenv.mkDerivation rec {
-      name = "reprepro-${version}";
-      version = "4.16.0";
+    systems = ["x86_64-linux" "aarch64-linux"];
 
-      src = pkgs.fetchurl {
-        url =
-          "https://alioth.debian.org/frs/download.php/file/"
-          + "4109/reprepro_${version}.orig.tar.gz";
-        sha256 = "14gmk16k9n04xda4446ydfj8cr5pmzsmm4il8ysf69ivybiwmlpx";
+    perSystem = system: let
+      pkgs = import nixpkgs {inherit system;};
+
+      reprepro = pkgs.stdenv.mkDerivation rec {
+        name = "reprepro-${version}";
+        version = "4.16.0";
+
+        src = pkgs.fetchurl {
+          url =
+            "https://alioth.debian.org/frs/download.php/file/"
+            + "4109/reprepro_${version}.orig.tar.gz";
+          sha256 = "14gmk16k9n04xda4446ydfj8cr5pmzsmm4il8ysf69ivybiwmlpx";
+        };
+
+        nativeBuildInputs = [pkgs.makeWrapper];
+        buildInputs =
+          pkgs.lib.singleton (pkgs.gpgme.override {gnupg = pkgs.gnupg;})
+          ++ (with pkgs; [db libarchive bzip2 xz zlib]);
+
+        postInstall = ''
+          wrapProgram "$out/bin/reprepro" --prefix PATH : "${pkgs.gnupg}/bin"
+        '';
       };
 
-      nativeBuildInputs = [pkgs.makeWrapper];
-      buildInputs =
-        pkgs.lib.singleton (pkgs.gpgme.override {gnupg = pkgs.gnupg;})
-        ++ (with pkgs; [db libarchive bzip2 xz zlib]);
+      measured-boot = pkgs.buildGoModule {
+        pname = "measured-boot";
+        version = "main";
+        src = pkgs.fetchFromGitHub {
+          owner = "flashbots";
+          repo = "measured-boot";
+          rev = "v1.2.0";
+          sha256 = "sha256-FjzJ6UQYyrM+U3OCMBpzd1wTxlikA5LI+NKrylGlG3c=";
+        };
+        vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
+      };
 
-      postInstall = ''
-        wrapProgram "$out/bin/reprepro" --prefix PATH : "${pkgs.gnupg}/bin"
-      '';
-    };
-    measured-boot = pkgs.buildGoModule {
-      pname = "measured-boot";
-      version = "main";
-      src = pkgs.fetchFromGitHub {
-        owner = "flashbots";
-        repo = "measured-boot";
-        rev = "v1.2.0";
-        sha256 = "sha256-FjzJ6UQYyrM+U3OCMBpzd1wTxlikA5LI+NKrylGlG3c=";
+      measured-boot-gcp = pkgs.buildGoModule {
+        pname = "measured-boot-gcp";
+        version = "main";
+        src = pkgs.fetchFromGitHub {
+          owner = "flashbots";
+          repo = "dstack-mr-gcp";
+          rev = "ed23e96785ebfb1ff153503b01cfbfb10cffae67";
+          sha256 = "sha256-jrHcAEp4OYmOMTJ1BWIULoqKycqqQBWIRLjhKmiZor4=";
+        };
+        vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
       };
-      vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
-    };
-    measured-boot-gcp = pkgs.buildGoModule {
-      pname = "measured-boot-gcp";
-      version = "main";
-      src = pkgs.fetchFromGitHub {
-        owner = "flashbots";
-        repo = "dstack-mr-gcp";
-        rev = "ed23e96785ebfb1ff153503b01cfbfb10cffae67";
-        sha256 = "sha256-jrHcAEp4OYmOMTJ1BWIULoqKycqqQBWIRLjhKmiZor4=";
-      };
-      vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
-    };
-    mkosi = system: let
-      pkgsForSystem = import nixpkgs {inherit system;};
-      mkosiTools = with pkgsForSystem; [
+
+      mkosiTools = with pkgs; [
         apt
         dpkg
         gnupg
@@ -81,15 +85,15 @@
         patch
         ncurses
       ];
-      mkosiToolsEnv = pkgsForSystem.buildEnv {
+      mkosiToolsEnv = pkgs.buildEnv {
         name = "mkosi-tools";
         paths = mkosiTools;
       };
       mkosi-unwrapped =
-        (pkgsForSystem.mkosi.override {
+        (pkgs.mkosi.override {
           extraDeps = mkosiTools;
         }).overrideAttrs (old: {
-          src = pkgsForSystem.fetchFromGitHub {
+          src = pkgs.fetchFromGitHub {
             owner = "systemd";
             repo = "mkosi";
             rev = "df51194bc2d890d4c267af644a1832d2d53339ac";
@@ -110,23 +114,21 @@
             sed -i -E '\#^\s+"/usr/(bin|sbin)",$#d' mkosi/run.py
           '';
         });
-    in
-      # Create a wrapper script that runs mkosi with unshare
-      # Unshare is needed to create files owned by multiple uids/gids
-      pkgsForSystem.writeShellScriptBin "mkosi" ''
-        exec ${pkgsForSystem.util-linux}/bin/unshare \
+
+      # Create a wrapper script that runs mkosi with unshare.
+      # Unshare is needed to create files owned by multiple uids/gids.
+      mkosi = pkgs.writeShellScriptBin "mkosi" ''
+        exec ${pkgs.util-linux}/bin/unshare \
           --map-auto --map-root-user \
           --setuid=0 --setgid=0 \
           -- \
           env PATH="${mkosiToolsEnv}/bin" \
           ${mkosi-unwrapped}/bin/mkosi "$@"
       '';
-  in {
-    devShells = builtins.listToAttrs (map (system: {
-      name = system;
-      value.default = pkgs.mkShell {
+    in {
+      devShell = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
-          (mkosi system)
+          mkosi
           measured-boot
           measured-boot-gcp
           bash
@@ -138,6 +140,11 @@
           touch mkosi.builddir/mkosi.sources
         '';
       };
-    }) ["x86_64-linux" "aarch64-linux"]);
+    };
+  in {
+    devShells = builtins.listToAttrs (map (system: {
+      name = system;
+      value.default = (perSystem system).devShell;
+    }) systems);
   };
 }
