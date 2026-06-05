@@ -21,6 +21,13 @@ ExecStart=/usr/bin/lighthouse bn \
         --disable-optimistic-finalized-sync \
         --disable-quic \
         --state-cache-size 32 \
+        --prune-payloads true \
+        --prune-blobs true \
+        --hdiff-buffer-cache-size 1 \
+        --epochs-per-migration 4 \
+        --target-peers 50 \
+        --disable-light-client-server \
+        --disable-upnp \
         --logfile-dir /persistent/lighthouse_logs \
         --logfile-format JSON \
         --logfile-debug-level debug \
