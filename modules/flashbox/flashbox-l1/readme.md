@@ -100,34 +100,33 @@ iptables only covers ipv4. For security purposes, we block ipv6 with a kernel fl
 Machine Specs and Cost
 ------------------------
 
-Currently, we deploy Azure’s [DCesv5-series Confidential VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dcesv5-series?tabs=sizebasic). Unfortunately, these are expensive. For reference, Flashbots production TDX builders run in [Standard_EC32es_v5](https://buildernet.org/docs/operating-a-node#microsoft-azure-cloud) with 32 vCPUs and 2TB Disk, which is $2600/month. [Egress](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) (data transferred out of Azure data centers) costs ~$0.087/GB, and historically this costs TEE searchers $150/month.
+We deploy GCP [Confidential VMs](https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview) on the **c3-standard** machine series (Intel Sapphire Rapids) with Intel TDX support, in **`us-east4` (Northern Virginia)** to colocate with builders. Lighthouse (consensus) runs on the host, while the searcher runs their own execution client (modified Geth or Reth) and bot inside the container.
 
 In the future, we hope to add bare metal support, which will lower this cost dramatically.
 
-We place searcher machines in Azure US East 2 to colocate with builders.
+**<u>Machine</u>** (base price, VM only)
 
-**<u>Machine</u>**
-| Name       | CPU | Mem (GB) | Price (USD) |
-|------------|-----|----------|-------------|
-| DC2es_v5   | 2   | 8        | $70.08      |
-| DC4es_v5   | 4   | 16       | $140.16     |
-| DC8es_v5   | 8   | 32       | $280.32     |
-| DC16es_v5  | 16  | 64       | $560.64     |
-| DC32es_v5  | 32  | 128      | $1,121.28   |
-| DC48es_v5  | 48  | 192      | $1,681.92   |
-| DC64es_v5  | 64  | 256      | $2,242.56   |
-| DC96es_v5  | 96  | 384      | $3,363.84   |
+`c3-standard-22` is the minimum recommended size.
 
-**<u>Disk</u>**
-| Size | Price (USD) |
-|------|-------------|
-| 1TB  | $123        |
-| 2TB  | $235        |
-| 4TB  | $450        |
+| Name           | vCPU | Mem (GB) | Price (USD/mo) |
+|----------------|------|----------|----------------|
+| c3-standard-8  | 8    | 32       | ~$294          |
+| c3-standard-22 | 22   | 88       | ~$810          |
+| c3-standard-44 | 44   | 176      | ~$1,619        |
+| c3-standard-88 | 88   | 352      | ~$3,239        |
+
+**<u>Disk</u>** (price per TB / month, billed on top of the machine)
+
+| Type        | Price (USD/TB) | Per GB    |
+|-------------|----------------|-----------|
+| pd-balanced | ~$110          | ~$0.11/GB |
+| pd-ssd      | ~$190          | ~$0.19/GB |
+
+Total monthly cost is machine + disk — e.g. a `c3-standard-22` with 4 TB pd-balanced ≈ $810 + $440 = **~$1,250/mo**.
 
 **<u>Egress</u>**
 
-~$0.087/GB, current TEE searchers pay ~$150/month
+Networking/egress and the TDX premium are excluded from the estimates above for now.
 
 Attestation Walkthrough
 ------------------------
