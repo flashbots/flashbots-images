@@ -35,7 +35,7 @@ make_git_package \
 # Build ssh-pubkey-server
 make_git_package \
     "ssh-pubkey-server" \
-    "multi-key" \
+    "v0.1.0" \
     "https://github.com/flashbots/ssh-pubkey-server" \
     'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"

@@ -184,7 +184,7 @@ During container startup, OpenSSH is installed and the SSH key is copied from `e
 
 **<u>Searcher Disk Encryption</u>**
 
-On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk.
+On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk. Before this first SSH, complete the [Attestation Walkthrough](#attestation-walkthrough) and bind the host key served at `/pubkey` — the attested channel is up at boot, so this initial connection is verified rather than trust-on-first-use.
 
 `Tdx-init` prompts the searcher for a passphrase via stdin, [formats]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L43)) the disk with LUKS2 encryption using this passphrase, and [embeds]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L77)) the searcher's SSH key as metadata in the LUKS header.
 
@@ -301,9 +301,13 @@ make build-proxy-client
 # To trigger remote attestation, open a new terminal and run this command:
 curl http://127.0.0.1:8080
 
-# Bind the expected openssh server pubkey to the attested machine IP
-# This command ensures that the ssh server the searcher is connecting to
-# is indeed the ssh server that is running on the attested machine.
+# Bind the attested host keys to known_hosts.
+# This ensures the ssh server the searcher connects to is the one running on the
+# attested machine. The attested :8745 channel and the host (dropbear) control-plane
+# key are available at boot — before you run `initialize` — so the very first SSH
+# is verified rather than trust-on-first-use. /pubkey returns whatever host keys
+# are currently available; the container (data-plane) key joins once the disk is
+# unlocked and the container is up, so re-run this then to bind it too.
 git clone https://github.com/flashbots/ssh-pubkey-server
 
 ./ssh-pubkey-server/cmd/cli/add_to_known_hosts.sh \
@@ -325,7 +329,7 @@ git clone https://github.com/flashbots/ssh-pubkey-server
     time=2025-07-23T14:00:41.956Z level=INFO msg="Successfully validated attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
     time=2025-07-23T14:00:42.051Z level=INFO msg="[proxy-request] proxying complete" service=proxy-client version=v0.1.7-1-g4e175a4 duration=1.275184102s
 
-    # fetch openssh server pubkey
+    # fetch the available host pubkey(s) — the dropbear key is served at boot, before `initialize`
     ubuntu@schmangeLina-bob-mkosi-builder::~$ curl --insecure https://20.57.71.148:8745/pubkey
     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYZkgqUokLPpIENJPhJAdpNTecgp/1R1RE6XMsIp6Rt
 
@@ -608,8 +612,8 @@ Developer Notes
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)
 7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
 8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
-9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `searcher-container.service`)
-10. CVM reverse proxy for SSH pubkey server (**name:** `cvm-reverse-proxy.service`) (**after:** `ssh-pubkey-server.service`)
+9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
+10. CVM reverse proxy for SSH pubkey server (**name:** `cvm-reverse-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 
 ### Testing
 
