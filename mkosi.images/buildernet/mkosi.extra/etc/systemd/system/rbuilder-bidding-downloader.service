@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_BIDDING_SHA256SUM=c61fae04a338363397d96b27b2d0e238a5bc5a9b405d910b404c2fb5705235b3 \
-            RBUILDER_BIDDING_TAG=v1.3.21 \
+Environment=RBUILDER_BIDDING_SHA256SUM=a23365d1e3649ca338f5d72b8f859144caefab2ec8e837f7ed2c7b937ccd26c4 \
+            RBUILDER_BIDDING_TAG=v1.3.22 \
             RBUILDER_BIDDING_REPO=rbuilder-bidding-service \
             RBUILDER_BIDDING_ARTIFACT=bidding-service
 EnvironmentFile=%E/gh_token.env

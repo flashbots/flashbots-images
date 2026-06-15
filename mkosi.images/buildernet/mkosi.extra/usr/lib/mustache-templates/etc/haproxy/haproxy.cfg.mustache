@@ -34,6 +34,11 @@ frontend default
   # Define ACLs for privileged IPs
   acl privileged_ip src,map(/etc/haproxy/privileged_ips.map) -m found
 
+  # BoB
+  acl is_bob          path /bob
+  acl is_websocket    hdr(Upgrade) -i websocket
+  acl bob_allowed_ip  src,map(/etc/haproxy/bob_allowed_ips.map) -m found
+
   # Stick table to track connections and bandwidth
   stick-table type ip size 100k expire 5m store conn_rate(10s),bytes_in_rate(1m),conn_cur,http_req_rate(10s)
 
@@ -68,12 +73,19 @@ frontend default
   http-request deny deny_status 429 if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
 
   http-request set-var(txn.sender) src,map(/etc/haproxy/privileged_ips.map,unknown)
+  http-request set-var(txn.sender) src,map(/etc/haproxy/bob_allowed_ips.map) if is_bob
   http-request del-header X-Forwarded-For
   http-request set-header X-Forwarded-For %[var(txn.sender)]
 
   http-request return status 200 content-type text/plain string "OK\n" if { path '/livez' }
   http-request return status 200 content-type text/plain string "${ACCOUNT_URL}\n" if { path '/acme-account-url' }
   http-request return status 200 content-type text/html file "/usr/lib/haproxy/index.html" hdr "cache-control" "max-age=604800" if { method GET } { path / }
+
+  # Block /bob from anyone not in the allow-list (403)
+  http-request deny deny_status 403 if is_bob !bob_allowed_ip
+
+  # Route /bob to rbuilder
+  use_backend bob_of if is_bob is_websocket
 
   default_backend user_of
 
@@ -105,3 +117,10 @@ backend system_of
   tcp-check send-binary 0200000000000000000450494E47
   tcp-check expect rstring PONG
   server system_of1 127.0.0.1:5542 check inter 5s fall 3 rise 1
+
+backend bob_of
+  timeout tunnel 1h
+  http-request set-path /
+  option httpchk GET /readyz
+  http-check expect status 200
+  server bob1 127.0.0.1:6789 check port 6070 inter 5s fall 3 rise 1
