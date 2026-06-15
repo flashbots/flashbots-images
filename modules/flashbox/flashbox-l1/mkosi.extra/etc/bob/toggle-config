@@ -12,7 +12,7 @@ PRODUCTION_ENDPOINTS=(
     "52.207.17.217:Titan state diff"
     "3.136.107.142:Flashbots protect tx"
     "3.149.14.12:Flashbots protect tx"
-    # BuilderNet (tx stream + bundle submission share these IPs) -- TEMPORARY test allowlist
+    # BuilderNet (tx stream + bundle submission share these IPs)
     "34.85.211.230:BuilderNet fb-gcp-use4-00"
     "200.225.47.181:BuilderNet fb-om-use1-00"
     "34.150.234.122:BuilderNet nethermind-eastus"

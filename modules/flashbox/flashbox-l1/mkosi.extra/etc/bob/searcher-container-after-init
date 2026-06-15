@@ -10,13 +10,10 @@ exec_in_container '
 3.15.88.156   backruns.tee-searcher.flashbots.net
 52.207.17.217 fbtee.titanbuilder.xyz
 
-# BuilderNet -- TEMPORARY test allowlist. Searchers connect by hostname so TLS
-# validates (production mode has no DNS). The test runs against the first IP
-# (fb-gcp-use4-00). US nodes are listed first for latency.
-#
-# NOTE: mapping all IPs to rpc.buildernet.org here loses the BuilderNet LB
-# health checks (rpc normally returns only healthy IPs); failover is dial-level,
-# not health-aware. Acceptable for testing; revisit before continuous production use.
+# BuilderNet. Searchers connect by hostname so TLS validates (production mode has
+# no DNS). US nodes are listed first for latency. Mapping all IPs to
+# rpc.buildernet.org here means failover is dial-level (next IP on connect
+# failure), not health-aware like the BuilderNet load balancer.
 34.85.211.230  fb-gcp-use4-00.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
 200.225.47.181 fb-om-use1-00.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
 34.150.234.122 nethermind-gcp-eastus-101.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
