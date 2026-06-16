@@ -1,7 +1,8 @@
 [Unit]
 Description=rbuilder bidding service
-Wants=network-online.target rbuilder-bidding-downloader.service
+Wants=network-online.target
 After=network.target network-online.target rbuilder-bidding-downloader.service
+Requires=rbuilder-bidding-downloader.service
 
 [Service]
 Type=exec

@@ -1,8 +1,9 @@
 [Unit]
 Description=rbuilder is an open-source, blazingly fast, cutting edge implementation of a Ethereum MEV-Boost block builder written in Rust.
 Documentation=https://github.com/flashbots/rbuilder
-Wants=network-online.target rbuilder-operator-rebalancer-downloader.service
+Wants=network-online.target
 After=network.target network-online.target reth.service rbuilder-operator-rebalancer-downloader.service
+Requires=rbuilder-operator-rebalancer-downloader.service
 ConditionPathExists=/var/lib/persistent/rbuilder-operator/rbuilder.enabled
 StartLimitIntervalSec=0
 

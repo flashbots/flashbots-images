@@ -1,7 +1,8 @@
 [Unit]
 Description=FlowProxy - order flow proxy for BuilderNet
-Wants=network-online.target flowproxy-downloader.service
+Wants=network-online.target
 After=network.target network-online.target flowproxy-downloader.service
+Requires=flowproxy-downloader.service
 
 [Service]
 Type=exec
