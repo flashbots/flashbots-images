@@ -32,6 +32,25 @@ FLASHBOTS_BUNDLE_2="3.15.88.156"
 FLASHBOTS_TX_STREAM_1="3.136.107.142"
 FLASHBOTS_TX_STREAM_2="3.149.14.12"
 
+# BuilderNet endpoints (production only)
+#
+# These IPs serve BOTH the tx stream (persistent wss on path /bob) and bundle
+# submission (bare path) over the same HTTPS endpoint, so they are not split into
+# an always-on bundle rule + production-only tx stream rule the way the
+# Flashbots/Titan endpoints are. Because tx stream is an observable side channel,
+# the whole set is gated to production mode and torn down on toggle (see
+# toggle-config PRODUCTION_ENDPOINTS). Consequently BuilderNet bundle submission
+# works only in production mode, unlike the always-on Flashbots/Titan bundles.
+#
+# Production mode has no DNS, so these are addressed by IP; the hostnames searchers
+# connect to (for TLS) are mapped statically in searcher-container-after-init.
+BUILDERNET_FB_USE4="34.85.211.230"     # fb-gcp-use4-00            (US east)
+BUILDERNET_FB_USE1="200.225.47.181"    # fb-om-use1-00             (US east)
+BUILDERNET_NM_USE="34.150.234.122"     # nethermind-gcp-eastus-101 (US east)
+BUILDERNET_FB_EUW4="34.12.189.183"     # fb-gcp-euw4-00            (EU west)
+BUILDERNET_NM_EUW="34.91.129.156"      # nethermind-gcp-westeurope (EU west)
+BUILDERNET_FB_ANE1="34.104.157.101"    # fb-gcp-ane1-00            (AP northeast)
+
 # Prometheus metrics proxy
 PROMETHEUS_PROXY_IP="10.88.0.100"
 
@@ -119,3 +138,6 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $TITAN_IP $TITAN_STATE_DIFF_PORT "Titan state diff WSS"
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
+
+# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 $HTTPS_PORT "BuilderNet tx stream + bundle submission"
