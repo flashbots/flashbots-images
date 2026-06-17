@@ -2,11 +2,6 @@
 
 set -euxo pipefail
 
-# Enable systemd services
-
-systemctl add-wants minimal.target \
-    node-healthchecker.service
-
 # Create users and groups
 
 groupadd -g 2000    optimism                           || true

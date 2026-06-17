@@ -1,0 +1,31 @@
+[Install]
+WantedBy=default.target
+
+[Unit]
+Description=Blockchain node healthchecker
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=node-healthchecker
+User=simulator
+Group=optimism
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+((- $cordon := ( secret "[[ gcp.Meta "attributes/vault_kv_path" ]]/node/_cordon/[[ gcp.Meta "name" ]]" ).Data.data ))
+((- $cordon_after  := "0" ))(( if $cordon.after  ))(( $cordon_after  = $cordon.after  ))(( end ))
+((- $cordon_before := "0" ))(( if $cordon.before ))(( $cordon_before = $cordon.before ))(( end ))
+((- $status := "200" ))(( if ( and ( ge (timestamp "unix") $cordon_after ) ( le (timestamp "unix") $cordon_before ) ) ))(( $status = "503" ))(( end ))
+
+ExecStart=/usr/bin/node-healthchecker serve \
+    --healthcheck-block-age-threshold 10s \
+    --healthcheck-timeout 500ms \
+    --healthcheck-reth-base-url http://127.0.0.1:18645 \
+    --healthcheck-unconditional-fail-duration 1m \
+    --http-status-ok (( $status )) \
+    --http-status-warning (( $status )) \
+    --server-listen-address 0.0.0.0:8080
