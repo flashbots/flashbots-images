@@ -116,6 +116,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
 # Block Flashbots protect tx endpoints during maintenance
 drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 "Flashbots Protect (DROP before accept-all rules)"
 
+# Block BuilderNet endpoints during maintenance. 
+drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 "BuilderNet (DROP before accept-all rules)"
+
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_OVER_TLS_PORT "DNS-over-TLS"
