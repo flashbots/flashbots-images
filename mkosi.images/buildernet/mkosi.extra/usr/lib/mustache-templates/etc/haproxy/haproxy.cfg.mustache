@@ -77,6 +77,9 @@ frontend default
   http-request del-header X-Forwarded-For
   http-request set-header X-Forwarded-For %[var(txn.sender)]
 
+  http-request del-header X-Flashbots-Bob-Searcher
+  http-request set-header X-Flashbots-Bob-Searcher 1 if bob_allowed_ip !is_bob
+
   http-request return status 200 content-type text/plain string "OK\n" if { path '/livez' }
   http-request return status 200 content-type text/plain string "${ACCOUNT_URL}\n" if { path '/acme-account-url' }
   http-request return status 200 content-type text/html file "/usr/lib/haproxy/index.html" hdr "cache-control" "max-age=604800" if { method GET } { path / }
