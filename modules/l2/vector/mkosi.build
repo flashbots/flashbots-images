@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+VECTOR_REF=2b8b875681fbf4ef8da827650f75e936f16a36a4
+VECTOR_FEATURES="unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-clickhouse,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics"
+
+# toolchain installed in chroot by op-rbuilder-bproxy module (runs first via Include= order).
+export CARGO_HOME="/cargo"
+export RUSTUP_HOME="/rustup"
+export PATH="$CARGO_HOME/bin:$PATH"
+
+cached_binary="$BUILDDIR/vector-${VECTOR_REF}/vector"
+
+if [[ -f "$cached_binary" ]]; then
+    echo "Using cached vector binary for ref $VECTOR_REF"
+    install -D -m 755 "$cached_binary" "$DESTDIR/usr/bin/vector"
+    echo "| \`vector\` | \`${VECTOR_REF}\` (features: ${VECTOR_FEATURES}) | reused from cache | \`$(du -sh "$cached_binary" | cut -f1)\` |   |" >> "$BUILDDIR/manifest.md"
+    exit 0
+fi
+
+build_dir="$BUILDROOT/build/vector"
+mkdir -p "$build_dir"
+curl -sSfL "https://api.github.com/repos/vectordotdev/vector/tarball/${VECTOR_REF}" | \
+    tar xzf - -C "$build_dir" --strip-components=1
+
+# reproducibility flags mirror scripts/build_rust_package.sh.
+RUSTFLAGS=(
+    "-C target-cpu=generic"
+    "-C link-arg=-Wl,--build-id=none"
+    "-C symbol-mangling-version=v0"
+    "-L /usr/lib/x86_64-linux-gnu"
+    "-C link-arg=-lz"  # openssl-src builds c_zlib.o into libcrypto but skips `cargo:rustc-link-lib=z`. -lz resolves inflate/deflate.
+)
+
+ts=$( date +%s )
+mkosi-chroot bash -c "
+    unset DESTDIR
+    export RUSTFLAGS='${RUSTFLAGS[*]}' \
+           CARGO_PROFILE_RELEASE_LTO='thin' \
+           CARGO_PROFILE_RELEASE_CODEGEN_UNITS='1' \
+           CARGO_PROFILE_RELEASE_PANIC='abort' \
+           CARGO_PROFILE_RELEASE_INCREMENTAL='false' \
+           CARGO_PROFILE_RELEASE_OPT_LEVEL='3' \
+           CARGO_TERM_COLOR='never'
+    cd /build/vector
+    cargo fetch --locked
+    cargo build --release --locked --no-default-features --features '${VECTOR_FEATURES}'
+"
+seconds=$(( $( date +%s ) - ts ))
+duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
+
+mkdir -p "$(dirname "$cached_binary")"
+install -m 755 "$build_dir/target/release/vector" "$cached_binary"
+install -D -m 755 "$cached_binary" "$DESTDIR/usr/bin/vector"
+
+echo "| \`vector\` | \`${VECTOR_REF}\` (features: ${VECTOR_FEATURES}) | built | \`$(du -sh "$cached_binary" | cut -f1)\` | \`${duration}\` |" >> "$BUILDDIR/manifest.md"

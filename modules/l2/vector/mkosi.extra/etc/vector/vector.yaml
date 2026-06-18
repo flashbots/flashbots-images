@@ -1,0 +1,156 @@
+data_dir: /var/lib/vector
+
+sources:
+  logs_journald:
+    type: journald
+
+transforms:
+  logs_journald_map_to_otel:
+    type: remap
+    inputs: [logs_journald]
+    source: |-
+      ts = .timestamp
+      msg = to_string(.message) ?? ""
+      hostname = to_string(.host) ?? ""
+      unit_raw = to_string(get!(value: ., path: ["_SYSTEMD_UNIT"])) ?? ""
+      syslog_id_early = to_string(get!(value: ., path: ["SYSLOG_IDENTIFIER"])) ?? ""
+      if unit_raw == "" { unit_raw = syslog_id_early }
+      if unit_raw == "" { unit_raw = "unknown" }
+      unit = replace(unit_raw, r'\.(service|scope|socket|timer|target|slice|mount|path|device)$', "")
+      priority = to_int(get!(value: ., path: ["PRIORITY"])) ?? 6
+      pid = to_string(get!(value: ., path: ["_PID"])) ?? ""
+      syslog_id = to_string(get!(value: ., path: ["SYSLOG_IDENTIFIER"])) ?? ""
+      deployment_env = get_env_var("L2_BUILDER_ENV") ?? ""
+      if deployment_env == "" { deployment_env = "unknown" }
+
+      # Syslog PRIORITY > OTel severity (RFC 5424).
+      syslog_severity = "info"
+      if priority == 0 || priority == 1 || priority == 2 {
+        syslog_severity = "fatal"
+      } else if priority == 3 {
+        syslog_severity = "error"
+      } else if priority == 4 {
+        syslog_severity = "warn"
+      } else if priority == 5 || priority == 6 {
+        syslog_severity = "info"
+      } else if priority == 7 {
+        syslog_severity = "debug"
+      }
+
+      # Top-level OTEL severity — default from syslog PRIORITY, overridden below if
+      # the message is structured JSON with a `level` field.
+      severity_text = syslog_severity
+      severity_number_by_text = {"trace": 1, "debug": 5, "info": 9, "warn": 13, "error": 17, "fatal": 21}
+      severity_number = to_int(get!(value: severity_number_by_text, path: [syslog_severity])) ?? 0
+
+      ts_formatted = format_timestamp!(ts, format: "%Y-%m-%dT%H:%M:%S%.6f%:z")
+
+      log_attrs = {
+        "@timestamp": ts_formatted,
+        "facility": "daemon",
+        "log.file.name": "journald",
+        "procid": pid,
+        "severity": syslog_severity,
+        "source": syslog_id,
+        "sysloghost": hostname
+      }
+
+      # Try structured parse: JSON first, then logfmt (containerd/dockerd-style key=value).
+      # Only accept logfmt if a `level` key exists — avoids spurious matches on plain text
+      # that happens to contain "=" (e.g. sudo COMMAND= entries).
+      parsed = parse_json(msg) ?? null
+      if !is_object(parsed) {
+        maybe_logfmt = parse_logfmt(msg) ?? null
+        if is_object(maybe_logfmt) && exists(maybe_logfmt.level) {
+          parsed = maybe_logfmt
+        }
+      }
+      body_message = msg
+      if is_object(parsed) {
+        body_message = parsed
+
+        msg_ts = to_string(parsed.timestamp) ?? ""
+        if msg_ts != "" { log_attrs."message.timestamp" = msg_ts }
+        msg_level = to_string(parsed.level) ?? ""
+        if msg_level != "" { log_attrs."message.level" = msg_level }
+        msg_target = to_string(parsed.target) ?? ""
+        if msg_target != "" { log_attrs."message.target" = msg_target }
+        fields = object(parsed.fields) ?? {}
+        fields_msg = to_string(fields.message) ?? ""
+        if fields_msg != "" { log_attrs."message.fields.message" = fields_msg }
+
+        if msg_level != "" {
+          msg_level_lower = downcase(msg_level)
+          if msg_level_lower == "trace" {
+            severity_text = "trace"
+            severity_number = 1
+          } else if msg_level_lower == "debug" {
+            severity_text = "debug"
+            severity_number = 5
+          } else if msg_level_lower == "info" {
+            severity_text = "info"
+            severity_number = 9
+          } else if msg_level_lower == "warn" || msg_level_lower == "warning" {
+            severity_text = "warn"
+            severity_number = 13
+          } else if msg_level_lower == "error" {
+            severity_text = "error"
+            severity_number = 17
+          } else if msg_level_lower == "fatal" {
+            severity_text = "fatal"
+            severity_number = 21
+          }
+        }
+      } else {
+        body_message = msg
+        log_attrs.message = msg
+      }
+
+      # Build composite Body wrapping message in syslog-like envelope
+      body = to_string(encode_json({
+        "@timestamp": ts_formatted,
+        "sysloghost": hostname,
+        "procid": pid,
+        "facility": "daemon",
+        "severity": log_attrs.severity,
+        "source": syslog_id,
+        "message": body_message
+      }))
+
+      . = {
+        "Timestamp": to_unix_timestamp!(ts, unit: "nanoseconds"),
+        "TraceId": "",
+        "SpanId": "",
+        "TraceFlags": 0,
+        "SeverityText": severity_text,
+        "SeverityNumber": severity_number,
+        "ServiceName": unit,
+        "Body": body,
+        "ResourceSchemaUrl": "https://opentelemetry.io/schemas/1.38.0",
+        "ResourceAttributes": {
+          "deployment.environment.name": "l2-builder-" + deployment_env,
+          "host.name": hostname,
+          "service.name": unit,
+          "source": syslog_id
+        },
+        "ScopeSchemaUrl": "",
+        "ScopeName": "vector.service",
+        "ScopeVersion": "",
+        "ScopeAttributes": {},
+        "LogAttributes": log_attrs,
+        "EventName": ""
+      }
+
+sinks:
+  clickhouse_logs:
+    type: clickhouse
+    inputs: [logs_journald_map_to_otel]
+    endpoint: "${CH_ENDPOINT:-http://clickstack.placeholder.invalid:8123}"
+    database: otel
+    table: otel_logs
+    auth:
+      strategy: basic
+      user: "${CH_USER:-placeholder}"
+      password: "${CH_PASSWORD:-placeholder}"
+    healthcheck:
+      enabled: false
