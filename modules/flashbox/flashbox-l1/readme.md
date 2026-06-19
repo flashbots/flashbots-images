@@ -285,9 +285,10 @@ Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs
 
 ```bash
 # download remote attestation tool
-git clone https://github.com/flashbots/cvm-reverse-proxy.git
-cd cvm-reverse-proxy
-make build-proxy-client
+git clone https://github.com/flashbots/attested-tls-proxy.git
+cd attested-tls-proxy
+cargo run -- attested-get --allow-self-signed --measurements-file ./measurements.json --url-path pubkey  <VM IP>:8745
+TODO
 
 # This will run the client proxy that is listening on port 8080
 # and use the server reverse proxy on the deployed image as a target,

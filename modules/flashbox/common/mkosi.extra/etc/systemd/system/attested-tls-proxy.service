@@ -6,7 +6,7 @@ Requires=ssh-pubkey-server.service
 [Service]
 Type=simple
 ExecStart=attested-tls-proxy server \
-            --inner-listen-addr=0.0.0.0:8745 \
+            --listen-addr=0.0.0.0:8745 \
             --server-attestation-type=auto \
             --allowed-remote-attestation-type none \
             127.0.0.1:5001
