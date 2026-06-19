@@ -19,12 +19,6 @@ NTP_NTS_PORT=4460
 CL_P2P_PORT=9000
 EL_P2P_PORT=30303
 
-TITAN_IP="52.207.17.217"
-TITAN_BUNDLE_PORT=1338      # bundle submission (always on)
-TITAN_STATE_DIFF_PORT=42203 # state diff stream (production only)
-# If Titan state diff port ever changes to any of accepted in maintenance,
-# update MAINTENANCE_OUT the same way as for FLASHBOTS_TX_STREAM*
-
 # Flashbots bundle (always on)
 FLASHBOTS_BUNDLE_1="18.221.59.61"
 FLASHBOTS_BUNDLE_2="3.15.88.156"
@@ -37,10 +31,10 @@ FLASHBOTS_TX_STREAM_2="3.149.14.12"
 # These IPs serve BOTH the tx stream (persistent wss on path /bob) and bundle
 # submission (bare path) over the same HTTPS endpoint, so they are not split into
 # an always-on bundle rule + production-only tx stream rule the way the
-# Flashbots/Titan endpoints are. Because tx stream is an observable side channel,
+# Flashbots endpoints are. Because tx stream is an observable side channel,
 # the whole set is gated to production mode and torn down on toggle (see
 # toggle-config PRODUCTION_ENDPOINTS). Consequently BuilderNet bundle submission
-# works only in production mode, unlike the always-on Flashbots/Titan bundles.
+# works only in production mode, unlike the always-on Flashbots bundles.
 #
 # Production mode has no DNS, so these are addressed by IP; the hostnames searchers
 # connect to (for TLS) are mapped statically in searcher-container-after-init.
@@ -83,12 +77,6 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 # Note: this is accessible only from host, searcher netns has DROP on those
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
-
-# Titan builder bundle endpoints (always on)
-# Security note: This is a side channel.
-# While the operator will not be able to see the content of the packets,
-# they can observe the presence or absence of packets.
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $TITAN_IP $TITAN_BUNDLE_PORT "Titan builder bundle"
 
 # Flashbots bundle endpoints (always on)
 # Security note: This is a side channel.
@@ -139,7 +127,6 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $TITAN_IP $TITAN_STATE_DIFF_PORT "Titan state diff WSS"
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
 
 # BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint

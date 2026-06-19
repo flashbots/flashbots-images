@@ -9,7 +9,6 @@ IMAGE_TYPE="bob-l1"
 # Established flows to these IPs are killed via conntrack when leaving production
 # mode, so the tx-stream side channel does not survive into maintenance mode.
 PRODUCTION_ENDPOINTS=(
-    "52.207.17.217:Titan state diff"
     "3.136.107.142:Flashbots protect tx"
     "3.149.14.12:Flashbots protect tx"
     # BuilderNet (tx stream + bundle submission share these IPs)
