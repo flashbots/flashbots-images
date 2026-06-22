@@ -323,7 +323,7 @@ http://127.0.0.1:8080 \
     $ cargo run -- client --listen-addr 127.0.0.1:8080 --allow-self-signed --measurements-file ./measurements.json --log-debug 35.255.95.67:8745
      Compiling attested-tls-proxy v1.1.1 (/home/pumkin/src/flashbots/attested-tls-proxy)
       Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.17s
-       Running `target/debug/attested-tls-proxy client --listen-addr '127.0.0.1:8080' --allow-self-signed --allowed-remote-attestation-type gcp-tdx --log-debug '35.255.95.67:8745'`
+       Running `target/debug/attested-tls-proxy client --listen-addr '127.0.0.1:8080' --allow-self-signed --measurements-file ./measurements.json --log-debug '35.255.95.67:8745'`
     2026-06-22T07:07:38.553942Z DEBUG attested_tls_proxy: [proxy-client] Connected to proxy server with measurements: Some(DCAP({MRTD: "feb7486608382c1ff0e15b4648ddc0acea6ca974eb53e3529f4c4bd5ffbaa20bf335cb75965cea65fe473aed9647c162", RTMR0: "e1d0235496f93f9475bf0b26d33da5c15831cfc94104d6bea7ab82db027c5f1e917d47dda6953eefae7dcb20ab6f75c4", RTMR1: "4ea5a990afef023f89e11fc32d99103d0adc91d5734664542eb980cdabc88224e1fd206d1d3b2eda71f713fdf8308a2b", RTMR2: "c42ba4fb83f99e4b90bc2a3aa9a2e81c5ac578e9a439c23b457ff7dd0d0eae958760616eff05d827289e47608e757547", RTMR3: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}))
       at src/lib.rs:674
 

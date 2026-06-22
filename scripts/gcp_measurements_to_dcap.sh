@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TEMPORARY: reshape dstack-mr GCP measurements (make measure-gcp ->
-# build/gcp_measurements.json) into attestd-tls-proxy's dcap-tdx
+# build/gcp_measurements.json) into attested-tls-proxy's dcap-tdx
 # --measurements-file format. Drop once attested-tls-proxy accepts the
 # condensed dstack-mr output directly.
 #
