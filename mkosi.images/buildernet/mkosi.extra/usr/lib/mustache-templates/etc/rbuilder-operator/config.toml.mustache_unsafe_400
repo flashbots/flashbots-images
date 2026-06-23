@@ -62,3 +62,5 @@ end_timeout_ms = 10000
 {{{rbuilder.relays}}}
 
 {{{rbuilder.relay_bid_scrapers}}}
+
+{{{rbuilder.bidding_gateways}}}
