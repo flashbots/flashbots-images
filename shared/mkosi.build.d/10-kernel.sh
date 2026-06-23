@@ -73,7 +73,7 @@ else
     kernel_src_dir="${BUILDROOT}${chroot_kernel_src_dir}"
     kconfig_dir="${BUILDROOT}${chroot_kconfig_dir}"
 
-    apt-get -y install "linux-source-${KERNEL_VERSION}/${release}-backports" --install-recommends
+    apt-get -y install "linux-source-${KERNEL_VERSION}" --install-recommends
 
     source_tarball="${BUILDROOT}/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
     if [[ ! -f "${source_tarball}" ]]; then
