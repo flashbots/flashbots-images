@@ -16,3 +16,6 @@ ExecStart=/usr/bin/attested-tls-proxy server \
   --allowed-remote-attestation-type none \
   localhost:14727
 Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
