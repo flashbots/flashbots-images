@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # TEMPORARY: reshape dstack-mr GCP measurements (make measure-gcp ->
-# build/gcp_measurements.json) into cvm-reverse-proxy's dcap-tdx
-# --server-measurements format. Drop once cvm-reverse-proxy accepts the
+# build/gcp_measurements.json) into attested-tls-proxy's dcap-tdx
+# --measurements-file format. Drop once attested-tls-proxy accepts the
 # condensed dstack-mr output directly.
 #
 # dstack-mr emits mrtd[] (one per known GCP firmware) and rtmr0[] (equal-size
 # per-firmware chunks: firmware x machine-type-ACPI x boot variants), while
-# cvm-reverse-proxy wants flat measurement sets it ORs over. We pair mrtd[i]
+# attested-tls-proxy wants flat measurement sets it ORs over. We pair mrtd[i]
 # with its rtmr0 chunk; a genuine quote matches exactly one set.
 #
 # Usage: scripts/gcp_measurements_to_dcap.sh [gcp_measurements.json] > out.json

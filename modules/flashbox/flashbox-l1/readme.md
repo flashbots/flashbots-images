@@ -77,7 +77,7 @@ Firewall Rules
 | 53    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
 | 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
-| 8745  | Input                     | CVM-Reverse-Proxy               | Host                 | TCP       | ENABLED         | ENABLED          |
+| 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
 | 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
@@ -280,21 +280,22 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
 
 ### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
 
-Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. CVM-reverse-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
+Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. attested-tls-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
 
 ```bash
 # download remote attestation tool
-git clone https://github.com/flashbots/cvm-reverse-proxy.git
-cd cvm-reverse-proxy
-make build-proxy-client
+git clone https://github.com/flashbots/attested-tls-proxy.git
+cd attested-tls-proxy
 
 # This will run the client proxy that is listening on port 8080
 # and use the server reverse proxy on the deployed image as a target,
 # marshalling the measurements.json for validation of the attestation.
-./cvm-reverse-proxy/build/proxy-client \
---server-measurements ./measurements.json \
---target-addr=https://<VM IP>:8745 \
---log-debug=false
+cargo run -- client \
+  --listen-addr 127.0.0.1:8080 \
+  --allow-self-signed \
+  --measurements-file ./measurements.json \
+  --log-debug \
+  <VM IP>:8745
 
 # To trigger remote attestation, open a new terminal and run this command:
 curl http://127.0.0.1:8080
@@ -309,7 +310,7 @@ curl http://127.0.0.1:8080
 git clone https://github.com/flashbots/ssh-pubkey-server
 
 ./ssh-pubkey-server/cmd/cli/add_to_known_hosts.sh \
-./cvm-reverse-proxy/build/proxy-client \
+http://127.0.0.1:8080 \
 <MACHINE IP>
 ```
 
@@ -317,24 +318,35 @@ git clone https://github.com/flashbots/ssh-pubkey-server
 <summary>Example Output</summary>
 
     ```bash
-    # successful attestation
-    ubuntu@schmangeLina-bob-mkosi-builder:~$ ./cvm-reverse-proxy/build/proxy-client \
-    --server-measurements ./measurements.json \
-    --target-addr=https://20.57.71.148:8745 \
-    --log-debug=false
-    time=2025-07-23T14:00:33.436Z level=INFO msg="Starting proxy client" service=proxy-client version=v0.1.7-1-g4e175a4 listenAddr=127.0.0.1:8080
-    time=2025-07-23T14:00:41.224Z level=INFO msg="Validating attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
-    time=2025-07-23T14:00:41.956Z level=INFO msg="Successfully validated attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
-    time=2025-07-23T14:00:42.051Z level=INFO msg="[proxy-request] proxying complete" service=proxy-client version=v0.1.7-1-g4e175a4 duration=1.275184102s
+    # Start the proxy client
+    $ cargo run -- client --listen-addr 127.0.0.1:8080 --allow-self-signed --measurements-file ./measurements.json --log-debug 35.255.95.67:8745
+     Compiling attested-tls-proxy v1.1.1 (/home/pumkin/src/flashbots/attested-tls-proxy)
+      Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.17s
+       Running `target/debug/attested-tls-proxy client --listen-addr '127.0.0.1:8080' --allow-self-signed --measurements-file ./measurements.json --log-debug '35.255.95.67:8745'`
+    2026-06-22T07:07:38.553942Z DEBUG attested_tls_proxy: [proxy-client] Connected to proxy server with measurements: Some(DCAP({MRTD: "feb7486608382c1ff0e15b4648ddc0acea6ca974eb53e3529f4c4bd5ffbaa20bf335cb75965cea65fe473aed9647c162", RTMR0: "e1d0235496f93f9475bf0b26d33da5c15831cfc94104d6bea7ab82db027c5f1e917d47dda6953eefae7dcb20ab6f75c4", RTMR1: "4ea5a990afef023f89e11fc32d99103d0adc91d5734664542eb980cdabc88224e1fd206d1d3b2eda71f713fdf8308a2b", RTMR2: "c42ba4fb83f99e4b90bc2a3aa9a2e81c5ac578e9a439c23b457ff7dd0d0eae958760616eff05d827289e47608e757547", RTMR3: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}))
+      at src/lib.rs:674
 
-    # fetch the available host pubkey(s) — the dropbear key is served at boot, before `initialize`
-    ubuntu@schmangeLina-bob-mkosi-builder::~$ curl --insecure https://20.57.71.148:8745/pubkey
-    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYZkgqUokLPpIENJPhJAdpNTecgp/1R1RE6XMsIp6Rt
+    2026-06-22T07:07:38.554036Z DEBUG attested_tls_proxy::http_version: [client] Negotiated ALPN Some("flashbots-ratls/1+h2"), chosen protocol Http2
+      at src/http_version.rs:39
 
+    2026-06-22T07:07:44.356260Z DEBUG attested_tls_proxy: proxy-client accepted connection
+      at src/lib.rs:594
+
+    2026-06-22T07:07:44.356578Z DEBUG attested_tls_proxy: [proxy-client] Read incoming request from source client: Request { method: GET, uri: /pubkey, version: HTTP/1.1, headers: {"host": "127.0.0.1:8080", "user-agent": "curl/8.19.0", "accept": "*/*"}, body: Body(Empty) }
+      at src/lib.rs:494
+
+    2026-06-22T07:07:44.639534Z DEBUG attested_tls_proxy: [proxy-client] Read response from proxy-server: Response { status: 200, version: HTTP/2.0, headers: {"date": "Mon, 22 Jun 2026 07:07:44 GMT", "content-length": "80", "content-type": "text/plain; charset=utf-8"}, body: Body(Streaming) }
+    at src/lib.rs:498
+
+    $ curl http://127.0.0.1:8080/pubkey | less
+    % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+    Dload  Upload  Total   Spent   Left   Speed
+    100     80 100     80   0      0    280      0                              0
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHqPgQoc6yLlMsRUvEeV+6oUsvCMV1sr+b1uKTLzu4e9
     ```
   </details>
 
-If cvm-reverse-proxy returns `Successfully validated attestation document`, the searcher has now verified that they SSH into a genuine TDX VM, running the exact same image as the one they audited locally. In doing so, the searcher has also verified that no one else has access to the container or host, and they can safely upload your arbitrage bot inside ✨🚀
+If attested-tls-proxy client is able to successfully make a connection to the proxy server, the searcher has now verified that they SSH into a genuine TDX VM, running the exact same image as the one they audited locally. In doing so, the searcher has also verified that no one else has access to the container or host, and they can safely upload your arbitrage bot inside ✨🚀
 
 Order Flow APIs
 ------------------------
@@ -611,7 +623,7 @@ Developer Notes
 7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
 8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
 9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
-10. CVM reverse proxy for SSH pubkey server (**name:** `cvm-reverse-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
+10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 
 ### Testing
 
