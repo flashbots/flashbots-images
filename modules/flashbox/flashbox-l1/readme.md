@@ -626,6 +626,8 @@ Use the `eth_sendBobBundle` method to submit bundles:
 }
 ```
 
+Note: `targetUuid` and `targetPools` are currently accepted but ignored by BuilderNet. When support for them is added, their placement in the request may differ from what is shown above.
+
 Disk Persistence
 ------------------------
 
