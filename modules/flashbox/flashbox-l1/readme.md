@@ -1,7 +1,7 @@
 TEE Searcher
 ===
 
-Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun transactions with full information, without exposing frontrunning risks. This product is currently live on Ethereum mainnet for searching on Flashbots Protect and Titan Builder's bottom of block.
+Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun transactions with full information, without exposing frontrunning risks. This product is currently live on Ethereum mainnet for searching on Flashbots Protect, Titan Builder's bottom of block, and BuilderNet's bottom of block.
 
 - [TDX Mental Model](#tdx-mental-model)
 - [Image Overview](#image-overview)
@@ -11,6 +11,7 @@ Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun 
 - [Order Flow APIs](#order-flow-apis)
   - [Flashbots Protect](#searching-on-flashbots-protect-transactions)
   - [Titan Builder](#searching-on-titan-builders-bottom-of-block)
+  - [BuilderNet](#searching-on-buildernets-bottom-of-block)
 - [Disk Persistence](#disk-persistence)
 - [Searcher Commands and Services](#searcher-commands-and-services)
 - [Developer Notes](#developer-notes)
@@ -73,9 +74,10 @@ Firewall Rules
 | 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
 | 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman               | TCP       | ENABLED         | DISABLED         |
+| 443   | Output **IP WHITELISTED** | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP   | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
 | 1338  | Output **IP WHITELISTED** | Titan Bundle RPC                | Titan Bundle RPC     | TCP       | ENABLED         | ENABLED          |
-| 54    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
+| 53    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
 | 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
 | 8745  | Input                     | CVM-Reverse-Proxy               | Host                 | TCP       | ENABLED         | ENABLED          |
@@ -492,6 +494,139 @@ Use the `eth_sendBobBundle` method to submit bundles:
 Note on `targetPools`:
 - Titan Builder will use `targetPools` to determine what other blocks to consider adding the bottom of block bundle to.
 - Searchers should include the address of the contract that’s state change causes the arbitrage. For example, the Uni V2 pool address.
+
+### Searching on BuilderNet's Bottom of Block
+
+BuilderNet serves both the state diff stream and bundle submission over the same HTTPS endpoint (`rpc.buildernet.org`). Because they share one endpoint, both are reachable only in **production mode** — unlike the Flashbots and Titan bundle RPCs, which are always on.
+
+**<u>Subscribing to BuilderNet's State Diff Stream</u>**
+
+**Connecting**
+
+Connect to the server located at:
+```
+wss://rpc.buildernet.org/bob
+```
+
+Use the `eth_subscribe` method to subscribe to state diffs:
+
+```json
+{"method":"eth_subscribe","params":["flashbots_stateDiffs"]}
+```
+
+**Response**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": "whzoOReHirSJxxF8Z0bqvbghmXjD3hWRW0",
+  "id": 1
+}
+```
+
+You'll start receiving state diffs:
+
+```
+{
+  "jsonrpc": "2.0",
+  "method": "eth_subscription",
+  "params": {
+    "subscription": "whzoOReHirSJxxF8Z0bqvbghmXjD3hWRW0",
+    "result": {
+      "blockNumber": "String",  // hex encoded block number the block builder is currently building for
+      "blockTimestamp": "String",  // hex encoded seconds since the unix epoch
+      "blockUuid": "String",  // a UUID V4 that is used to identify the current block being streamed
+      "stateOverrides": "Object" {  // a nested object of changed addresses to changed storage slot keys and their updated value
+        "address": {
+          "balance": "String"
+          "code": "String"  // ONLY IF CONTRACT IS DEPLOYED IN THIS BLOCK
+          "nonce": "String"
+          "stateDiff": {
+            "<storage slot>": "String"
+          }
+        }
+      }
+    }
+  }
+}
+```
+<details>
+<summary>Example Output</summary>
+
+    ```json
+    2024-12-03 23:46:27,370 - __main__ - INFO - Initializing WebSocket connection to ws://127.0.0.1:8547
+    2024-12-03 23:46:27,375 - __main__ - INFO - Subscribed to state diffs
+    2024-12-03 23:46:27,377 - __main__ - INFO - Subscription response: {"jsonrpc":"2.0","result":"aYF2ehyZ8I4fz3rxkkRiOxtnfFqWosI9HC","id":1}
+    2024-12-03 23:46:33,108 - __main__ - INFO - Parsed state diff: {
+      "jsonrpc": "2.0",
+      "method": "eth_subscription",
+      "params": {
+        "subscription": "aYF2ehyZ8I4fz3rxkkRiOxtnfFqWosI9HC",
+        "result": {
+          "blockNumber": "0x1456624",
+          "blockTimestamp": "0x674f985b",
+          "blockUuid": "b3041804-c0ff-4628-9581-29910f78593e",
+          "stateOverrides": {
+            "0x0000000000a39bb272e79075ade125fd351887ac": {
+              "balance": "0x35c9406dfc78d4448d9",
+              "nonce": "0x1",
+              "stateDiff": {
+                "0xffc5f4bf805d0f20d7ba2d180bf4492e98716db6def51fb60972294b5ba556cf": "0x0000000000000000000000000000000000000000000000000905438e60010000"
+              }
+            },
+            "0x111111111117dc0aa78b770fa6a738034120c302": {
+              "stateDiff": {
+                "0xc0ec8fbf02d70b2873f5a76f503e97bd1b0ca8048ab517fad231214a74ebe459": "0x0000000000000000000000000000000000000000000ebc80f5e0cbee39cca338",
+                "0xcb4547a880ed764ae6e3838e74f0795915d3b91357e4852c97ce6e0cdcf6c023": "0x0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            },
+            "0x1a44076050125825900e736c501f859c50fe728c": {
+              "stateDiff": {
+                "0xe988aa870f58bb597aadbc090e6f5508b7e93c0ad1d3effac7f5825387d9975e": "0x05626211c42f691c213286fd1cc93859d96b1e96d1e919cd2738013a25857823"
+              }
+            },
+            "0x9355d11cb5c6e8a301d131c5ee1c7fdc032dbb9a": {
+              "balance": "0x0",
+              "code": "0x363d3d373d3d3d363d735397d0869aba0d55e96d5716d383f6e1d8695ed75af43d82803e903d91602b57fd5bf3000000000000000000000000000000000000000000000000000000000000000000",
+              "nonce": "0x1",
+              "stateDiff": {
+                "0x0000000000000000000000000000000000000000000000000000000000000000": "0x000000000000000000000101679fb19dec9d66c34450a8563ffdfd29c04e615a"
+              }
+            }
+          }
+        }
+      }
+    }
+    ```
+</details>
+
+
+**<u>Sending Bottom of Block Bundles to BuilderNet RPC</u>**
+
+Connect to the server located at:
+```
+https://rpc.buildernet.org
+```
+
+Use the `eth_sendBobBundle` method to submit bundles:
+
+```
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "eth_sendBobBundle",
+  "params": [
+    { // regular eth_sendBundle fields
+      txs,
+      blockNumber,
+    },
+    targetUuid, // String, block UUID that this bundle is targeting eg 123e4567-e89b-12d3-a456-426614174000
+    targetPools // Array[String], A list of pool addresses that this bundle is targeting
+  ]
+}
+```
+
+Note: `targetUuid` and `targetPools` are currently accepted but ignored by BuilderNet. When support for them is added, their placement in the request may differ from what is shown above.
 
 Disk Persistence
 ------------------------
