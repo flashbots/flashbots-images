@@ -5,7 +5,6 @@ set -euxo pipefail
 # Enable systemd services
 
 systemctl add-wants minimal.target \
-    node-healthchecker.service \
     tdx-quote-provider.service
 
 # Create users and groups
