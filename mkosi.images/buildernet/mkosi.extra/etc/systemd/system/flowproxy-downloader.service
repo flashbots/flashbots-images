@@ -13,7 +13,6 @@ EnvironmentFile=%E/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/flowproxy ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$FLOWPROXY_REPO" --tag "$FLOWPROXY_TAG" \
   --artifact-name "$FLOWPROXY_ARTIFACT" --output-file /usr/bin/flowproxy'
-ExecStart=/bin/bash -c '[[ -f /usr/bin/flowproxy ]] || \
-  echo "$FLOWPROXY_SHA256SUM" /usr/bin/flowproxy | sha256sum --check'
+ExecStart=/bin/bash -c 'echo "$FLOWPROXY_SHA256SUM" /usr/bin/flowproxy | sha256sum --check'
 ExecStart=/bin/chmod +x /usr/bin/flowproxy
 RemainAfterExit=yes

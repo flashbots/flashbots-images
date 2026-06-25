@@ -19,15 +19,13 @@ EnvironmentFile=%E/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$RBUILDER_OPERATOR_REPO" --tag "$RBUILDER_OPERATOR_TAG" \
   --artifact-name "$RBUILDER_OPERATOR_ARTIFACT" --output-file /usr/bin/rbuilder-operator'
-ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator ]] || \
-  echo "$RBUILDER_OPERATOR_SHA256SUM" /usr/bin/rbuilder-operator | sha256sum --check'
+ExecStart=/bin/bash -c 'echo "$RBUILDER_OPERATOR_SHA256SUM" /usr/bin/rbuilder-operator | sha256sum --check'
 
 # rbuilder-rebalancer
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$RBUILDER_REBALANCER_REPO" --tag "$RBUILDER_REBALANCER_TAG" \
   --artifact-name "$RBUILDER_REBALANCER_ARTIFACT" --output-file /usr/bin/rbuilder-rebalancer'
-ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || \
-  echo "$RBUILDER_REBALANCER_SHA256SUM" /usr/bin/rbuilder-rebalancer | sha256sum --check'
+ExecStart=/bin/bash -c 'echo "$RBUILDER_REBALANCER_SHA256SUM" /usr/bin/rbuilder-rebalancer | sha256sum --check'
 
 ExecStart=/bin/chmod +x /usr/bin/rbuilder-operator /usr/bin/rbuilder-rebalancer
 RemainAfterExit=yes
