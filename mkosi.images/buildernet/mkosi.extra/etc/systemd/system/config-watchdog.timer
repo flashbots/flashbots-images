@@ -1,5 +1,5 @@
 [Unit]
-Description=Check for new rbuilder and rbuilder-bidding configs
+Description=Check for new rbuilder config
 
 [Timer]
 OnCalendar=minutely

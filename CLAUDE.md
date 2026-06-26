@@ -53,7 +53,7 @@ Template file suffixes:
 - Suffixes combine in order: `template-foo_unsafe_600`
 
 ### Key services (systemd)
-reth (Ethereum execution), lighthouse (consensus), rbuilder-operator, rbuilder-bidding, operator-api, haproxy, vector (metrics/logs), attested-tls-proxy, flowproxy, config-watchdog, acme-le (Let's Encrypt)
+reth (Ethereum execution), lighthouse (consensus), rbuilder-operator, operator-api, haproxy, vector (metrics/logs), attested-tls-proxy, flowproxy, config-watchdog, acme-le (Let's Encrypt)
 
 ### System users
 Defined in `mkosi.images/buildernet/mkosi.extra/etc/sysusers.d/`.

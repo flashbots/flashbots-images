@@ -1,9 +1,9 @@
 adjust_finalized_blocks = true
-bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
 blocklist = "{{rbuilder.blocklist}}"
 blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
-bob_diff_streamer_port = 6789
 bob_diff_streamer_ip =  "127.0.0.1"
+bob_diff_streamer_port = 6789
+bob_diff_streamer_slot_offset_ms = -1000
 builder_name = "{{instance_name}}"
 chain = "mainnet"
 cl_node_url = ["http://127.0.0.1:3500"]

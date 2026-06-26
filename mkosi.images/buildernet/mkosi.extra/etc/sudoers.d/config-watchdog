@@ -1,3 +1,2 @@
 config-watchdog ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart rbuilder-operator
 config-watchdog ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password stop rbuilder-operator
-config-watchdog ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password reload rbuilder-bidding

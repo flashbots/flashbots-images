@@ -6,7 +6,6 @@ source /usr/bin/helper-functions.sh
 
 RBUILDER_PERSISTENT_DIR="/var/lib/persistent/rbuilder-operator"
 RBUILDER_STATUS_FLAG_FILE="${RBUILDER_PERSISTENT_DIR}/rbuilder.enabled"
-RBUILDER_BIDDING_CONFIG_DIR="/etc/rbuilder-bidding"
 # locally exposed BuilderHub API proxied through flowproxy
 BHUB_URL_PROXIED_CONFIGURATION="http://localhost:7937/api/l1-builder/v1/configuration"
 BHUB_URL_PROXIED_ACTIVE_BUILDERS="http://localhost:7937/api/l1-builder/v1/builders"
@@ -46,17 +45,6 @@ function check_rbuilder_enabled() {
   fi
 }
 
-function check_subsidies_config_update() {
-  local bhub_config_file="$1"
-  /usr/bin/render-config --unsafe "$bhub_config_file" "$(ls /usr/lib/mustache-templates/etc/rbuilder-bidding/config.toml.mustache*|head -n1)" > "$RUNTIME_DIRECTORY/config.toml"
-
-  if ! diff -q "$RUNTIME_DIRECTORY/config.toml" "$RBUILDER_BIDDING_CONFIG_DIR/config.toml" &>/dev/null; then
-    mv "$RUNTIME_DIRECTORY/config.toml" "$RBUILDER_BIDDING_CONFIG_DIR/config.toml"
-    sudo systemctl --no-pager --no-ask-password reload rbuilder-bidding
-    log "update-subsidies-config: Updated bidding service config"
-  fi
-}
-
 ACTIVE_BUILDERS_HTTP_CODE=$(curl -sS -o "$BHUB_ACTIVE_BUILDERS_FILE" -w "%{http_code}" --retry 3 --retry-delay 5 --retry-connrefused "$BHUB_URL_PROXIED_ACTIVE_BUILDERS" || true)
 
 if [[ "$ACTIVE_BUILDERS_HTTP_CODE" == "403" ]]; then
@@ -72,4 +60,3 @@ fi
 curl -fsSL -o "$BHUB_CONFIG_FILE" --retry 3 --retry-delay 5 --retry-connrefused "$BHUB_URL_PROXIED_CONFIGURATION"
 
 check_rbuilder_enabled "$BHUB_CONFIG_FILE" "$BHUB_ACTIVE_BUILDERS_FILE"
-check_subsidies_config_update "$BHUB_CONFIG_FILE"

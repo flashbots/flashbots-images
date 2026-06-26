@@ -1,6 +1,5 @@
 # Playground override of mkosi.images/buildernet/mkosi.extra/usr/lib/mustache-templates/etc/rbuilder-operator/config.toml.mustache_unsafe
 adjust_finalized_blocks = true
-bidding_service_ipc_path = "/run/rbuilder-bidding/rpc_bidding_server.sock"
 # blocklist - disabled for playground
 # blocklist = "{{rbuilder.blocklist}}"
 # blocks_processor_url - disabled for playground
@@ -62,3 +61,5 @@ watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
 {{{rbuilder.relays}}}
 
 {{{rbuilder.relay_bid_scrapers}}}
+
+{{{rbuilder.bidding_gateways}}}
