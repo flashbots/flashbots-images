@@ -1,0 +1,15 @@
+[Unit]
+Description=Load nftables ruleset
+Wants=render-config.service
+After=render-config.service
+Before=haproxy.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables/ruleset.nft
+ExecReload=/usr/sbin/nft -f /etc/nftables/ruleset.nft
+ExecStop=/usr/sbin/nft delete table inet filter
+
+[Install]
+WantedBy=multi-user.target
