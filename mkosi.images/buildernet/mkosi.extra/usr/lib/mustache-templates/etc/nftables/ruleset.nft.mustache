@@ -1,0 +1,39 @@
+#!/usr/sbin/nft -f
+
+table inet filter {
+    # Privileged source IPs (same list HAProxy uses). Members bypass all caps.
+    set privileged_ips {
+        type ipv4_addr
+        flags interval
+        elements = { {{#haproxy.rate_limit_privileged_ips}}{{.}}, {{/haproxy.rate_limit_privileged_ips}} }
+    }
+
+    # Per-source concurrent-connection counter.
+    set conn_count {
+        type ipv4_addr
+        size 131072
+        flags dynamic
+    }
+
+    # Per-source new-connection rate counter.
+    set conn_rate {
+        type ipv4_addr
+        size 131072
+        flags dynamic
+        timeout 1m
+    }
+
+    chain ingress {
+        type filter hook input priority filter; policy accept;
+
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid counter drop
+
+        meta l4proto != tcp accept
+        tcp dport != { 80, 443 } accept
+        ip saddr @privileged_ips accept
+        ct state new add @conn_count { ip saddr ct count over {{haproxy.rate_limit_total_conn_regular}} } counter drop
+        ct state new add @conn_rate { ip saddr limit rate over {{haproxy.nft_conn_rate_per_sec_regular}}/second burst {{haproxy.rate_limit_conn_rate_regular}} packets } counter drop
+    }
+}
