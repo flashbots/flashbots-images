@@ -28,47 +28,38 @@ frontend default
   log-format '{"type":"request","src":"%ci","src_port":%cp,"status":%ST,"request":"%[capture.req.uri,json]","method":"%[capture.req.method,json]","sender":"%[var(txn.sender),json]","rate_limit_reason":"%[var(txn.rate_limit_reason),json]"}'
   error-log-format '{"type":"error","src":"%ci","src_port":%cp,"status":%ST,"error":"%[fc_err_str,json]"}'
 
+  stick-table type ip size 100k expire 10m store conn_rate(10s),conn_cur,http_req_rate(10s),bytes_in_rate(1m)
+
+  # Privileged IPs get higher limits
+  acl privileged_ip src,map(/etc/haproxy/privileged_ips.map) -m found
+
+  # L4: per-TCP-connection limits
+  tcp-request connection track-sc0 src
+  tcp-request connection reject if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
+  tcp-request connection reject if  privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
+  tcp-request connection reject if !privileged_ip { sc0_conn_cur  gt {{haproxy.rate_limit_total_conn_regular}} }
+  tcp-request connection reject if  privileged_ip { sc0_conn_cur  gt {{haproxy.rate_limit_total_conn_privileged}} }
+
   # Force HTTPS redirect
   http-request redirect scheme https code 301 unless { ssl_fc }
-
-  # Define ACLs for privileged IPs
-  acl privileged_ip src,map(/etc/haproxy/privileged_ips.map) -m found
 
   # BoB
   acl is_bob          path /bob
   acl is_websocket    hdr(Upgrade) -i websocket
   acl bob_allowed_ip  src,map(/etc/haproxy/bob_allowed_ips.map) -m found
 
-  # Stick table to track connections and bandwidth
-  stick-table type ip size 100k expire 5m store conn_rate(10s),bytes_in_rate(1m),conn_cur,http_req_rate(10s)
-
-  # Track client in stick table
-  http-request track-sc0 src
+  # L7: per-request rate + bandwidth limits
 
   # Resolve sender name from privileged IPs map
   http-request set-var(txn.sender) src,map(/etc/haproxy/privileged_ips.map)
 
-  # Connection rate limits (connections per 10 seconds)
-  http-request set-var(txn.rate_limit_reason) str(conn_rate) if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
-  http-request deny deny_status 429 hdr Retry-After "10" if !privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_regular}} }
-  http-request set-var(txn.rate_limit_reason) str(conn_rate) if privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
-  http-request deny deny_status 429 hdr Retry-After "10" if privileged_ip { sc0_conn_rate gt {{haproxy.rate_limit_conn_rate_privileged}} }
-
-  # Concurrent connections per IP
-  http-request set-var(txn.rate_limit_reason) str(total_conn) if !privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_regular}} }
-  http-request deny deny_status 429 if !privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_regular}} }
-  http-request set-var(txn.rate_limit_reason) str(total_conn) if privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_privileged}} }
-  http-request deny deny_status 429 if privileged_ip { src_conn_cur gt {{haproxy.rate_limit_total_conn_privileged}} }
-
-  # Bandwidth limits (bytes per minute)
-  # Retry-After = stick-table window (60s).
+  # Bandwidth limits (bytes per minute). Retry-After = stick-table window (60s).
   http-request set-var(txn.rate_limit_reason) str(bytes_in_rate) if !privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_regular}} }
   http-request deny deny_status 429 hdr Retry-After "60" if !privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_regular}} }
   http-request set-var(txn.rate_limit_reason) str(bytes_in_rate) if privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_privileged}} }
   http-request deny deny_status 429 hdr Retry-After "60" if privileged_ip { sc0_bytes_in_rate gt {{haproxy.rate_limit_bytes_in_rate_privileged}} }
 
-  # HTTP request rate limits (requests per 10 seconds)
-  # Retry-After = stick-table window (10s).
+  # HTTP request rate limits (requests per 10 seconds). Retry-After = window (10s).
   http-request set-var(txn.rate_limit_reason) str(http_req_rate) if !privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_regular}} }
   http-request deny deny_status 429 hdr Retry-After "10" if !privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_regular}} }
   http-request set-var(txn.rate_limit_reason) str(http_req_rate) if privileged_ip { sc0_http_req_rate gt {{haproxy.rate_limit_http_req_rate_privileged}} }
