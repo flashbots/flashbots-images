@@ -5,6 +5,20 @@ EFI_FILE="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
 VHD_FILE="${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.vhd"
 WORK_DIR="${OUTPUTDIR}/azure-tmp"
 
+# In verity-root mode, use existing mkosi disk image
+if [ "$(jq -r .Format "$MKOSI_CONFIG")" = "disk" ]; then
+    mkdir -p "$WORK_DIR"
+    raw="$WORK_DIR/azure_image.raw"
+    cp --sparse=always "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw" "$raw"
+    sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" "$raw"
+    truncate -s %1MiB "$raw"
+    echo write | sfdisk --no-reread "$raw"
+    qemu-img convert -O vpc -o subformat=fixed,force_size "$raw" "$VHD_FILE"
+    rm -rf "$WORK_DIR"
+    echo "Successfully created VHD: $VHD_FILE"
+    exit 0
+fi
+
 if [ ! -f "$EFI_FILE" ]; then
     echo "Error: EFI file not found at $EFI_FILE"
     exit 1
