@@ -25,15 +25,10 @@ log_color = false
 log_json = true
 log_level = "info,rbuilder=debug"
 max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
-optimistic_v3_server_ip = "0.0.0.0"
-optimistic_v3_server_port = 6000
-optimistic_v3_public_url = "{{rbuilder.optimistic_v3_public_url}}"
-optimistic_v3_relay_pubkeys = {{{rbuilder.optimistic_v3_relay_pubkeys}}}
 priority_update_grpc_server_ip = "127.0.0.1"
 priority_update_grpc_server_port = 8745
 priority_update_simulation_threads = 1
 priority_update_takers_speed_bump_ms = 50
-relay_secret_key = "{{rbuilder.relay_secret_key}}"
 require_non_empty_blocklist = {{rbuilder.require_non_empty_blocklist}}
 reth_db_path = "/var/lib/persistent/reth/db"
 reth_static_files_path = "/var/lib/persistent/reth/static_files"
@@ -59,9 +54,5 @@ send_timeout_ms = 10000
 end_timeout_ms = 10000
 
 {{{rbuilder.builders}}}
-
-{{{rbuilder.relays}}}
-
-{{{rbuilder.relay_bid_scrapers}}}
 
 {{{rbuilder.bidding_gateways}}}
