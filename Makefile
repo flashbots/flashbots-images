@@ -3,6 +3,11 @@
 SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
+# Lima build VM name, mirroring scripts/env_wrapper.sh: tee-builder-<sha256(repo path)[:8]>.
+ifndef LIMA_VM
+LIMA_VM := tee-builder-$(shell printf '%s' "$(CURDIR)" | { command -v sha256sum >/dev/null 2>&1 && sha256sum || shasum -a 256; } | cut -c1-8)
+endif
+
 # our kernel config is amd64-only, but on Apple Silicon the Lima VM is arm64
 # and mkosi defaults to the host arch
 ARCH := --architecture=x86-64
@@ -47,23 +52,26 @@ console: ## attach to the root shell of a VM started with `make boot` (detach: E
 
 ##@ Utils
 
-clean: ## remove build artifacts (keeps the Lima VM)
+clean: ## remove build artifacts, host-side and in the Lima build VM (keeps the VM)
 	rm -rf mkosi.output/* mkosi.builddir/* mkosi.cache/* tests/smoke/mkosi.output tests/smoke/mkosi.tools
+	@if command -v limactl >/dev/null 2>&1 && limactl list 2>/dev/null | grep -q "^$(LIMA_VM)"; then \
+		echo "Cleaning build artifacts inside Lima VM '$(LIMA_VM)'..."; \
+		$(WRAPPER) rm -rf mkosi.output mkosi.builddir mkosi.cache tests/smoke/mkosi.output tests/smoke/mkosi.tools; \
+	fi
 
-stop-vm: ## stop all Lima VMs (keeps disks)
+stop-vm: ## stop this repo's Lima build VM (override with LIMA_VM=; keeps its disk)
 	@if ! command -v limactl >/dev/null 2>&1; then echo "limactl not found."; exit 0; fi; \
-	VMS="$$(limactl list --format '{{.Name}} {{.Status}}' 2>/dev/null | awk '$$1 ~ /^tee-builder-/ && $$2 == "Running" {print $$1}')"; \
-	if [ -z "$$VMS" ]; then echo "No running tee-builder VMs."; exit 0; fi; \
-	for vm in $$VMS; do echo "Stopping '$$vm'..."; limactl stop "$$vm"; done
-
-clean-vm: ## stop and delete this Lima VM (destroys everything inside it)
-	@REPO_DIR="$$(pwd)"; \
-	REPO_HASH="$$(echo -n "$$REPO_DIR" | { command -v sha256sum >/dev/null && sha256sum || shasum -a 256; } | cut -c1-8)"; \
-	LIMA_VM="tee-builder-$$REPO_HASH"; \
-	if command -v limactl >/dev/null 2>&1 && limactl list 2>/dev/null | grep -q "^$$LIMA_VM"; then \
-		echo "Stopping and deleting Lima VM '$$LIMA_VM'..."; \
-		limactl stop "$$LIMA_VM" || true; \
-		limactl delete "$$LIMA_VM" || true; \
+	if [ "$$(limactl list "$(LIMA_VM)" --format '{{.Status}}' 2>/dev/null)" = "Running" ]; then \
+		echo "Stopping '$(LIMA_VM)'..."; limactl stop "$(LIMA_VM)"; \
 	else \
-		echo "No Lima VM found for this repo."; \
+		echo "No running Lima VM '$(LIMA_VM)'."; \
+	fi
+
+clean-vm: ## stop and delete this repo's Lima build VM (override with LIMA_VM=; destroys its contents)
+	@if command -v limactl >/dev/null 2>&1 && limactl list 2>/dev/null | grep -q "^$(LIMA_VM)"; then \
+		echo "Stopping and deleting Lima VM '$(LIMA_VM)'..."; \
+		limactl stop "$(LIMA_VM)" || true; \
+		limactl delete "$(LIMA_VM)" || true; \
+	else \
+		echo "No Lima VM '$(LIMA_VM)' found."; \
 	fi

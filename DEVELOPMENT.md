@@ -19,7 +19,7 @@ make build-local   # + local profile too (root autologin), for `make boot`
 make boot          # boot the built qemu UKI (kernel log on stdio; Ctrl-A X to exit)
 make console       # second terminal: root shell via hvc0 (local profile autologin)
 make clean         # remove build artifacts (keeps the VM)
-make stop-vm       # stop all tee-builder Lima VMs (keeps disks; restarts on next make)
+make stop-vm       # stop this repo's Lima VM (keeps its disk; restarts on next make)
 make clean-vm      # delete the Lima VM entirely
 ```
 

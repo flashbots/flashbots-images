@@ -113,7 +113,11 @@ set -- $cmd_q
 \"\$@\"
 
 mkdir -p ~/mnt/mkosi.output
-find \$SRC/mkosi.output \$SRC/tests/*/mkosi.output -maxdepth 1 -type f -exec cp -f {} ~/mnt/mkosi.output/ \; 2>/dev/null || true
+# copy build artifacts back to the host. skips unnecessary dirs
+for d in \$SRC/mkosi.output \$SRC/tests/*/mkosi.output; do
+    [ -d \"\$d\" ] || continue
+    find \"\$d\" -maxdepth 1 -type f -exec cp -f -t ~/mnt/mkosi.output/ {} +
+done
 "
 
 if should_use_lima; then
