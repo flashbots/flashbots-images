@@ -1,25 +1,43 @@
 #!/usr/sbin/nft -f
 
+destroy table inet filter
+
 table inet filter {
-    # populated via `add element` below; inline `elements = { }` is a syntax error when empty
+    # populated at load time by /usr/bin/nftables-load
     set privileged_ips {
         type ipv4_addr
         flags interval
     }
 
-    # Per-source concurrent-connection counter.
+    # both dynamic sets fail OPEN when full (add fails -> policy accept);
+    # accepted, haproxy limits backstop.
+    
+    # per-source concurrent-connection counter.
     set conn_count {
         type ipv4_addr
         size 131072
         flags dynamic
     }
 
-    # Per-source new-connection rate counter.
+    # per-source new-connection rate counter.
     set conn_rate {
         type ipv4_addr
         size 131072
         flags dynamic
         timeout 1m
+    }
+
+    # only conntrack the web traffic we actually rate-limit. everything else
+    # (reth/lighthouse p2p on 30303/9000, etc, hits `notrack`)
+    chain raw_prerouting {
+        type filter hook prerouting priority raw; policy accept;
+        tcp dport { 80, 443 } accept
+        notrack
+    }
+    chain raw_output {
+        type filter hook output priority raw; policy accept;
+        tcp sport { 80, 443 } accept
+        notrack
     }
 
     chain ingress {
@@ -32,10 +50,7 @@ table inet filter {
         meta l4proto != tcp accept
         tcp dport != { 80, 443 } accept
         ip saddr @privileged_ips accept
-        ct state new add @conn_count { ip saddr ct count over {{haproxy.rate_limit_total_conn_regular}} } counter drop
+        ct state new add @conn_count { ip saddr ct count over {{haproxy.nft_total_conn_regular}} } counter drop
         ct state new add @conn_rate { ip saddr limit rate over {{haproxy.nft_conn_rate_per_sec_regular}}/second burst {{haproxy.rate_limit_conn_rate_regular}} packets } counter drop
     }
 }
-{{#haproxy.rate_limit_privileged_ips}}
-add element inet filter privileged_ips { {{.}} }
-{{/haproxy.rate_limit_privileged_ips}}
