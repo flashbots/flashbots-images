@@ -1,11 +1,10 @@
 #!/usr/sbin/nft -f
 
 table inet filter {
-    # Privileged source IPs (same list HAProxy uses). Members bypass all caps.
+    # populated via `add element` below; inline `elements = { }` is a syntax error when empty
     set privileged_ips {
         type ipv4_addr
         flags interval
-        elements = { {{#haproxy.rate_limit_privileged_ips}}{{.}}, {{/haproxy.rate_limit_privileged_ips}} }
     }
 
     # Per-source concurrent-connection counter.
@@ -37,3 +36,6 @@ table inet filter {
         ct state new add @conn_rate { ip saddr limit rate over {{haproxy.nft_conn_rate_per_sec_regular}}/second burst {{haproxy.rate_limit_conn_rate_regular}} packets } counter drop
     }
 }
+{{#haproxy.rate_limit_privileged_ips}}
+add element inet filter privileged_ips { {{.}} }
+{{/haproxy.rate_limit_privileged_ips}}
