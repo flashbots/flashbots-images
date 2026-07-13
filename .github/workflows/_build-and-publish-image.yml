@@ -43,8 +43,7 @@ jobs:
   build:
     name: Build ${{ inputs.image-id }}
     runs-on: warp-ubuntu-latest-x64-32x
-    # Public base URL of the R2 bucket (bucket-scoped r2.dev domain). Hardcoded for
-    # the PoC dev bucket; change it when promoting to the prod bucket.
+    # Public base URL of the flashbots-public-artifacts R2 bucket (custom domain).
     env:
       R2_PUBLIC_BASE_URL: "https://builder-artifacts.flashbots.net"
     steps:

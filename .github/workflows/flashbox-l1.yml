@@ -7,11 +7,7 @@
 #     (same R2 content) + fresh draft Release (delete the old draft first).
 #
 # All logic lives in the generic reusable workflow; everything is derived from
-# image-id, so this file only sets image-id plus the PoC-specific overrides.
-#
-# PoC (flashbots-images-private): artifacts go to a dedicated dev R2 bucket. On
-# promotion to the public repo, drop r2-bucket (defaults to the shared
-# `flashbots-public-artifacts`).
+# image-id, so this file only sets image-id.
 
 name: flashbox-l1
 
