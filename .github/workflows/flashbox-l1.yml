@@ -1,0 +1,43 @@
+# flashbox-l1 pipeline: always builds + pushes to R2; the draft Release is only
+# created when the build is driven by a release tag.
+#
+#   - Push a `flashbox-l1-v*` tag          -> build+push + draft Release.
+#   - Dispatch with ref = branch/SHA/empty -> dev build+push only (no release).
+#   - Dispatch with ref = existing release tag -> re-cut: deterministic rebuild
+#     (same R2 content) + fresh draft Release (delete the old draft first).
+#
+# All logic lives in the generic reusable workflow; everything is derived from
+# image-id, so this file only sets image-id plus the PoC-specific overrides.
+#
+# PoC (flashbots-images-private): artifacts go to a dedicated dev R2 bucket. On
+# promotion to the public repo, drop r2-bucket (defaults to the shared
+# `flashbots-public-artifacts`).
+
+name: flashbox-l1
+
+on:
+  push:
+    tags:
+      - "flashbox-l1-v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, SHA, or branch to build (empty = this branch). A flashbox-l1-vX.Y.Z tag also (re-)cuts its draft release."
+        type: string
+        default: ""
+      dev-image:
+        description: "Build a dev image (devtools profile, e.g. SSH access)"
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build-and-publish-image.yml
+    with:
+      image-id: flashbox-l1
+      # '' on tag pushes (no inputs) -> coerce to defaults for typed inputs.
+      ref: ${{ inputs.ref || '' }}
+      dev-image: ${{ inputs.dev-image || false }}
+    secrets: inherit
