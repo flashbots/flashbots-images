@@ -24,6 +24,7 @@ live_builders = {{{rbuilder.live_builders}}}
 log_color = false
 log_json = true
 log_level = "info,rbuilder=debug"
+max_bob_state_filters = 35
 max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
 priority_update_grpc_server_ip = "127.0.0.1"
 priority_update_grpc_server_port = 8745
