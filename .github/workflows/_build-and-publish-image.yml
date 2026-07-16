@@ -7,7 +7,7 @@
 # - Release tag (<image-id>-vX.Y.Z, pushed or passed as `ref`):
 #   - Builds the image at that tag
 #   - Uploads artifacts to R2 under <r2-path-prefix>/vX.Y.Z/
-#   - Creates a draft GitHub Release with measurements and changelog
+#   - Creates a draft GitHub Release with measurements
 #
 # - Any other ref (branch, SHA, or empty):
 #   - Builds a dev image at that ref
@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0 # full history + tags for the per-prefix changelog window
+          fetch-depth: 0 # tags must be present so `Resolve release tag` can verify `ref`
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -268,12 +268,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Most recent previous release tag for this image, reachable from HEAD,
-          # used as the changelog starting point.
-          PREV="$(git tag --list "${TAG_PREFIX}-v*" --merged HEAD --sort=-v:refname \
-            | grep -vxF "${RELEASE_TAG}" | head -n1 || true)"
-          echo "Previous tag for changelog: '${PREV:-<none>}'"
-
           shopt -s nullglob
           # On a dispatched rebuild GITHUB_SHA points at the branch the workflow
           # ran from, so use the checked-out HEAD.
@@ -352,22 +346,6 @@ jobs:
             echo "   cvm-reverse-proxy/build/proxy-client --server-measurements gcp-server-measurements.json --target-addr=https://\${VM_IP}:8745 &"
             echo "   curl -si http://127.0.0.1:8080 | grep -q X-Flashbots-Measurement && echo '✅ VM matches YOUR build' || echo '❌ mismatch'"
             echo '   ```'
-            echo ""
-            echo "---"
-            echo ""
-          } > release-body.md
-
-          # Changelog via GitHub's native auto-notes engine (honors .github/release.yml),
-          # scoped to the previous matching tag.
-          GEN_ARGS=(-f "tag_name=${RELEASE_TAG}")
-          if [[ -n "${PREV}" ]]; then
-            GEN_ARGS+=(-f "previous_tag_name=${PREV}")
-          fi
-          NOTES="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-            "${GEN_ARGS[@]}" --jq .body)"
-          {
-            cat release-body.md
-            echo "${NOTES}"
           } > release-notes.md
 
           # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
