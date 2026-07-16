@@ -1,13 +1,18 @@
-# flashbox-l1 pipeline: always builds + pushes to R2; the draft Release is only
-# created when the build is driven by a release tag.
+# GitHub Actions workflow for building and publishing the flashbox-l1 image.
 #
-#   - Push a `flashbox-l1-v*` tag          -> build+push + draft Release.
-#   - Dispatch with ref = branch/SHA/empty -> dev build+push only (no release).
-#   - Dispatch with ref = existing release tag -> re-cut: deterministic rebuild
-#     (same R2 content) + fresh draft Release (delete the old draft first).
+# Triggers on:
+# - Pushes of a `flashbox-l1-v*` tag: builds the image, uploads the artifacts
+#   to R2, and creates a draft GitHub Release
 #
-# All logic lives in the generic reusable workflow; everything is derived from
-# image-id, so this file only sets image-id.
+# - Manual dispatch: allows specifying:
+#   - Ref to build (default: the current branch)
+#     - Branch or SHA → dev build, uploaded to R2 only (no release)
+#     - Existing release tag → deterministic rebuild and a new draft Release
+#   - Dev image (default: false)
+#     - Builds with the devtools profile (e.g. SSH access); never released
+#
+# All build and publish logic lives in the reusable workflow
+# _build-and-publish-image.yml; this file only sets the image id.
 
 name: flashbox-l1
 
@@ -18,11 +23,11 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Tag, SHA, or branch to build (empty = this branch). A flashbox-l1-vX.Y.Z tag also (re-)cuts its draft release."
+        description: "Tag, SHA, or branch to build (empty = this branch)."
         type: string
         default: ""
       dev-image:
-        description: "Build a dev image (devtools profile, e.g. SSH access)"
+        description: "Build a dev image (devtools profile)"
         type: boolean
         default: false
 
@@ -33,7 +38,7 @@ jobs:
     uses: ./.github/workflows/_build-and-publish-image.yml
     with:
       image-id: flashbox-l1
-      # '' on tag pushes (no inputs) -> coerce to defaults for typed inputs.
+      # Inputs are empty on tag pushes; fall back to the defaults.
       ref: ${{ inputs.ref || '' }}
       dev-image: ${{ inputs.dev-image || false }}
     secrets: inherit

@@ -13,7 +13,6 @@
 #   - Reproducibility test (default: false)
 #     - Adds a second build on a separate runner and compares SHA256 hashes
 
-
 name: Build mkosi images
 
 on:

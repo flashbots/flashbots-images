@@ -1,8 +1,18 @@
-# Reusable build+publish pipeline for flashbots-images: builds <image-id>, uploads
-# to R2, and cuts a draft Release only when driven by an <image-id>-vX.Y.Z tag
-# (pushed, or passed as `ref`). Any other ref is a dev build with no release.
+# Reusable GitHub Actions workflow for building and publishing mkosi images.
 #
-# Inputs reach shell via `env:`, never inline ${{ }}, to avoid injection.
+# Builds the specified image, uploads the artifacts to R2, and creates a draft
+# GitHub Release when the build is driven by a release tag.
+#
+# Behavior:
+# - Release tag (<image-id>-vX.Y.Z, pushed or passed as `ref`):
+#   - Builds the image at that tag
+#   - Uploads artifacts to R2 under <r2-path-prefix>/vX.Y.Z/
+#   - Creates a draft GitHub Release with measurements and changelog
+#
+# - Any other ref (branch, SHA, or empty):
+#   - Builds a dev image at that ref
+#   - Uploads artifacts to R2 under <r2-path-prefix>/dev/<branch>.<sha>/
+#   - No release is created
 
 name: Build and publish image (generic)
 
@@ -18,17 +28,17 @@ on:
         type: string
         default: ""
       dev-image:
-        description: "Build a dev image (devtools profile, e.g. SSH access) via `make build-dev`. Produces <image-id>-dev_* artifacts."
+        description: "Build a dev image (devtools profile) via `make build-dev`. Produces <image-id>-dev_* artifacts."
         type: boolean
         default: false
       r2-bucket:
-        description: "R2 bucket. Defaults to the shared flashbots-public-artifacts; override for a dev/PoC bucket."
+        description: "R2 bucket to upload artifacts to"
         type: string
         default: "flashbots-public-artifacts"
       r2-path-prefix:
-        # Input defaults must be static literals, so the <image-id>-images
-        # fallback is applied at runtime rather than here.
-        description: "R2 destination prefix. Leave empty to derive <image-id>-images; override e.g. for a PoC."
+        # Input defaults cannot reference other inputs, so the fallback is
+        # applied at runtime.
+        description: "R2 destination prefix (default: <image-id>-images)"
         type: string
         default: ""
       draft:
@@ -43,14 +53,13 @@ jobs:
   build:
     name: Build ${{ inputs.image-id }}
     runs-on: warp-ubuntu-latest-x64-32x
-    # Public base URL of the flashbots-public-artifacts R2 bucket (custom domain).
     env:
       R2_PUBLIC_BASE_URL: "https://builder-artifacts.flashbots.net"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }} # empty = triggering ref
+          ref: ${{ inputs.ref }}
           fetch-depth: 0 # full history + tags for the per-prefix changelog window
 
       - name: Install Nix
@@ -83,9 +92,8 @@ jobs:
             echo "R2_PATH_PREFIX=${R2_PATH_PREFIX_INPUT:-${IMAGE}-images}"
           } >> "$GITHUB_ENV"
 
-      # release_tag is set only for a real release tag (pushed, or `ref` naming an
-      # existing one); empty otherwise. A branch that merely starts with the
-      # prefix (e.g. <image-id>-vault-fix) is a dev ref, not a release.
+      # Sets release_tag when the build is driven by a <image-id>-vX.Y.Z tag,
+      # either pushed or passed as `ref`; empty otherwise.
       - name: Resolve release tag
         id: resolve-tag
         env:
@@ -110,7 +118,6 @@ jobs:
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
-      # A dev-image (devtools profile, e.g. SSH) must never be released.
       - name: Reject dev-image release
         if: ${{ steps.resolve-tag.outputs.release_tag != '' && inputs.dev-image }}
         run: |
@@ -136,14 +143,14 @@ jobs:
         run: |
           set -euo pipefail
           # Lowercase to [a-z0-9-] so the GCS image name and R2 path stay valid.
-          # SHA from checked-out HEAD, not GITHUB_SHA (they differ under a custom ref).
+          # GITHUB_SHA differs from the checked-out HEAD when a custom ref is passed.
           HEAD_SHA="$(git rev-parse HEAD)"
           SRC_REF="${REF_INPUT:-${GITHUB_REF_NAME}}"
           BRANCH="$(printf '%s' "${SRC_REF}" \
             | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' \
             | sed -E 's/-+/-/g; s/^-//; s/-$//')"
-          # Dot (not dash) before the sha: env_wrapper.sh's latest.* symlink loop
-          # keys off it, and a dotless version makes `make build` exit non-zero.
+          # env_wrapper.sh's latest.* symlink handling requires a version
+          # containing a dot.
           DEV_VERSION="${BRANCH}.${HEAD_SHA:0:8}"
           {
             echo "RELEASE=false"
@@ -155,7 +162,7 @@ jobs:
         run: |
           echo "mode: RELEASE=${RELEASE}, STEM=${STEM}, R2_PATH_PREFIX=${R2_PATH_PREFIX}, VERSION_DIR=${VERSION_DIR}, IMAGE_VERSION=${IMAGE_VERSION:-<default>}"
 
-      # make build -> nix develop -c mkosi; MKOSI_EXTRA_ARGS is appended by env_wrapper.sh.
+      # MKOSI_EXTRA_ARGS is picked up and appended to mkosi by env_wrapper.sh.
       - name: Build image
         env:
           DEV_IMAGE: ${{ inputs.dev-image }}
@@ -176,8 +183,6 @@ jobs:
       - name: Fix permissions
         run: sudo chown -R "$(id -u):$(id -g)" build/
 
-      # dstack-mr predictions (gcp_measurements.json); a reference only, verified
-      # user-side (see the release body).
       - name: Export measurements (GCP TDX)
         run: |
           set -euo pipefail
@@ -221,16 +226,13 @@ jobs:
           R2_BUCKET: ${{ inputs.r2-bucket }}
         run: |
           set -euo pipefail
-          # Image artifacts (CVM set) + measurements; nothing else
-          # (vmlinuz/initrd/manifest/latest.* are excluded by the includes).
+          # Upload only the image artifacts and measurements.
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
             --include "${STEM}_*.{efi,tar.gz,qcow2}" \
             --include "gcp_measurements.json" \
             build "r2-flashbots-public-artifacts:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
 
-      # The terraform GCP confidential-VM module fetches an https source_uri into
-      # its own GCS bucket, so we hand it the R2 URL directly (no R2->GCS sync).
       - name: Terraform image entry (R2 source_uri)
         run: |
           set -euo pipefail
@@ -266,15 +268,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Previous tag for THIS image prefix, reachable from this tag's commit
-          # (--merged keeps the window correct when re-cutting an older tag).
+          # Most recent previous release tag for this image, reachable from HEAD,
+          # used as the changelog starting point.
           PREV="$(git tag --list "${TAG_PREFIX}-v*" --merged HEAD --sort=-v:refname \
             | grep -vxF "${RELEASE_TAG}" | head -n1 || true)"
           echo "Previous tag for changelog: '${PREV:-<none>}'"
 
           shopt -s nullglob
-          # HEAD, not GITHUB_SHA: on a dispatched re-cut GITHUB_SHA is the branch
-          # the workflow ran from, not the tag being released.
+          # On a dispatched rebuild GITHUB_SHA points at the branch the workflow
+          # ran from, so use the checked-out HEAD.
           HEAD_SHA="$(git rev-parse HEAD)"
           COMMIT_SHORT="${HEAD_SHA:0:7}"
           BUILT="$(date -u '+%Y-%m-%d %H:%M UTC')"
@@ -356,7 +358,7 @@ jobs:
           } > release-body.md
 
           # Changelog via GitHub's native auto-notes engine (honors .github/release.yml),
-          # scoped to the previous matching tag. Prepend our R2 body.
+          # scoped to the previous matching tag.
           GEN_ARGS=(-f "tag_name=${RELEASE_TAG}")
           if [[ -n "${PREV}" ]]; then
             GEN_ARGS+=(-f "previous_tag_name=${PREV}")
@@ -368,8 +370,8 @@ jobs:
             echo "${NOTES}"
           } > release-notes.md
 
-          # Attach the expected measurements (source of truth for attestation) + the
-          # .efi UKI. Large tar.gz/qcow2 stay in R2, linked above.
+          # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
+          # artifacts stay in R2 and are linked in the release body.
           assets=()
           for f in build/gcp_measurements.json build/"${STEM}"_*.efi; do
             [ -e "$f" ] && assets+=("$f")
