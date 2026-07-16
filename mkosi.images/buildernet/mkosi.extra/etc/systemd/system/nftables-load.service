@@ -7,8 +7,9 @@ Before=haproxy.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/nftables-load /etc/nftables/ruleset.nft /etc/nftables/privileged_ips.list
-ExecReload=/usr/bin/nftables-load /etc/nftables/ruleset.nft /etc/nftables/privileged_ips.list
+TimeoutStartSec=30
+ExecStart=/usr/bin/generate-nftables /etc/nftables/nftables.env /etc/nftables/ruleset.nft
+ExecReload=/usr/bin/generate-nftables /etc/nftables/nftables.env /etc/nftables/ruleset.nft
 
 [Install]
 WantedBy=multi-user.target
