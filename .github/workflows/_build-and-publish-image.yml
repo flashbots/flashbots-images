@@ -6,61 +6,48 @@
 # Behavior:
 # - Release tag (<image-id>-vX.Y.Z, pushed or passed as `ref`):
 #   - Builds the image at that tag
-#   - Uploads artifacts to R2 under <r2-path-prefix>/vX.Y.Z/
+#   - Uploads artifacts to R2 under <image-id>-images/vX.Y.Z/
 #   - Creates a draft GitHub Release with measurements
 #
 # - Any other ref (branch, SHA, or empty):
 #   - Builds a dev image at that ref
-#   - Uploads artifacts to R2 under <r2-path-prefix>/dev/<branch>.<sha>/
+#   - Uploads artifacts to R2 under <image-id>-images/dev/<branch>.<sha>/
 #   - No release is created
 
-name: Build and publish image (generic)
+name: Build and publish image
 
 on:
   workflow_call:
     inputs:
       image-id:
-        description: "Image to build. Drives mkosi --image-id / images/<id>.conf, the tag prefix (<image-id>-v*), the default R2 prefix (<image-id>-images), and the artifact globs."
+        description: "Image to build (images/<id>.conf)."
         type: string
         required: true
       ref:
-        description: "Tag, SHA, or branch to build. An existing `<image-id>-vX.Y.Z[-suffix]` release tag selects release mode; anything else is a dev build at that ref. Empty = the triggering ref."
+        description: "Tag, SHA, or branch to build. A release tag selects release mode; anything else is a dev build. Empty = the triggering ref."
         type: string
         default: ""
       dev-image:
         description: "Build a dev image (devtools profile) via `make build-dev`. Produces <image-id>-dev_* artifacts."
         type: boolean
         default: false
-      r2-bucket:
-        description: "R2 bucket to upload artifacts to"
-        type: string
-        default: "flashbots-public-artifacts"
-      r2-path-prefix:
-        # Input defaults cannot reference other inputs, so the fallback is
-        # applied at runtime.
-        description: "R2 destination prefix (default: <image-id>-images)"
-        type: string
-        default: ""
-      draft:
-        description: "Create the GitHub Release as a draft"
-        type: boolean
-        default: true
 
 permissions:
-  contents: write # required for `gh release create`
+  contents: write
 
 jobs:
   build:
     name: Build ${{ inputs.image-id }}
     runs-on: warp-ubuntu-latest-x64-32x
     env:
+      R2_BUCKET: flashbots-public-artifacts
       R2_PUBLIC_BASE_URL: "https://builder-artifacts.flashbots.net"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0 # tags must be present so `Resolve release tag` can verify `ref`
+          fetch-depth: 0
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -68,99 +55,72 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      # env_wrapper.sh uses Lima by default for local builds; in CI we already
-      # have Linux + nix, so bypass Lima and run mkosi directly.
+      # Use Nix to build image
       - name: Bypass Lima wrapper
         run: touch .bypass-lima
 
       - name: Enable user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # STEM is the artifact filename stem; build-dev appends -dev to the image id.
-      - name: Derive names
+      # A build is release when an <image-id>-vX.Y.Z tag is pushed or passed as `ref`
+      # Everything else is a dev build.
+      - name: Determine build mode
         env:
           IMAGE: ${{ inputs.image-id }}
-          R2_PATH_PREFIX_INPUT: ${{ inputs.r2-path-prefix }}
+          REF_INPUT: ${{ inputs.ref }}
           DEV_IMAGE: ${{ inputs.dev-image }}
         run: |
           set -euo pipefail
-          if [[ "${DEV_IMAGE}" == "true" ]]; then STEM="${IMAGE}-dev"; else STEM="${IMAGE}"; fi
-          {
-            echo "IMAGE=${IMAGE}"
-            echo "STEM=${STEM}"
-            echo "TAG_PREFIX=${IMAGE}"
-            echo "R2_PATH_PREFIX=${R2_PATH_PREFIX_INPUT:-${IMAGE}-images}"
-          } >> "$GITHUB_ENV"
+          TAG_RE="^${IMAGE}-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$"
 
-      # Sets release_tag when the build is driven by a <image-id>-vX.Y.Z tag,
-      # either pushed or passed as `ref`; empty otherwise.
-      - name: Resolve release tag
-        id: resolve-tag
-        env:
-          REF_INPUT: ${{ inputs.ref }}
-        run: |
-          set -euo pipefail
-          TAG_RE="^${TAG_PREFIX}-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?\$"
           RELEASE_TAG=""
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            if ! printf '%s' "${GITHUB_REF_NAME}" | grep -Eq "${TAG_RE}"; then
-              echo "::error::pushed tag '${GITHUB_REF_NAME}' doesn't match ${TAG_PREFIX}-vX.Y.Z[-suffix]"
+            if ! [[ "${GITHUB_REF_NAME}" =~ ${TAG_RE} ]]; then
+              echo "::error::pushed tag '${GITHUB_REF_NAME}' doesn't match ${IMAGE}-vX.Y.Z[-suffix]"
               exit 1
             fi
             RELEASE_TAG="${GITHUB_REF_NAME}"
-          elif [[ -n "${REF_INPUT}" ]] && printf '%s' "${REF_INPUT}" | grep -Eq "${TAG_RE}"; then
-            if ! git rev-parse -q --verify "refs/tags/${REF_INPUT}" >/dev/null; then
-              echo "::error::'${REF_INPUT}' matches the release tag format but no such tag exists"
-              exit 1
-            fi
+          elif [[ "${REF_INPUT}" =~ ${TAG_RE} ]]; then
             RELEASE_TAG="${REF_INPUT}"
           fi
-          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
-      - name: Reject dev-image release
-        if: ${{ steps.resolve-tag.outputs.release_tag != '' && inputs.dev-image }}
-        run: |
-          echo "::error::dev-image builds cannot be released (tag ${{ steps.resolve-tag.outputs.release_tag }})"
-          exit 1
+          if [[ -n "${RELEASE_TAG}" && "${DEV_IMAGE}" == "true" ]]; then
+            echo "::error::dev-image builds cannot be released"
+            exit 1
+          fi
 
-      - name: Compute version (release)
-        if: ${{ steps.resolve-tag.outputs.release_tag != '' }}
-        env:
-          RELEASE_TAG: ${{ steps.resolve-tag.outputs.release_tag }}
-        run: |
-          set -euo pipefail
+          # build-dev builds under image id <image-id>-dev, which changes the
+          # artifact filenames.
+          if [[ "${DEV_IMAGE}" == "true" ]]; then
+            ARTIFACT_PREFIX="${IMAGE}-dev"
+          else
+            ARTIFACT_PREFIX="${IMAGE}"
+          fi
+
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            VERSION_DIR="v${RELEASE_TAG#"${IMAGE}"-v}"
+            IMAGE_VERSION="" # mkosi.version supplies the version
+          else
+            # GITHUB_SHA differs from the checked-out HEAD when a custom ref is passed.
+            HEAD_SHA="$(git rev-parse HEAD)"
+            # Lowercase to [a-z0-9-] so the GCS image name and R2 path stay valid.
+            BRANCH="$(printf '%s' "${REF_INPUT:-${GITHUB_REF_NAME}}" \
+              | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
+            # env_wrapper.sh's latest.* symlink handling requires a version
+            # containing a dot.
+            IMAGE_VERSION="${BRANCH}.${HEAD_SHA:0:8}"
+            VERSION_DIR="dev/${IMAGE_VERSION}"
+          fi
+
           {
-            echo "RELEASE=true"
-            echo "VERSION_DIR=v${RELEASE_TAG#"${TAG_PREFIX}"-v}"
-            echo "IMAGE_VERSION="
+            echo "IMAGE=${IMAGE}"
+            echo "ARTIFACT_PREFIX=${ARTIFACT_PREFIX}"
+            echo "RELEASE_TAG=${RELEASE_TAG}"
+            echo "R2_PATH_PREFIX=${IMAGE}-images"
+            echo "VERSION_DIR=${VERSION_DIR}"
+            echo "IMAGE_VERSION=${IMAGE_VERSION}"
           } >> "$GITHUB_ENV"
-
-      - name: Compute version (dev)
-        if: ${{ steps.resolve-tag.outputs.release_tag == '' }}
-        env:
-          REF_INPUT: ${{ inputs.ref }}
-        run: |
-          set -euo pipefail
-          # Lowercase to [a-z0-9-] so the GCS image name and R2 path stay valid.
-          # GITHUB_SHA differs from the checked-out HEAD when a custom ref is passed.
-          HEAD_SHA="$(git rev-parse HEAD)"
-          SRC_REF="${REF_INPUT:-${GITHUB_REF_NAME}}"
-          BRANCH="$(printf '%s' "${SRC_REF}" \
-            | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' \
-            | sed -E 's/-+/-/g; s/^-//; s/-$//')"
-          # env_wrapper.sh's latest.* symlink handling requires a version
-          # containing a dot.
-          DEV_VERSION="${BRANCH}.${HEAD_SHA:0:8}"
-          {
-            echo "RELEASE=false"
-            echo "VERSION_DIR=dev/${DEV_VERSION}"
-            echo "IMAGE_VERSION=${DEV_VERSION}"
-          } >> "$GITHUB_ENV"
-
-      - name: Show mode
-        run: |
-          echo "mode: RELEASE=${RELEASE}, STEM=${STEM}, R2_PATH_PREFIX=${R2_PATH_PREFIX}, VERSION_DIR=${VERSION_DIR}, IMAGE_VERSION=${IMAGE_VERSION:-<default>}"
+          echo "mode: RELEASE_TAG=${RELEASE_TAG:-<dev build>}, VERSION_DIR=${VERSION_DIR}"
 
       # MKOSI_EXTRA_ARGS is picked up and appended to mkosi by env_wrapper.sh.
       - name: Build image
@@ -169,11 +129,9 @@ jobs:
         run: |
           set -euo pipefail
           umask 022
-          EXTRA=""
           if [[ -n "${IMAGE_VERSION}" ]]; then
-            EXTRA="--image-version=${IMAGE_VERSION}"
+            export MKOSI_EXTRA_ARGS="--image-version=${IMAGE_VERSION}"
           fi
-          export MKOSI_EXTRA_ARGS="${EXTRA}"
           if [[ "${DEV_IMAGE}" == "true" ]]; then
             make build-dev IMAGE="${IMAGE}"
           else
@@ -200,17 +158,18 @@ jobs:
           sudo apt-get install -y "./${RCLONE_DEB}"
           rm -f "${RCLONE_DEB}"
 
-      - name: Configure rclone (R2 artifacts)
+      - name: Upload artifacts to R2
         env:
           R2_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
           R2_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.config/rclone
           # use_data_integrity_protections=false: R2 returns 501 NotImplemented
           # for the CRC32 checksum trailers aws-sdk-go-v2 sends by default.
           cat > ~/.config/rclone/rclone.conf <<EOF
-          [r2-flashbots-public-artifacts]
+          [r2]
           type = s3
           provider = Cloudflare
           access_key_id = ${R2_ACCESS_KEY}
@@ -220,61 +179,24 @@ jobs:
           acl = private
           use_data_integrity_protections = false
           EOF
-
-      - name: Upload artifacts to R2
-        env:
-          R2_BUCKET: ${{ inputs.r2-bucket }}
-        run: |
-          set -euo pipefail
           # Upload only the image artifacts and measurements.
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
-            --include "${STEM}_*.{efi,tar.gz,qcow2}" \
+            --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
             --include "gcp_measurements.json" \
-            build "r2-flashbots-public-artifacts:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
-
-      - name: Terraform image entry (R2 source_uri)
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          if [[ -z "${R2_PUBLIC_BASE_URL}" ]]; then
-            echo "R2_PUBLIC_BASE_URL not set, skipping terraform snippet"
-            exit 0
-          fi
-          for f in build/"${STEM}"_*.tar.gz; do
-            n="$(basename "$f")"
-            # GCP image name charset: sanitize _ and . to - for the map key.
-            key="${n%.tar.gz}"; key="${key//[_.]/-}"
-            uri="${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}"
-            {
-              echo "### 📋 Terraform image entry"
-              echo ""
-              echo "Add to the GCP confidential-VM \`images\` map (the module fetches the URL → GCS → image):"
-              echo ""
-              echo '```hcl'
-              echo "    \"${key}\" = {"
-              echo "      source_uri = \"${uri}\""
-              echo "    }"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          done
-
+            build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
       - name: Create draft GitHub Release
-        if: ${{ env.RELEASE == 'true' }}
+        if: ${{ env.RELEASE_TAG != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          R2_BUCKET: ${{ inputs.r2-bucket }}
-          DRAFT: ${{ inputs.draft }}
         run: |
           set -euo pipefail
 
           shopt -s nullglob
-          # On a dispatched rebuild GITHUB_SHA points at the branch the workflow
-          # ran from, so use the checked-out HEAD.
           HEAD_SHA="$(git rev-parse HEAD)"
           COMMIT_SHORT="${HEAD_SHA:0:7}"
           BUILT="$(date -u '+%Y-%m-%d %H:%M UTC')"
-          VERSION="${RELEASE_TAG#"${TAG_PREFIX}"-v}"
+          VERSION="${RELEASE_TAG#"${IMAGE}"-v}"
           {
             echo "## 🚀 \`${IMAGE}\`: ${RELEASE_TAG}"
             echo ""
@@ -287,24 +209,19 @@ jobs:
             echo ""
             echo "### 💿 Images"
             echo ""
-            if [[ -n "${R2_PUBLIC_BASE_URL}" ]]; then
-              echo "| Target | File | Size |"
-              echo "|---|---|--:|"
-              for f in build/"${STEM}"_*.efi build/"${STEM}"_*.tar.gz build/"${STEM}"_*.qcow2; do
-                n="$(basename "$f")"
-                sz="$(du -h "$f" | cut -f1)"
-                case "$n" in
-                  *.efi)    t="🐧 UKI (EFI)" ;;
-                  *.tar.gz) t="☁️ GCP disk" ;;
-                  *.qcow2)  t="🧪 QEMU qcow2" ;;
-                  *)        t="📄 artifact" ;;
-                esac
-                echo "| ${t} | [\`${n}\`](${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}) | ${sz} |"
-              done
-            else
-              echo "> [!TIP]"
-              echo "> Images live in the \`${R2_BUCKET}\` R2 bucket under \`${R2_PATH_PREFIX}/${VERSION_DIR}/\`."
-            fi
+            echo "| Target | File | Size |"
+            echo "|---|---|--:|"
+            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2; do
+              n="$(basename "$f")"
+              sz="$(du -h "$f" | cut -f1)"
+              case "$n" in
+                *.efi)    t="🐧 UKI (EFI)" ;;
+                *.tar.gz) t="☁️ GCP disk" ;;
+                *.qcow2)  t="🧪 QEMU qcow2" ;;
+                *)        t="📄 artifact" ;;
+              esac
+              echo "| ${t} | [\`${n}\`](${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}) | ${sz} |"
+            done
             echo ""
             echo "> [!NOTE]"
             echo "> **\`gcp_measurements.json\`** (attached, also on R2): the expected TDX measurements (MRTD, RTMR0-3) for this image on GCP, from [\`dstack-mr-gcp\`](https://github.com/flashbots/dstack-mr-gcp). Reproduce them yourself with the steps below."
@@ -351,12 +268,9 @@ jobs:
           # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
           # artifacts stay in R2 and are linked in the release body.
           assets=()
-          for f in build/gcp_measurements.json build/"${STEM}"_*.efi; do
+          for f in build/gcp_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
             [ -e "$f" ] && assets+=("$f")
           done
 
-          create_args=(--title "${RELEASE_TAG}" --notes-file release-notes.md)
-          if [[ "${DRAFT}" == "true" ]]; then
-            create_args+=(--draft)
-          fi
-          gh release create "${RELEASE_TAG}" "${create_args[@]}" "${assets[@]}"
+          gh release create "${RELEASE_TAG}" --draft \
+            --title "${RELEASE_TAG}" --notes-file release-notes.md "${assets[@]}"

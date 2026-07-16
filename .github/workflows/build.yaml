@@ -86,7 +86,7 @@ jobs:
     name: build ${{ matrix.image }} image
     runs-on: warp-ubuntu-latest-x64-32x
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch || github.ref }}
 
@@ -149,7 +149,7 @@ jobs:
     name: reprotest ${{ matrix.image }}
     runs-on: warp-ubuntu-latest-x64-32x
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch || github.ref }}
 
