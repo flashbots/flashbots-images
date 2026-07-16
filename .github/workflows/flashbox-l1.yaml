@@ -12,7 +12,7 @@
 #     - Builds with the devtools profile (e.g. SSH access); never released
 #
 # All build and publish logic lives in the reusable workflow
-# _build-and-publish-image.yml; this file only sets the image id.
+# _build-and-publish-image.yaml; this file only sets the image id.
 
 name: flashbox-l1
 
@@ -35,7 +35,7 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: ./.github/workflows/_build-and-publish-image.yml
+    uses: ./.github/workflows/_build-and-publish-image.yaml
     with:
       image-id: flashbox-l1
       # Inputs are empty on tag pushes; fall back to the defaults.
