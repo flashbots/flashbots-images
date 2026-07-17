@@ -5,14 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_SHA256SUM=64a4c4abb39a337640a1bb656f30d1835bc156666132f7e5de7d9469a6ed23f1 \
-            RBUILDER_OPERATOR_TAG=v1.7.5 \
+Environment=RBUILDER_OPERATOR_SHA256SUM=85d77083e4cd5c1256af4d43a9b6c1feb1874763beb6c9ed80832b227c431150 \
+            RBUILDER_OPERATOR_TAG=v1.7.12 \
             RBUILDER_OPERATOR_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.7.5-x86_64-unknown-linux-gnu \
-            RBUILDER_REBALANCER_SHA256SUM=8ea7a0e579e23ec4f35efd9d80d851768594606b4fdc936432f01745fc2a6a5c \
-            RBUILDER_REBALANCER_TAG=v1.7.5 \
+            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.7.12-x86_64-unknown-linux-gnu \
+            RBUILDER_REBALANCER_SHA256SUM=04c9ad2821b62534fe73ba361a3049112899aa5b7ddf344ab657db449ad17ec0 \
+            RBUILDER_REBALANCER_TAG=v1.7.12 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
-            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.7.5-x86_64-unknown-linux-gnu
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.7.12-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 
 # rbuilder-operator
