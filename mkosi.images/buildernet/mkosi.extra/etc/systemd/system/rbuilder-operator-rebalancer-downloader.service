@@ -5,14 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_SHA256SUM=85d77083e4cd5c1256af4d43a9b6c1feb1874763beb6c9ed80832b227c431150 \
-            RBUILDER_OPERATOR_TAG=v1.7.12 \
+Environment=RBUILDER_OPERATOR_SHA256SUM=56c425fd63807e23f7ca1c1015557e66ec57b303331f52fd71dbd5be3b0cbe0a \
+            RBUILDER_OPERATOR_TAG=v1.7.14 \
             RBUILDER_OPERATOR_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.7.12-x86_64-unknown-linux-gnu \
+            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.7.14-x86_64-unknown-linux-gnu \
             RBUILDER_REBALANCER_SHA256SUM=04c9ad2821b62534fe73ba361a3049112899aa5b7ddf344ab657db449ad17ec0 \
-            RBUILDER_REBALANCER_TAG=v1.7.12 \
+            RBUILDER_REBALANCER_TAG=v1.7.14 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
-            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.7.12-x86_64-unknown-linux-gnu
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.7.14-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 
 # rbuilder-operator
