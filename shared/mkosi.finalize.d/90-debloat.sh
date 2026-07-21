@@ -57,6 +57,9 @@ skip_paths=()
 for var in "${!SKIP_DEBLOAT_PATHS@}"; do
     skip_paths+=(${!var})
 done
+if [[ -n "${KERNEL_MODULES:-}" ]]; then
+    skip_paths+=("/usr/lib/modules")
+fi
 skip=" ${skip_paths[*]} "
 
 for p in "${debloat_paths[@]}"; do
