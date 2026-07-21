@@ -1,11 +1,16 @@
 [Unit]
 Description=SSH Public Key Server
-After=searcher-container.service
-Requires=searcher-container.service
+# Order after dropbear so the host (control-plane) key and its .pub — generated
+# by dropbear-prereq — exist before we start. We intentionally do NOT depend on
+# searcher-container: that would pin this server behind disk unlock, which
+# requires an unattested SSH first (TOFU). The container (data-plane) key is
+# served by /pubkey lazily once it appears after the disk is unlocked.
+After=dropbear.service
+Wants=dropbear.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ssh-pubkey-server --listen-addr=127.0.0.1:5001 --ssh-pubkey-file=/etc/searcher/ssh_hostkey/host_key.pub --ssh-pubkey-file=/etc/dropbear/dropbear_ed25519_host_key.pub
+ExecStart=/usr/bin/ssh-pubkey-server --listen-addr=127.0.0.1:5001 --ssh-pubkey-file=/etc/dropbear/dropbear_ed25519_host_key.pub --ssh-pubkey-file=/etc/searcher/ssh_hostkey/host_key.pub
 Restart=always
 RestartSec=5
 

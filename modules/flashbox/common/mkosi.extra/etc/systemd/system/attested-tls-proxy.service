@@ -1,14 +1,15 @@
 [Unit]
-Description=SSH Public Key Server
+Description=Attested TLS Proxy Server
 After=ssh-pubkey-server.service
 Requires=ssh-pubkey-server.service
 
 [Service]
 Type=simple
-ExecStart=cvm-reverse-proxy --listen-addr=0.0.0.0:8745 \
-            --target-addr=http://localhost:5001 \
+ExecStart=attested-tls-proxy server \
+            --listen-addr=0.0.0.0:8745 \
             --server-attestation-type=auto \
-            --override-azurev6-tcbinfo
+            --allowed-remote-attestation-type none \
+            127.0.0.1:5001
 Restart=always
 RestartSec=5
 

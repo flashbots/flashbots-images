@@ -1,0 +1,44 @@
+# GitHub Actions workflow for building and publishing the flashbox-l1 image.
+#
+# Triggers on:
+# - Pushes of a `flashbox-l1-v*` tag: builds the image, uploads the artifacts
+#   to R2, and creates a draft GitHub Release
+#
+# - Manual dispatch: allows specifying:
+#   - Ref to build (default: the current branch)
+#     - Branch or SHA → dev build, uploaded to R2 only (no release)
+#     - Existing release tag → deterministic rebuild and a new draft Release
+#   - Dev image (default: false)
+#     - Builds with the devtools profile (e.g. SSH access); never released
+#
+# All build and publish logic lives in the reusable workflow
+# _build-and-publish-image.yaml; this file only sets the image id.
+
+name: flashbox-l1
+
+on:
+  push:
+    tags:
+      - "flashbox-l1-v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, SHA, or branch to build (empty = this branch)."
+        type: string
+        default: ""
+      dev-image:
+        description: "Build a dev image (devtools profile)"
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_build-and-publish-image.yaml
+    with:
+      image-id: flashbox-l1
+      # Inputs are empty on tag pushes; fall back to the defaults.
+      ref: ${{ inputs.ref || '' }}
+      dev-image: ${{ inputs.dev-image || false }}
+    secrets: inherit

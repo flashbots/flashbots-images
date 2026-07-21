@@ -1,0 +1,276 @@
+# Reusable GitHub Actions workflow for building and publishing mkosi images.
+#
+# Builds the specified image, uploads the artifacts to R2, and creates a draft
+# GitHub Release when the build is driven by a release tag.
+#
+# Behavior:
+# - Release tag (<image-id>-vX.Y.Z, pushed or passed as `ref`):
+#   - Builds the image at that tag
+#   - Uploads artifacts to R2 under <image-id>-images/vX.Y.Z/
+#   - Creates a draft GitHub Release with measurements
+#
+# - Any other ref (branch, SHA, or empty):
+#   - Builds a dev image at that ref
+#   - Uploads artifacts to R2 under <image-id>-images/dev/<branch>.<sha>/
+#   - No release is created
+
+name: Build and publish image
+
+on:
+  workflow_call:
+    inputs:
+      image-id:
+        description: "Image to build (images/<id>.conf)."
+        type: string
+        required: true
+      ref:
+        description: "Tag, SHA, or branch to build. A release tag selects release mode; anything else is a dev build. Empty = the triggering ref."
+        type: string
+        default: ""
+      dev-image:
+        description: "Build a dev image (devtools profile) via `make build-dev`. Produces <image-id>-dev_* artifacts."
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ inputs.image-id }}
+    runs-on: warp-ubuntu-latest-x64-32x
+    env:
+      R2_BUCKET: flashbots-public-artifacts
+      R2_PUBLIC_BASE_URL: "https://builder-artifacts.flashbots.net"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Use Nix to build image
+      - name: Bypass Lima wrapper
+        run: touch .bypass-lima
+
+      - name: Enable user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # A build is release when an <image-id>-vX.Y.Z tag is pushed or passed as `ref`
+      # Everything else is a dev build.
+      - name: Determine build mode
+        env:
+          IMAGE: ${{ inputs.image-id }}
+          REF_INPUT: ${{ inputs.ref }}
+          DEV_IMAGE: ${{ inputs.dev-image }}
+        run: |
+          set -euo pipefail
+          TAG_RE="^${IMAGE}-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$"
+
+          RELEASE_TAG=""
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            if ! [[ "${GITHUB_REF_NAME}" =~ ${TAG_RE} ]]; then
+              echo "::error::pushed tag '${GITHUB_REF_NAME}' doesn't match ${IMAGE}-vX.Y.Z[-suffix]"
+              exit 1
+            fi
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+          elif [[ "${REF_INPUT}" =~ ${TAG_RE} ]]; then
+            RELEASE_TAG="${REF_INPUT}"
+          fi
+
+          if [[ -n "${RELEASE_TAG}" && "${DEV_IMAGE}" == "true" ]]; then
+            echo "::error::dev-image builds cannot be released"
+            exit 1
+          fi
+
+          # build-dev builds under image id <image-id>-dev, which changes the
+          # artifact filenames.
+          if [[ "${DEV_IMAGE}" == "true" ]]; then
+            ARTIFACT_PREFIX="${IMAGE}-dev"
+          else
+            ARTIFACT_PREFIX="${IMAGE}"
+          fi
+
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            VERSION_DIR="v${RELEASE_TAG#"${IMAGE}"-v}"
+            IMAGE_VERSION="" # mkosi.version supplies the version
+          else
+            # GITHUB_SHA differs from the checked-out HEAD when a custom ref is passed.
+            HEAD_SHA="$(git rev-parse HEAD)"
+            # Lowercase to [a-z0-9-] so the GCS image name and R2 path stay valid.
+            BRANCH="$(printf '%s' "${REF_INPUT:-${GITHUB_REF_NAME}}" \
+              | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
+            # env_wrapper.sh's latest.* symlink handling requires a version
+            # containing a dot.
+            IMAGE_VERSION="${BRANCH}.${HEAD_SHA:0:8}"
+            VERSION_DIR="dev/${IMAGE_VERSION}"
+          fi
+
+          {
+            echo "IMAGE=${IMAGE}"
+            echo "ARTIFACT_PREFIX=${ARTIFACT_PREFIX}"
+            echo "RELEASE_TAG=${RELEASE_TAG}"
+            echo "R2_PATH_PREFIX=${IMAGE}-images"
+            echo "VERSION_DIR=${VERSION_DIR}"
+            echo "IMAGE_VERSION=${IMAGE_VERSION}"
+          } >> "$GITHUB_ENV"
+          echo "mode: RELEASE_TAG=${RELEASE_TAG:-<dev build>}, VERSION_DIR=${VERSION_DIR}"
+
+      # MKOSI_EXTRA_ARGS is picked up and appended to mkosi by env_wrapper.sh.
+      - name: Build image
+        env:
+          DEV_IMAGE: ${{ inputs.dev-image }}
+        run: |
+          set -euo pipefail
+          umask 022
+          if [[ -n "${IMAGE_VERSION}" ]]; then
+            export MKOSI_EXTRA_ARGS="--image-version=${IMAGE_VERSION}"
+          fi
+          if [[ "${DEV_IMAGE}" == "true" ]]; then
+            make build-dev IMAGE="${IMAGE}"
+          else
+            make build IMAGE="${IMAGE}"
+          fi
+
+      - name: Fix permissions
+        run: sudo chown -R "$(id -u):$(id -g)" build/
+
+      - name: Export measurements (GCP TDX)
+        run: |
+          set -euo pipefail
+          make measure-gcp
+
+      - name: Show build artifacts
+        run: ls -lh build/
+
+      - name: Install rclone
+        run: |
+          set -euo pipefail
+          RCLONE_DEB=rclone-v1.74.2-linux-amd64.deb
+          curl -fsSL -o "${RCLONE_DEB}" "https://downloads.rclone.org/v1.74.2/${RCLONE_DEB}"
+          echo "d2232f57e47ff4f9b30f1b575ce95567b1c51f22526c4e98814641dfd835c103  ${RCLONE_DEB}" | sha256sum -c -
+          sudo apt-get install -y "./${RCLONE_DEB}"
+          rm -f "${RCLONE_DEB}"
+
+      - name: Upload artifacts to R2
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_SECRET_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_FLASHBOTS_PUBLIC_ARTIFACTS_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/rclone
+          # use_data_integrity_protections=false: R2 returns 501 NotImplemented
+          # for the CRC32 checksum trailers aws-sdk-go-v2 sends by default.
+          cat > ~/.config/rclone/rclone.conf <<EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY}
+          secret_access_key = ${R2_SECRET_KEY}
+          region = auto
+          endpoint = ${R2_ENDPOINT}
+          acl = private
+          use_data_integrity_protections = false
+          EOF
+          # Upload only the image artifacts and measurements.
+          rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
+            --s3-upload-concurrency=8 --transfers=8 \
+            --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
+            --include "gcp_measurements.json" \
+            build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
+
+      - name: Create draft GitHub Release
+        if: ${{ env.RELEASE_TAG != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          HEAD_SHA="$(git rev-parse HEAD)"
+          COMMIT_SHORT="${HEAD_SHA:0:7}"
+          BUILT="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          VERSION="${RELEASE_TAG#"${IMAGE}"-v}"
+          {
+            echo "## 🚀 \`${IMAGE}\`: ${RELEASE_TAG}"
+            echo ""
+            echo "| | |"
+            echo "|--:|:--|"
+            echo "| 📦 **Image** | \`${IMAGE}\` |"
+            echo "| 🏷️ **Version** | \`${VERSION}\` |"
+            echo "| 🔖 **Commit** | [\`${COMMIT_SHORT}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${HEAD_SHA}) |"
+            echo "| 📅 **Built** | ${BUILT} |"
+            echo ""
+            echo "### 💿 Images"
+            echo ""
+            echo "| Target | File | Size |"
+            echo "|---|---|--:|"
+            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2; do
+              n="$(basename "$f")"
+              sz="$(du -h "$f" | cut -f1)"
+              case "$n" in
+                *.efi)    t="🐧 UKI (EFI)" ;;
+                *.tar.gz) t="☁️ GCP disk" ;;
+                *.qcow2)  t="🧪 QEMU qcow2" ;;
+                *)        t="📄 artifact" ;;
+              esac
+              echo "| ${t} | [\`${n}\`](${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}) | ${sz} |"
+            done
+            echo ""
+            echo "> [!NOTE]"
+            echo "> **\`gcp_measurements.json\`** (attached, also on R2): the expected TDX measurements (MRTD, RTMR0-3) for this image on GCP, from [\`dstack-mr-gcp\`](https://github.com/flashbots/dstack-mr-gcp). Reproduce them yourself with the steps below."
+            echo ">"
+            echo "> 📖 Details: [attestation walkthrough](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/readme.md#attestation-walkthrough) · [cvm-reverse-proxy](https://github.com/flashbots/cvm-reverse-proxy)"
+            echo ""
+            echo "### 🔁 Reproduce the measurements"
+            echo ""
+            echo "1. Clone and check out this release:"
+            echo '   ```bash'
+            echo "   git clone ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY} && cd ${GITHUB_REPOSITORY#*/}"
+            echo "   git checkout ${RELEASE_TAG}"
+            echo '   ```'
+            echo "2. Build the image (~30 min):"
+            echo '   ```bash'
+            echo "   make build IMAGE=${IMAGE}"
+            echo '   ```'
+            echo "3. Reproduce the measurements:"
+            echo '   ```bash'
+            echo "   make measure-gcp"
+            echo '   ```'
+            echo "   Your \`build/gcp_measurements.json\` should be identical to the attached one."
+            echo ""
+            echo "### 🔐 Attest your running VM"
+            echo ""
+            echo "To verify your running VM, generate an Intel-signed TDX quote and validate it against expected measurements using [\`cvm-reverse-proxy\`](https://github.com/flashbots/cvm-reverse-proxy) over attested TLS."
+            echo ""
+            echo "1. Set your instance IP and build the client:"
+            echo '   ```bash'
+            echo "   VM_IP=<your-instance-ip>"
+            echo "   git clone https://github.com/flashbots/cvm-reverse-proxy && make -C cvm-reverse-proxy build-proxy-client"
+            echo '   ```'
+            echo "2. Convert your measurements to the proxy's format (temporary [jq shim](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/scripts/gcp_measurements_to_dcap.sh)):"
+            echo '   ```bash'
+            echo "   scripts/gcp_measurements_to_dcap.sh > gcp-server-measurements.json"
+            echo '   ```'
+            echo "3. Attest:"
+            echo '   ```bash'
+            echo "   cvm-reverse-proxy/build/proxy-client --server-measurements gcp-server-measurements.json --target-addr=https://\${VM_IP}:8745 &"
+            echo "   curl -si http://127.0.0.1:8080 | grep -q X-Flashbots-Measurement && echo '✅ VM matches YOUR build' || echo '❌ mismatch'"
+            echo '   ```'
+          } > release-notes.md
+
+          # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
+          # artifacts stay in R2 and are linked in the release body.
+          assets=()
+          for f in build/gcp_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
+            [ -e "$f" ] && assets+=("$f")
+          done
+
+          gh release create "${RELEASE_TAG}" --draft \
+            --title "${RELEASE_TAG}" --notes-file release-notes.md "${assets[@]}"
