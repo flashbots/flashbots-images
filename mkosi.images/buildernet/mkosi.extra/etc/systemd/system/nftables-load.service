@@ -1,0 +1,15 @@
+[Unit]
+Description=Load nftables ruleset
+Wants=render-config.service
+After=render-config.service
+Before=haproxy.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=30
+ExecStart=/usr/bin/generate-nftables /etc/nftables/nftables.env /etc/nftables/ruleset.nft
+ExecReload=/usr/bin/generate-nftables /etc/nftables/nftables.env /etc/nftables/ruleset.nft
+
+[Install]
+WantedBy=multi-user.target

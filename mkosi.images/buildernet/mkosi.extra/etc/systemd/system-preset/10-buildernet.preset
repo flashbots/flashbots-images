@@ -1,4 +1,7 @@
 # Sorted alphabetically
+# Debian's stock nftables.service would flush our ruleset (its ExecStart/ExecStop
+# run `flush ruleset` / load /etc/nftables.conf); we manage nft via nftables-load.
+disable nftables.service
 disable ssh.*
 disable systemd-pcrphase.service
 disable systemd-pcrphase-initrd.service
