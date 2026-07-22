@@ -1,0 +1,58 @@
+#!/bin/bash
+# serves nftables metrics in Prometheus text format as one HTTP response.
+# invoked per-connection by socat (nftables-textfile-collector.service).
+# reads live counters so values are fresh at scrape time.
+set -u
+
+ENV_FILE="${NFT_ENV:-/etc/nftables/nftables.env}"
+getval() { grep -m1 "^$1=" "$ENV_FILE" 2>/dev/null | cut -d= -f2-; }
+
+emit() {
+  # nftables_up: is our ruleset actually loaded? 0 = fail-open
+  if nft list table inet filter >/dev/null 2>&1; then up=1; else up=0; fi
+  echo '# HELP nftables_up Whether the inet filter table is loaded (0 = rules absent).'
+  echo '# TYPE nftables_up gauge'
+  echo "nftables_up $up"
+
+  # configured limits (from the rendered env, independent of load state so a
+  # config/enforcement mismatch — thresholds present but nftables_up=0 — is visible)
+  cc_reg=$(getval total_conn_regular);        cc_priv=$(getval total_conn_privileged)
+  cr_reg=$(getval conn_rate_per_sec_regular); cr_priv=$(getval conn_rate_per_sec_privileged)
+  echo '# HELP nftables_conn_count_limit Configured max concurrent connections per source IP.'
+  echo '# TYPE nftables_conn_count_limit gauge'
+  [ -n "$cc_reg" ]  && echo "nftables_conn_count_limit{tier=\"regular\"} $cc_reg"
+  [ -n "$cc_priv" ] && echo "nftables_conn_count_limit{tier=\"privileged\"} $cc_priv"
+  echo '# HELP nftables_conn_rate_limit_per_second Configured max new connections/sec per source IP.'
+  echo '# TYPE nftables_conn_rate_limit_per_second gauge'
+  [ -n "$cr_reg" ]  && echo "nftables_conn_rate_limit_per_second{tier=\"regular\"} $cr_reg"
+  [ -n "$cr_priv" ] && echo "nftables_conn_rate_limit_per_second{tier=\"privileged\"} $cr_priv"
+
+  [ "$up" = 1 ] || return 0
+
+  # per-rule drop counters, keyed by the named counters in the ruleset.
+  # snapshot once, then emit each family grouped: the Prometheus text format
+  # requires all samples of a metric contiguous under its HELP/TYPE (interleaving
+  # packets/bytes lines is rejected by promtool and stricter parsers).
+  counters="$(nft -j list counters table inet filter 2>/dev/null)"
+  echo '# HELP nftables_rule_drop_packets_total Packets dropped, per named nftables rule.'
+  echo '# TYPE nftables_rule_drop_packets_total counter'
+  printf '%s' "$counters" | jq -r '.nftables[] | select(.counter) | .counter
+      | "nftables_rule_drop_packets_total{rule=\"\(.name)\"} \(.packets)"'
+  echo '# HELP nftables_rule_drop_bytes_total Bytes dropped, per named nftables rule.'
+  echo '# TYPE nftables_rule_drop_bytes_total counter'
+  printf '%s' "$counters" | jq -r '.nftables[] | select(.counter) | .counter
+      | "nftables_rule_drop_bytes_total{rule=\"\(.name)\"} \(.bytes)"'
+
+  # loaded allowlist size (0 with up=1 = allowlist did not render -> privileged
+  # senders silently fall to the regular tier). Cheap: interval set, few entries.
+  n=$(nft -j list set inet filter privileged_ips 2>/dev/null \
+      | jq '[.nftables[] | select(.set) | .set.elem // []] | add // [] | length')
+  [ -n "$n" ] || n=0
+  echo '# HELP nftables_privileged_ips Entries in the loaded privileged_ips allowlist set.'
+  echo '# TYPE nftables_privileged_ips gauge'
+  echo "nftables_privileged_ips $n"
+}
+
+body="$(emit)"$'\n'
+printf 'HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4\r\nContent-Length: %s\r\nConnection: close\r\n\r\n' "${#body}"
+printf '%s' "$body"

@@ -1,0 +1,16 @@
+[Unit]
+Description=Serve nftables ruleset metrics in Prometheus format.
+Wants=network-online.target
+After=network.target network-online.target nftables-load.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+ExecStart=/usr/bin/socat -T5 TCP4-LISTEN:9116,bind=127.0.0.1,reuseaddr,fork EXEC:/usr/bin/nftables-textfile-collector
+Restart=on-failure
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

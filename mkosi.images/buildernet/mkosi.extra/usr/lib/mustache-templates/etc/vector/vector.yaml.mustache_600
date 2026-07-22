@@ -45,6 +45,10 @@ sources:
     type: prometheus_scrape
     endpoints:
       - http://localhost:9115/
+  metrics_nftables:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:9116/
 
 transforms:
   metrics_job_node_exporter:
@@ -101,6 +105,12 @@ transforms:
       - metrics_acme_le
     source: |-
       .tags.job = "acme-le"
+  metrics_job_nftables:
+    type: remap
+    inputs:
+      - metrics_nftables
+    source: |-
+      .tags.job = "nftables"
 
   haproxy_logs_filter:
     type: filter
