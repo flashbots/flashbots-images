@@ -62,6 +62,13 @@ $priv_line
     set conn_count_privileged { type ipv4_addr; size 131072; flags dynamic; }
     set conn_rate_privileged  { type ipv4_addr; size 131072; flags dynamic; timeout 1m; }
 
+    # named counters so each drop is scrapable
+    counter invalid_drop {}
+    counter regular_conn_count_drop {}
+    counter regular_conn_rate_drop {}
+    counter privileged_conn_count_drop {}
+    counter privileged_conn_rate_drop {}
+
     # only conntrack web traffic we rate-limit; p2p (reth/lighthouse) hits notrack.
     chain raw_prerouting {
         type filter hook prerouting priority raw; policy accept;
@@ -79,19 +86,19 @@ $priv_line
 
         iif "lo" accept
         ct state established,related accept
-        ct state invalid counter drop
+        ct state invalid counter name "invalid_drop" drop
 
         meta l4proto != tcp accept
         tcp dport != { 80, 443 } accept
 
         # privileged tier (high thresholds), then accept
-        ip saddr @privileged_ips ct state new add @conn_count_privileged { ip saddr ct count over $conn_count_priv } counter drop
-        ip saddr @privileged_ips ct state new add @conn_rate_privileged { ip saddr limit rate over $rate_priv/second burst $rate_priv packets } counter drop
+        ip saddr @privileged_ips ct state new add @conn_count_privileged { ip saddr ct count over $conn_count_priv } counter name "privileged_conn_count_drop" drop
+        ip saddr @privileged_ips ct state new add @conn_rate_privileged { ip saddr limit rate over $rate_priv/second burst $rate_priv packets } counter name "privileged_conn_rate_drop" drop
         ip saddr @privileged_ips accept
 
         # regular tier
-        ct state new add @conn_count_regular { ip saddr ct count over $conn_count_reg } counter drop
-        ct state new add @conn_rate_regular { ip saddr limit rate over $rate_reg/second burst $rate_reg packets } counter drop
+        ct state new add @conn_count_regular { ip saddr ct count over $conn_count_reg } counter name "regular_conn_count_drop" drop
+        ct state new add @conn_rate_regular { ip saddr limit rate over $rate_reg/second burst $rate_reg packets } counter name "regular_conn_rate_drop" drop
     }
 }
 EOF
