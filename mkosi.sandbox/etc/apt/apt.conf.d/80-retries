@@ -1,0 +1,4 @@
+# snapshot.debian.org rate-limits (TooManyRequests 503);
+# make apt retry each fetch with backoff instead of failing the build
+Acquire::Retries "20";
+Acquire::Retries::Delay::Maximum "60";
