@@ -58,6 +58,7 @@
         debootstrap
         dosfstools
         e2fsprogs
+        erofs-utils
         mtools
         gptfdisk
         util-linux
