@@ -5,7 +5,7 @@
 SSH_CONTROL_PORT=22
 SSH_DATA_PORT=10022
 SSH_REGISTER_PORT=8080
-CVM_REVERSE_PROXY_PORT=8745
+ATTESTED_TLS_PROXY_PORT=8745
 SEARCHER_INPUT_UDP_PORT=27017
 SEARCHER_INPUT_TCP_PORT=27018
 
@@ -19,18 +19,34 @@ NTP_NTS_PORT=4460
 CL_P2P_PORT=9000
 EL_P2P_PORT=30303
 
-TITAN_IP="52.207.17.217"
-TITAN_BUNDLE_PORT=1338      # bundle submission (always on)
-TITAN_STATE_DIFF_PORT=42203 # state diff stream (production only)
-# If Titan state diff port ever changes to any of accepted in maintenance,
-# update MAINTENANCE_OUT the same way as for FLASHBOTS_TX_STREAM*
-
 # Flashbots bundle (always on)
 FLASHBOTS_BUNDLE_1="18.221.59.61"
 FLASHBOTS_BUNDLE_2="3.15.88.156"
 # Flashbots tx stream (production only)
 FLASHBOTS_TX_STREAM_1="3.136.107.142"
 FLASHBOTS_TX_STREAM_2="3.149.14.12"
+
+# BuilderNet endpoints (production only)
+#
+# These IPs serve BOTH the tx stream (persistent wss on path /bob) and bundle
+# submission (bare path) over the same HTTPS endpoint, so they are not split into
+# an always-on bundle rule + production-only tx stream rule the way the
+# Flashbots endpoints are. Because tx stream is an observable side channel,
+# the whole set is gated to production mode and torn down on toggle (see
+# toggle-config PRODUCTION_ENDPOINTS). Consequently BuilderNet bundle submission
+# works only in production mode, unlike the always-on Flashbots bundles.
+#
+# Production mode has no DNS, so these are addressed by IP; the hostnames searchers
+# connect to (for TLS) are mapped statically in searcher-container-after-init.
+BUILDERNET_FB_USE4="34.85.211.230"     # fb-gcp-use4-00            (US east)
+BUILDERNET_FB_USE1="200.225.47.181"    # fb-om-use1-00             (US east)
+BUILDERNET_NM_USE="34.150.234.122"     # nethermind-gcp-eastus-101 (US east)
+BUILDERNET_FB_EUW4="34.12.189.183"     # fb-gcp-euw4-00            (EU west)
+BUILDERNET_NM_EUW="34.91.129.156"      # nethermind-gcp-westeurope (EU west)
+BUILDERNET_FB_ANE1="34.104.157.101"    # fb-gcp-ane1-00            (AP northeast)
+
+# Prometheus metrics proxy
+PROMETHEUS_PROXY_IP="10.88.0.100"
 
 ###########################################################################
 # (1) ALWAYS_IN: Inbound rules that are always applied
@@ -40,10 +56,10 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $SSH_CONTROL_PORT "SSH control port"
 accept_dst_port $CHAIN_ALWAYS_IN udp $SEARCHER_INPUT_UDP_PORT "Searcher UDP input channel"
 accept_dst_port $CHAIN_ALWAYS_IN tcp $SEARCHER_INPUT_TCP_PORT "Searcher TCP input channel (input-only-proxy)"
 
-# CVM reverse-proxy serves server attestation
+# attested-tls-proxy serves server attestation
 # Also forwards request to ssh pubkey server on localhost:5001,
 #    which serves searcher-container openssh server pubkey
-accept_dst_port $CHAIN_ALWAYS_IN tcp $CVM_REVERSE_PROXY_PORT "CVM reverse-proxy"
+accept_dst_port $CHAIN_ALWAYS_IN tcp $ATTESTED_TLS_PROXY_PORT "attested-tls-proxy"
 
 # Note: this is CL running on the host
 accept_dst_port $CHAIN_ALWAYS_IN tcp $CL_P2P_PORT "CL P2P (TCP)"
@@ -62,17 +78,14 @@ accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"
 accept_dst_port $CHAIN_ALWAYS_OUT tcp $NTP_NTS_PORT "NTP-NTS"
 
-# Titan builder bundle endpoints (always on)
-# Security note: This is a side channel.
-# While the operator will not be able to see the content of the packets,
-# they can observe the presence or absence of packets.
-accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $TITAN_IP $TITAN_BUNDLE_PORT "Titan builder bundle"
-
 # Flashbots bundle endpoints (always on)
 # Security note: This is a side channel.
 # While the operator will not be able to see the content of the packets,
 # they can observe the presence or absence of packets.
 accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $FLASHBOTS_BUNDLE_1,$FLASHBOTS_BUNDLE_2 $HTTPS_PORT "Flashbots bundle"
+
+# Prometheus metrics proxy (searcher netns has a DROP on this IP — see init-container.sh)
+accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $PROMETHEUS_PROXY_IP $HTTPS_PORT "Prometheus metrics proxy"
 
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
@@ -90,6 +103,9 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
 
 # Block Flashbots protect tx endpoints during maintenance
 drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 "Flashbots Protect (DROP before accept-all rules)"
+
+# Block BuilderNet endpoints during maintenance. 
+drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 "BuilderNet (DROP before accept-all rules)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -111,5 +127,7 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $TITAN_IP $TITAN_STATE_DIFF_PORT "Titan state diff WSS"
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
+
+# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 $HTTPS_PORT "BuilderNet tx stream + bundle submission"

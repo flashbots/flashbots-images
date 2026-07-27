@@ -43,7 +43,7 @@ make_git_package() {
                 mkdir -p "$DESTDIR$dest"
                 cp -r "$cache_dir/$src"/* "$DESTDIR$dest/"
             else
-                cp "$cache_dir/$src" "$DESTDIR$dest"
+                install -m 755 "$cache_dir/$src" "$DESTDIR$dest"
             fi
         done
         return 0
@@ -66,7 +66,7 @@ make_git_package() {
             cp -r "$build_dir/$src"/* "$DESTDIR$dest/"
         else
             mkdir -p "$(dirname "$DESTDIR$dest")"
-            cp "$build_dir/$src" "$DESTDIR$dest"
+            install -m 755 "$build_dir/$src" "$DESTDIR$dest"
         fi
 
         # Cache artifact

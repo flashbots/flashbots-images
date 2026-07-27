@@ -1,7 +1,7 @@
 TEE Searcher
 ===
 
-Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun transactions with full information, without exposing frontrunning risks. This product is currently live on Ethereum mainnet for searching on Flashbots Protect and Titan Builder's bottom of block.
+Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun transactions with full information, without exposing frontrunning risks. This product is currently live on Ethereum mainnet for searching on Flashbots Protect and BuilderNet's bottom of block.
 
 - [TDX Mental Model](#tdx-mental-model)
 - [Image Overview](#image-overview)
@@ -10,7 +10,7 @@ Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun 
 - [Attestation Walkthrough](#attestation-walkthrough)
 - [Order Flow APIs](#order-flow-apis)
   - [Flashbots Protect](#searching-on-flashbots-protect-transactions)
-  - [Titan Builder](#searching-on-titan-builders-bottom-of-block)
+  - [BuilderNet](#searching-on-buildernets-bottom-of-block)
 - [Disk Persistence](#disk-persistence)
 - [Searcher Commands and Services](#searcher-commands-and-services)
 - [Developer Notes](#developer-notes)
@@ -72,13 +72,12 @@ Firewall Rules
 | 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
 | 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
-| 42203 | Output **IP WHITELISTED** | Titan Builder State Diff Stream | Podman               | TCP       | ENABLED         | DISABLED         |
+| 443   | Output **IP WHITELISTED** | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP   | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
-| 1338  | Output **IP WHITELISTED** | Titan Bundle RPC                | Titan Bundle RPC     | TCP       | ENABLED         | ENABLED          |
-| 54    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
+| 53    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
 | 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
-| 8745  | Input                     | CVM-Reverse-Proxy               | Host                 | TCP       | ENABLED         | ENABLED          |
+| 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
 | 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
@@ -100,34 +99,33 @@ iptables only covers ipv4. For security purposes, we block ipv6 with a kernel fl
 Machine Specs and Cost
 ------------------------
 
-Currently, we deploy Azure’s [DCesv5-series Confidential VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dcesv5-series?tabs=sizebasic). Unfortunately, these are expensive. For reference, Flashbots production TDX builders run in [Standard_EC32es_v5](https://buildernet.org/docs/operating-a-node#microsoft-azure-cloud) with 32 vCPUs and 2TB Disk, which is $2600/month. [Egress](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) (data transferred out of Azure data centers) costs ~$0.087/GB, and historically this costs TEE searchers $150/month.
+We deploy GCP [Confidential VMs](https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview) on the **c3-standard** machine series (Intel Sapphire Rapids) with Intel TDX support, in **`us-east4` (Northern Virginia)** to colocate with builders. Lighthouse (consensus) runs on the host, while the searcher runs their own execution client (modified Geth or Reth) and bot inside the container.
 
 In the future, we hope to add bare metal support, which will lower this cost dramatically.
 
-We place searcher machines in Azure US East 2 to colocate with builders.
+**<u>Machine</u>** (base price, VM only)
 
-**<u>Machine</u>**
-| Name       | CPU | Mem (GB) | Price (USD) |
-|------------|-----|----------|-------------|
-| DC2es_v5   | 2   | 8        | $70.08      |
-| DC4es_v5   | 4   | 16       | $140.16     |
-| DC8es_v5   | 8   | 32       | $280.32     |
-| DC16es_v5  | 16  | 64       | $560.64     |
-| DC32es_v5  | 32  | 128      | $1,121.28   |
-| DC48es_v5  | 48  | 192      | $1,681.92   |
-| DC64es_v5  | 64  | 256      | $2,242.56   |
-| DC96es_v5  | 96  | 384      | $3,363.84   |
+`c3-standard-22` is the minimum recommended size.
 
-**<u>Disk</u>**
-| Size | Price (USD) |
-|------|-------------|
-| 1TB  | $123        |
-| 2TB  | $235        |
-| 4TB  | $450        |
+| Name           | vCPU | Mem (GB) | Price (USD/mo) |
+|----------------|------|----------|----------------|
+| c3-standard-8  | 8    | 32       | ~$294          |
+| c3-standard-22 | 22   | 88       | ~$810          |
+| c3-standard-44 | 44   | 176      | ~$1,619        |
+| c3-standard-88 | 88   | 352      | ~$3,239        |
+
+**<u>Disk</u>** (price per TB / month, billed on top of the machine)
+
+| Type        | Price (USD/TB) | Per GB    |
+|-------------|----------------|-----------|
+| pd-balanced | ~$110          | ~$0.11/GB |
+| pd-ssd      | ~$190          | ~$0.19/GB |
+
+Total monthly cost is machine + disk — e.g. a `c3-standard-22` with 4 TB pd-balanced ≈ $810 + $440 = **~$1,250/mo**.
 
 **<u>Egress</u>**
 
-~$0.087/GB, current TEE searchers pay ~$150/month
+Networking/egress and the TDX premium are excluded from the estimates above for now.
 
 Attestation Walkthrough
 ------------------------
@@ -184,7 +182,7 @@ During container startup, OpenSSH is installed and the SSH key is copied from `e
 
 **<u>Searcher Disk Encryption</u>**
 
-On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk.
+On the first startup, after the searcher's SSH key is received and stored, the searcher must SSH into the machine and run the `initialize` command to encrypt their disk. Before this first SSH, complete the [Attestation Walkthrough](#attestation-walkthrough) and bind the host key served at `/pubkey` — the attested channel is up at boot, so this initial connection is verified rather than trust-on-first-use.
 
 `Tdx-init` prompts the searcher for a passphrase via stdin, [formats]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L43)) the disk with LUKS2 encryption using this passphrase, and [embeds]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L77)) the searcher's SSH key as metadata in the LUKS header.
 
@@ -282,32 +280,37 @@ Then, copy and paste PCR 4, 9, and 11 into the following format and save as `mea
 
 ### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
 
-Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. CVM-reverse-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
+Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. attested-tls-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
 
 ```bash
 # download remote attestation tool
-git clone https://github.com/flashbots/cvm-reverse-proxy.git
-cd cvm-reverse-proxy
-make build-proxy-client
+git clone https://github.com/flashbots/attested-tls-proxy.git
+cd attested-tls-proxy
 
 # This will run the client proxy that is listening on port 8080
 # and use the server reverse proxy on the deployed image as a target,
 # marshalling the measurements.json for validation of the attestation.
-./cvm-reverse-proxy/build/proxy-client \
---server-measurements ./measurements.json \
---target-addr=https://<VM IP>:8745 \
---log-debug=false
+cargo run -- client \
+  --listen-addr 127.0.0.1:8080 \
+  --allow-self-signed \
+  --measurements-file ./measurements.json \
+  --log-debug \
+  <VM IP>:8745
 
 # To trigger remote attestation, open a new terminal and run this command:
 curl http://127.0.0.1:8080
 
-# Bind the expected openssh server pubkey to the attested machine IP
-# This command ensures that the ssh server the searcher is connecting to
-# is indeed the ssh server that is running on the attested machine.
+# Bind the attested host keys to known_hosts.
+# This ensures the ssh server the searcher connects to is the one running on the
+# attested machine. The attested :8745 channel and the host (dropbear) control-plane
+# key are available at boot — before you run `initialize` — so the very first SSH
+# is verified rather than trust-on-first-use. /pubkey returns whatever host keys
+# are currently available; the container (data-plane) key joins once the disk is
+# unlocked and the container is up, so re-run this then to bind it too.
 git clone https://github.com/flashbots/ssh-pubkey-server
 
 ./ssh-pubkey-server/cmd/cli/add_to_known_hosts.sh \
-./cvm-reverse-proxy/build/proxy-client \
+http://127.0.0.1:8080 \
 <MACHINE IP>
 ```
 
@@ -315,24 +318,35 @@ git clone https://github.com/flashbots/ssh-pubkey-server
 <summary>Example Output</summary>
 
     ```bash
-    # successful attestation
-    ubuntu@schmangeLina-bob-mkosi-builder:~$ ./cvm-reverse-proxy/build/proxy-client \
-    --server-measurements ./measurements.json \
-    --target-addr=https://20.57.71.148:8745 \
-    --log-debug=false
-    time=2025-07-23T14:00:33.436Z level=INFO msg="Starting proxy client" service=proxy-client version=v0.1.7-1-g4e175a4 listenAddr=127.0.0.1:8080
-    time=2025-07-23T14:00:41.224Z level=INFO msg="Validating attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
-    time=2025-07-23T14:00:41.956Z level=INFO msg="Successfully validated attestation document" service=proxy-client version=v0.1.7-1-g4e175a4
-    time=2025-07-23T14:00:42.051Z level=INFO msg="[proxy-request] proxying complete" service=proxy-client version=v0.1.7-1-g4e175a4 duration=1.275184102s
+    # Start the proxy client
+    $ cargo run -- client --listen-addr 127.0.0.1:8080 --allow-self-signed --measurements-file ./measurements.json --log-debug 35.255.95.67:8745
+     Compiling attested-tls-proxy v1.1.1 (/home/pumkin/src/flashbots/attested-tls-proxy)
+      Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.17s
+       Running `target/debug/attested-tls-proxy client --listen-addr '127.0.0.1:8080' --allow-self-signed --measurements-file ./measurements.json --log-debug '35.255.95.67:8745'`
+    2026-06-22T07:07:38.553942Z DEBUG attested_tls_proxy: [proxy-client] Connected to proxy server with measurements: Some(DCAP({MRTD: "feb7486608382c1ff0e15b4648ddc0acea6ca974eb53e3529f4c4bd5ffbaa20bf335cb75965cea65fe473aed9647c162", RTMR0: "e1d0235496f93f9475bf0b26d33da5c15831cfc94104d6bea7ab82db027c5f1e917d47dda6953eefae7dcb20ab6f75c4", RTMR1: "4ea5a990afef023f89e11fc32d99103d0adc91d5734664542eb980cdabc88224e1fd206d1d3b2eda71f713fdf8308a2b", RTMR2: "c42ba4fb83f99e4b90bc2a3aa9a2e81c5ac578e9a439c23b457ff7dd0d0eae958760616eff05d827289e47608e757547", RTMR3: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}))
+      at src/lib.rs:674
 
-    # fetch openssh server pubkey
-    ubuntu@schmangeLina-bob-mkosi-builder::~$ curl --insecure https://20.57.71.148:8745/pubkey
-    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYZkgqUokLPpIENJPhJAdpNTecgp/1R1RE6XMsIp6Rt
+    2026-06-22T07:07:38.554036Z DEBUG attested_tls_proxy::http_version: [client] Negotiated ALPN Some("flashbots-ratls/1+h2"), chosen protocol Http2
+      at src/http_version.rs:39
 
+    2026-06-22T07:07:44.356260Z DEBUG attested_tls_proxy: proxy-client accepted connection
+      at src/lib.rs:594
+
+    2026-06-22T07:07:44.356578Z DEBUG attested_tls_proxy: [proxy-client] Read incoming request from source client: Request { method: GET, uri: /pubkey, version: HTTP/1.1, headers: {"host": "127.0.0.1:8080", "user-agent": "curl/8.19.0", "accept": "*/*"}, body: Body(Empty) }
+      at src/lib.rs:494
+
+    2026-06-22T07:07:44.639534Z DEBUG attested_tls_proxy: [proxy-client] Read response from proxy-server: Response { status: 200, version: HTTP/2.0, headers: {"date": "Mon, 22 Jun 2026 07:07:44 GMT", "content-length": "80", "content-type": "text/plain; charset=utf-8"}, body: Body(Streaming) }
+    at src/lib.rs:498
+
+    $ curl http://127.0.0.1:8080/pubkey | less
+    % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+    Dload  Upload  Total   Spent   Left   Speed
+    100     80 100     80   0      0    280      0                              0
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHqPgQoc6yLlMsRUvEeV+6oUsvCMV1sr+b1uKTLzu4e9
     ```
   </details>
 
-If cvm-reverse-proxy returns `Successfully validated attestation document`, the searcher has now verified that they SSH into a genuine TDX VM, running the exact same image as the one they audited locally. In doing so, the searcher has also verified that no one else has access to the container or host, and they can safely upload your arbitrage bot inside ✨🚀
+If attested-tls-proxy client is able to successfully make a connection to the proxy server, the searcher has now verified that they SSH into a genuine TDX VM, running the exact same image as the one they audited locally. In doing so, the searcher has also verified that no one else has access to the container or host, and they can safely upload your arbitrage bot inside ✨🚀
 
 Order Flow APIs
 ------------------------
@@ -357,18 +371,20 @@ To submit bundles, connect to the server:
 https://backruns.tee-searcher.flashbots.net
 ```
 
-### Searching on Titan Builder's Bottom of Block
+### Searching on BuilderNet's Bottom of Block
 
-**<u>Subscribing to Titan's State Diff Stream</u>**
+BuilderNet serves both the state diff stream and bundle submission over the same HTTPS endpoint (`rpc.buildernet.org`). Because they share one endpoint, both are reachable only in **production mode** — unlike the Flashbots bundle RPC, which is always on.
+
+**<u>Subscribing to BuilderNet's State Diff Stream</u>**
 
 **Connecting**
 
 Connect to the server located at:
 ```
-wss://fbtee.titanbuilder.xyz:42203
+wss://rpc.buildernet.org/bob
 ```
 
-Use the `eth_subscribe` method to subscribe to state diffs:
+Use the `eth_subscribe` method to subscribe to state diffs:
 
 ```json
 {"method":"eth_subscribe","params":["flashbots_stateDiffs"]}
@@ -461,11 +477,11 @@ You'll start receiving state diffs:
 </details>
 
 
-**<u>Sending Bottom of Block Bundles to Titan RPC</u>**
+**<u>Sending Bottom of Block Bundles to BuilderNet RPC</u>**
 
 Connect to the server located at:
 ```
-https://fbtee.titanbuilder.xyz:1338
+https://rpc.buildernet.org
 ```
 
 Use the `eth_sendBobBundle` method to submit bundles:
@@ -486,9 +502,7 @@ Use the `eth_sendBobBundle` method to submit bundles:
 }
 ```
 
-Note on `targetPools`:
-- Titan Builder will use `targetPools` to determine what other blocks to consider adding the bottom of block bundle to.
-- Searchers should include the address of the contract that’s state change causes the arbitrage. For example, the Uni V2 pool address.
+Note: `targetUuid` and `targetPools` are currently accepted but ignored by BuilderNet. When support for them is added, their placement in the request may differ from what is shown above.
 
 Disk Persistence
 ------------------------
@@ -608,8 +622,8 @@ Developer Notes
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)
 7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
 8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
-9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `searcher-container.service`)
-10. CVM reverse proxy for SSH pubkey server (**name:** `cvm-reverse-proxy.service`) (**after:** `ssh-pubkey-server.service`)
+9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
+10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 
 ### Testing
 

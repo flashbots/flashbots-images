@@ -1,0 +1,59 @@
+#!/bin/bash
+set -eu -o pipefail
+
+# Boot-time observability setup: authenticate to Vault, fetch + validate the
+# Prometheus remote_write secret, and render /etc/prometheus/prometheus.yml.
+#
+# Prometheus ships flashbox:* metrics to Prometheus via the internal TCP-proxy
+# at a fixed IP (10.88.0.100); the host firewall statically allows that IP, and
+# TLS is validated via tls_config.server_name in the template.
+#
+# Fail-safe: on any failure (QEMU dev, Vault unreachable, missing/invalid
+# secret) this writes NO config and exits 0. Because prometheus.service has
+# ConditionPathExists=/etc/prometheus/prometheus.yml, it is cleanly skipped
+# (inactive, not failed) until a later boot renders a config — boot never
+# fails because of observability.
+
+PROMETHEUS_CONFIG=/etc/prometheus/prometheus.yml
+PROMETHEUS_TEMPLATE=/etc/prometheus/prometheus.yml.tmpl
+
+# Internal metrics proxy IP, injected into the template so the literal isn't
+# duplicated there. Must match the host firewall rule (firewall-config) and the
+# container netns DROP (init-container.sh).
+PROMETHEUS_PROXY_IP=10.88.0.100
+export PROMETHEUS_PROXY_IP
+
+. /usr/lib/flashbox/vault.sh
+
+# Always start clean — never leave a stale config from a previous boot.
+rm -f "$PROMETHEUS_CONFIG"
+
+# host=<vm> external label, from the GCE instance name.
+FLASHBOX_VM=$(curl -sf --retry 5 --retry-connrefused --header "Metadata-Flavor: Google" \
+    "http://metadata/computeMetadata/v1/instance/name") || FLASHBOX_VM=unknown
+echo "$FLASHBOX_VM" | grep -qE '^[a-z0-9-]+$' || FLASHBOX_VM=unknown
+export FLASHBOX_VM
+
+# Vault auth uses the GCE instance-identity JWT, so it only works on GCP.
+if ! grep -q Google /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    echo "Not running on GCP, leaving Prometheus disabled"
+    exit 0
+fi
+
+# Fetch + validate the four metrics variables (exported by vault_fetch).
+if ! vault_fetch; then
+    echo "WARNING: Vault fetch/validation failed, leaving Prometheus disabled"
+    exit 0
+fi
+
+# The rendered config holds the SigV4 secret
+touch "$PROMETHEUS_CONFIG"
+chown root:prometheus "$PROMETHEUS_CONFIG"
+chmod 640 "$PROMETHEUS_CONFIG"
+
+# Single render: only the curated variables are substituted; every other token in
+# the template (e.g. [__name__]) is left untouched.
+envsubst '$FLASHBOX_VM $PROMETHEUS_PROXY_IP $METRICS_FLASHBOTS_WORKSPACE $METRICS_FLASHBOTS_REGION $METRICS_FLASHBOTS_ACCESS_KEY $METRICS_FLASHBOTS_SECRET_KEY' \
+    < "$PROMETHEUS_TEMPLATE" > "$PROMETHEUS_CONFIG"
+
+echo "Observability config written (workspace: ${METRICS_FLASHBOTS_WORKSPACE})"
