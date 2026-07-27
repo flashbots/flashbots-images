@@ -38,7 +38,7 @@ make_git_package() {
 
     local env_hash=$(
         {
-            # We hash the build_cmd into the cache dire to catch 
+            # We hash the build_cmd into the cache dir to catch 
             # RUSTFLAGS / GOFLAGS / cargo profile / command shape changes.
             printf '%s' "$build_cmd"
             # Callers can also inject additional inputs. Useful for things like
