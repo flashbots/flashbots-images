@@ -129,7 +129,7 @@ jobs:
 
       - name: Generate SHA256 checksums
         run: |
-          sha256sum build/${{ matrix.image }}_*.efi | tee build/checksum.sha256
+          sha256sum $(ls build/${{ matrix.image }}_*.efi build/${{ matrix.image }}_*.raw build/${{ matrix.image }}_*.tar.gz 2>/dev/null) | tee build/checksum.sha256
 
       - name: Upload checksum for reprotest
         if: inputs.reprotest == true
@@ -174,7 +174,7 @@ jobs:
 
       - name: Generate SHA256 checksum
         run: |
-          sha256sum build/${{ matrix.image }}_*.efi | tee build/checksum.sha256
+          sha256sum $(ls build/${{ matrix.image }}_*.efi build/${{ matrix.image }}_*.raw build/${{ matrix.image }}_*.tar.gz 2>/dev/null) | tee build/checksum.sha256
 
       - name: Upload checksum
         uses: actions/upload-artifact@v4
@@ -202,22 +202,12 @@ jobs:
       - name: Compare SHA256 hashes
         run: |
           echo "=== Reproducibility Check for ${{ matrix.image }} ==="
-          echo "Build 1 (all artifacts):"
-          cat checksums/checksum-${{ matrix.image }}-build-1/*.sha256
-          echo "Build 2 (EFI only):"
-          cat checksums/checksum-${{ matrix.image }}-build-2/checksum.sha256
-
-          # Extract only the .efi hash from build-1 to compare with build-2
-          hash1=$(grep '\.efi$' checksums/checksum-${{ matrix.image }}-build-1/*.sha256 | awk '{print $1}')
-          hash2=$(awk '{print $1}' checksums/checksum-${{ matrix.image }}-build-2/checksum.sha256)
-
-          echo ""
-          echo "EFI hash build-1: $hash1"
-          echo "EFI hash build-2: $hash2"
-
-          if [ "$hash1" = "$hash2" ]; then
-            echo "✅ SUCCESS: ${{ matrix.image }} images are identical (reproducible build verified)"
+          b1=checksums/checksum-${{ matrix.image }}-build-1/checksum.sha256
+          b2=checksums/checksum-${{ matrix.image }}-build-2/checksum.sha256
+          cat "$b1" "$b2"
+          if diff <(sort "$b1") <(sort "$b2"); then
+            echo "✅ SUCCESS: ${{ matrix.image }} artifacts are identical (reproducible build verified)"
           else
-            echo "❌ FAILURE: ${{ matrix.image }} images differ (reproducible build failed)"
+            echo "❌ FAILURE: ${{ matrix.image }} artifacts differ (reproducible build failed)"
             exit 1
           fi
