@@ -49,6 +49,26 @@
       };
       vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
     };
+    attest-src = pkgs.fetchFromGitHub {
+      owner = "Easy-TEE";
+      repo = "attest";
+      rev = "e7f59c78f9eabd5d1ac7c9e96da46027878d038c";
+      hash = "sha256-4PKNsN8j2P6YJfzghz0U28+Bm3BhS/CveR/mSx3oUg8=";
+    };
+    attest = pkgs.rustPlatform.buildRustPackage {
+      pname = "attest";
+      version = "0.0.1";
+      src = attest-src;
+      cargoLock = {
+        lockFile = "${attest-src}/Cargo.lock";
+        outputHashes = {
+          "dcap-qvl-0.3.12" = "sha256-rLTp5wIhXRAcBtJb7lfd1TAg7yPRnwa0cBa1YT4LwKU=";
+          "cc-eventlog-0.5.8" = "sha256-KEauakj53LrhKTc0yYp5SM8ec0cFNm4YVuHCJYiPQjw=";
+        };
+      };
+      cargoBuildFlags = ["-p" "attest-cli" "--no-default-features"];
+      cargoTestFlags = ["-p" "attest-cli" "--no-default-features"];
+    };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
       mkosiTools = with pkgsForSystem; [
@@ -130,6 +150,7 @@
           (mkosi system)
           measured-boot
           measured-boot-gcp
+          attest
           bash
           curl
           git
