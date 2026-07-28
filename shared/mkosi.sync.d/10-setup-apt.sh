@@ -14,4 +14,12 @@ URIs: $MIRROR
 Suites: ${RELEASE} ${RELEASE}-backports
 Components: main
 Trusted: yes
+
+# deb only (no deb-src): sid is used solely to fetch the linux-source
+# binary package, and its Sources index alone is ~12 MB per apt update.
+Types: deb
+URIs: $MIRROR
+Suites: sid
+Components: main
+Trusted: yes
 EOF
