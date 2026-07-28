@@ -1,0 +1,6 @@
+# Pin sid below the release suites so it is never used for dependency
+# resolution unless a package is explicitly requested from it
+# (e.g. linux-source via KERNEL_APT_SUITE=sid in 10-kernel.sh).
+Package: *
+Pin: release n=sid
+Pin-Priority: 100
