@@ -3,18 +3,23 @@ set -euxo pipefail
 shopt -s inherit_errexit  # propagate errexit to $() subshells
 shopt -s nullglob         # non-matching globs expand to nothing
 
-# KERNEL_VERSION must be set (Debian major.minor, e.g. "6.16").
+# KERNEL_VERSION must be set (Debian major.minor, e.g. "7.1").
 # Must match a linux-source package available in the pinned snapshot mirror.
+# KERNEL_APT_SUITE selects the suite the package is installed from
+# (default: <release>-backports; set to "sid" when the wanted point release
+# has not been built for backports yet).
 if [[ -z "${KERNEL_VERSION:-}" ]]; then
-    echo "ERROR: KERNEL_VERSION is not set. Set it in mkosi.conf Environment= (e.g. KERNEL_VERSION=6.16)" >&2
+    echo "ERROR: KERNEL_VERSION is not set. Set it in mkosi.conf Environment= (e.g. KERNEL_VERSION=7.1)" >&2
     exit 1
 fi
 
 # Read distribution info from mkosi config JSON
 snapshot=$(jq -r '.Snapshot' "$MKOSI_CONFIG")
 release=$(jq -re '.Release' "$MKOSI_CONFIG")
+kernel_suite="${KERNEL_APT_SUITE:-${release}-backports}"
 echo "Snapshot: $snapshot"
 echo "Release: $release"
+echo "Kernel apt suite: $kernel_suite"
 
 # Auto-discover config fragments from registered directories
 # KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
@@ -45,6 +50,7 @@ cache_hash=$(
     { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
+      echo "SUITE=${kernel_suite}"; \
       cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
 )
@@ -73,7 +79,7 @@ else
     kernel_src_dir="${BUILDROOT}${chroot_kernel_src_dir}"
     kconfig_dir="${BUILDROOT}${chroot_kconfig_dir}"
 
-    apt-get -y install "linux-source-${KERNEL_VERSION}/${release}-backports" --install-recommends
+    apt-get -y install "linux-source-${KERNEL_VERSION}/${kernel_suite}" --install-recommends
 
     source_tarball="${BUILDROOT}/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
     if [[ ! -f "${source_tarball}" ]]; then
