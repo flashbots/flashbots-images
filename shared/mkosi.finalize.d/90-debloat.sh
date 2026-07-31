@@ -44,6 +44,7 @@ debloat_paths=(
     "/var/lib/ucf"
     "/etc/credstore"
     "/nix"
+    "/.cache"
 )
 
 if [[ ! "${PROFILES:-}" == *"devtools"* ]]; then
