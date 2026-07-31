@@ -23,6 +23,11 @@ for dir_var in "${!KERNEL_CONFIG_SNIPPETS@}"; do
     config_paths+=("$SRCDIR/${!dir_var}"/*)
 done
 
+# If KERNEL_MODULES is set, include the config fragments for enabling module support
+if [[ -n "${KERNEL_MODULES:-}" ]]; then
+    config_paths+=("$SRCDIR/shared/kernel/modules.config")
+fi
+
 # Auto-discover patches from registered directories
 # KERNEL_PATCHES is processed first, then KERNEL_PATCHES_* in alphabetical order
 patch_paths=()
@@ -50,6 +55,7 @@ cache_hash=$(
 )
 cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
 cached_deb="$cache_dir/kernel.deb"
+cached_headers_deb="$cache_dir/headers.deb"
 
 cat <<EOF > "$BUILDDIR/manifest.md"
 | component  | version  | built / cached  | size  | duration  |
@@ -131,10 +137,19 @@ else
     export KBUILD_BUILD_USER="mkosi"
     export KBUILD_BUILD_HOST="mkosi-builder"
     export LOCALVERSION  # suffix appended to kernel version, e.g. -mkosi-cloud
-    export DEB_BUILD_PROFILES='pkg.linux-upstream.nokernelheaders pkg.linux-upstream.nokerneldbg'
+    
+    if [[ -z "${KERNEL_MODULES:-}" ]]; then
+        export DEB_BUILD_PROFILES='pkg.linux-upstream.nokerneldbg pkg.linux-upstream.nokernelheaders'
+    else
+        export DEB_BUILD_PROFILES='pkg.linux-upstream.nokerneldbg'
+    fi
+
     rm -f "${kernel_src_dir}/.version"
 
     mkosi-chroot --chdir "${chroot_kernel_src_dir}" make olddefconfig
+    if [[ -n "${KERNEL_MODULES:-}" ]]; then
+        mkosi-chroot --chdir "${chroot_kernel_src_dir}" make mod2yesconfig
+    fi
     mkosi-chroot --chdir "${chroot_kernel_src_dir}" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
 
     built_deb=$(find "${kernel_build_dir}" -maxdepth 1 -name "linux-image-*${LOCALVERSION}_*.deb" -type f | head -1)
@@ -150,9 +165,13 @@ else
     seconds=$(( $( date +%s ) - ts ))
     duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
 
-    # Cache the .deb
+    # Cache .deb files
     mkdir -p "${cache_dir}"
     cp "${built_deb}" "${cached_deb}"
+    if [[ -n "${KERNEL_MODULES:-}" ]]; then
+        built_headers_deb=$(find "${kernel_build_dir}" -maxdepth 1 -name "linux-headers-*${LOCALVERSION}_*.deb" -type f | head -1)
+        cp "${built_headers_deb}" "${cached_headers_deb}"
+    fi
     cp "${kernel_src_dir}/.config" "${cache_dir}/config"
     echo "${kernel_version_string}" > "${cache_dir}/kernel.release"
     echo "Cached kernel to: ${cache_dir}"
@@ -160,6 +179,11 @@ else
     rm -rf "${kernel_build_dir}"
 
     echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh "$cached_deb" | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
+fi
+
+if [[ -n "${KERNEL_MODULES:-}" ]]; then
+    mkosi-chroot dpkg -i "${CHROOT_BUILDDIR}/kernel-${KERNEL_VERSION}-${cache_hash}/headers.deb"
+    echo "Kernel headers installed into the build environment"
 fi
 
 # Copy to PACKAGEDIR for mkosi VolatilePackages installation

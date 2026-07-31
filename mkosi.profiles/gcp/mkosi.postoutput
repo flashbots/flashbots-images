@@ -3,7 +3,22 @@
 set -eu -o pipefail
 
 export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
-export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="-i 12345678 --invariant"
+export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="--invariant"
+
+package_raw_as_tar() {
+    cd ${OUTPUTDIR}
+    ln -sf ${IMAGE_ID}_${IMAGE_VERSION}.raw disk.raw
+    tar --mtime="@${SOURCE_DATE_EPOCH}" --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}.tar.gz disk.raw
+    unlink disk.raw
+}
+
+# In verity-root mode, use existing mkosi disk image
+if [ "$(jq -r .Format "$MKOSI_CONFIG")" = "disk" ]; then
+    sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
+    package_raw_as_tar
+    exit 0
+fi
+
 mkdir -p ${OUTPUTDIR}/esp/EFI/BOOT
 cp ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi ${OUTPUTDIR}/esp/EFI/BOOT/BOOTX64.EFI
 # Set fixed timestamps for reproducibility (FAT uses file mtime for directory entries)
@@ -33,8 +48,5 @@ sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" ${OUTPUTDIR}/${IMAGE_I
 
 rm -rf ${OUTPUTDIR}/esp
 
-cd ${OUTPUTDIR}
-ln -sf ${IMAGE_ID}_${IMAGE_VERSION}.raw disk.raw
-tar --mtime="@${SOURCE_DATE_EPOCH}" --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}.tar.gz disk.raw
-unlink disk.raw
+package_raw_as_tar
 rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw

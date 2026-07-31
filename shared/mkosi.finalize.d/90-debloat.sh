@@ -53,7 +53,21 @@ if [[ ! "${PROFILES:-}" == *"devtools"* ]]; then
     )
 fi
 
+# Modules can skip debloat paths via SKIP_DEBLOAT_PATHS_* env vars (space-separated)
+skip_paths=()
+for var in "${!SKIP_DEBLOAT_PATHS@}"; do
+    skip_paths+=(${!var})
+done
+if [[ -n "${KERNEL_MODULES:-}" ]]; then
+    skip_paths+=("/usr/lib/modules")
+fi
+skip=" ${skip_paths[*]} "
+
 for p in "${debloat_paths[@]}"; do
+    if [[ "$skip" == *" $p "* ]]; then
+        echo "Skipping $p"
+        continue
+    fi
     echo "Debloating $p"
     rm -rf $BUILDROOT$p
 done
