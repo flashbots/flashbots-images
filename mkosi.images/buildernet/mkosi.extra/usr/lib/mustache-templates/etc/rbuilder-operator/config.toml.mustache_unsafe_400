@@ -15,6 +15,7 @@ extra_data = "{{rbuilder.extra_data}}"
 faster_finalize = true
 full_telemetry_server_ip = "127.0.0.1"
 full_telemetry_server_port = 6060
+high_priority_signers = {{{rbuilder.high_priority_signers}}}
 ignore_blobs = {{rbuilder.ignore_blobs}}
 ignore_cancellable_orders = false
 jsonrpc_server_ip = "127.0.0.1"
