@@ -1,6 +1,9 @@
 # Reusable GitHub Actions workflow for building and publishing mkosi images.
 #
-# Builds the specified image, uploads the artifacts to R2, and creates a draft
+# Builds the specified image (the build emits a CycloneDX SBOM from the mkosi
+# manifest via shared/mkosi.postoutput.d/91-deb-sbom.py), signs SLSA
+# provenance and SBOM attestations for the production artifacts (keyless
+# Sigstore via GitHub OIDC), uploads everything to R2, and creates a draft
 # GitHub Release when the build is driven by a release tag.
 #
 # Behavior:
@@ -32,8 +35,14 @@ on:
         type: boolean
         default: false
 
+# id-token + attestations are required by the actions/attest steps (keyless
+# Sigstore signing + writing to the repo attestation store). Callers must
+# grant the same scopes: called-workflow permissions are capped by the
+# calling job's.
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -148,6 +157,105 @@ jobs:
       - name: Show build artifacts
         run: ls -lh build/
 
+      # ----- Attestations ----------------------------------------------------
+      # Signing runs inline in the build job, so the OIDC signing endpoint is
+      # reachable by every step of this job (SLSA Build L2). A separate
+      # isolated signing workflow (L3-style build/sign separation) was
+      # considered and deliberately dropped to keep publishing in one place.
+      #
+      # actions/attest is pinned by commit: this is the step whose compromise
+      # would allow forging provenance.
+      - name: Generate SHA256SUMS
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          cd build
+          files=()
+          for f in "${ARTIFACT_PREFIX}"_*.efi "${ARTIFACT_PREFIX}"_*.tar.gz \
+                   "${ARTIFACT_PREFIX}"_*.qcow2 "${ARTIFACT_PREFIX}"_*.manifest \
+                   "${ARTIFACT_PREFIX}"_*.debian-packages.cdx.json \
+                   gcp_measurements.json; do
+            # skip the latest.* and versioned symlinks mkosi/env_wrapper leave
+            if [[ -f "$f" && ! -L "$f" ]]; then
+              files+=("$f")
+            fi
+          done
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "::error::no artifacts found to checksum in build/"
+            exit 1
+          fi
+          # Bare filenames on purpose: attestation subject names are taken
+          # verbatim from this file.
+          sha256sum "${files[@]}" > SHA256SUMS
+          cat SHA256SUMS
+
+          efi=("${ARTIFACT_PREFIX}"_*.efi)
+          sbom=("${ARTIFACT_PREFIX}"_*.debian-packages.cdx.json)
+          if [[ ${#efi[@]} -ne 1 || ${#sbom[@]} -ne 1 ]]; then
+            echo "::error::expected exactly one .efi and one SBOM (efi=${#efi[@]}, sbom=${#sbom[@]})"
+            exit 1
+          fi
+          {
+            echo "EFI_FILE=build/${efi[0]}"
+            echo "SBOM_FILE=build/${sbom[0]}"
+          } >> "$GITHUB_ENV"
+
+      # One SLSA provenance attestation whose subjects are all files listed in
+      # SHA256SUMS. The artifacts live on R2; attestations are keyed by digest
+      # in the repo attestation store, so location doesn't matter.
+      - name: Attest build provenance
+        id: attest-provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-checksums: build/SHA256SUMS
+          # Storage records require push-to-registry (OCI-only).
+          create-storage-record: false
+
+      # Both attest invocations in one job append to the same bundle file, so
+      # snapshot the provenance bundle before the SBOM attestation runs.
+      - name: Export provenance bundle
+        env:
+          BUNDLE_PATH: ${{ steps.attest-provenance.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          cp "${BUNDLE_PATH}" build/provenance.sigstore.json
+          python3 -m json.tool build/provenance.sigstore.json > /dev/null
+
+      - name: Attest SBOM
+        id: attest-sbom
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: ${{ env.EFI_FILE }}
+          sbom-path: ${{ env.SBOM_FILE }}
+          create-storage-record: false
+
+      - name: Export SBOM bundle
+        env:
+          BUNDLE_PATH: ${{ steps.attest-sbom.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          # If both attestations landed in one file (append mode), the SBOM
+          # bundle is the last line.
+          if [[ "$(wc -l < "${BUNDLE_PATH}")" -le 1 ]]; then
+            cp "${BUNDLE_PATH}" build/sbom.sigstore.json
+          else
+            tail -n 1 "${BUNDLE_PATH}" > build/sbom.sigstore.json
+          fi
+          python3 -m json.tool build/sbom.sigstore.json > /dev/null
+
+      # Fail the publish before anything reaches R2 if the fresh attestations
+      # don't verify against the artifacts.
+      - name: Verify attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
+            --bundle build/provenance.sigstore.json
+          gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
+            --bundle build/sbom.sigstore.json \
+            --predicate-type https://cyclonedx.org/bom
+
       - name: Install rclone
         run: |
           set -euo pipefail
@@ -178,11 +286,17 @@ jobs:
           acl = private
           use_data_integrity_protections = false
           EOF
-          # Upload only the image artifacts and measurements.
+          # Upload the image artifacts, manifest, SBOM, measurements,
+          # combined checksums, and attestation bundles.
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
             --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
+            --include "${ARTIFACT_PREFIX}_*.manifest" \
+            --include "${ARTIFACT_PREFIX}_*.debian-packages.cdx.json" \
             --include "gcp_measurements.json" \
+            --include "SHA256SUMS" \
+            --include "provenance.sigstore.json" \
+            --include "sbom.sigstore.json" \
             build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
 
       - name: Create draft GitHub Release
@@ -207,18 +321,21 @@ jobs:
             echo "| 🔖 **Commit** | [\`${COMMIT_SHORT}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${HEAD_SHA}) |"
             echo "| 📅 **Built** | ${BUILT} |"
             echo ""
-            echo "### 💿 Images"
+            echo "### 💿 Artifacts"
             echo ""
             echo "| Target | File | Size |"
             echo "|---|---|--:|"
-            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2; do
+            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2 \
+                     build/"${ARTIFACT_PREFIX}"_*.manifest build/"${ARTIFACT_PREFIX}"_*.debian-packages.cdx.json; do
               n="$(basename "$f")"
               sz="$(du -h "$f" | cut -f1)"
               case "$n" in
-                *.efi)    t="🐧 UKI (EFI)" ;;
-                *.tar.gz) t="☁️ GCP disk" ;;
-                *.qcow2)  t="🧪 QEMU qcow2" ;;
-                *)        t="📄 artifact" ;;
+                *.efi)      t="🐧 UKI (EFI)" ;;
+                *.tar.gz)   t="☁️ GCP disk" ;;
+                *.qcow2)    t="🧪 QEMU qcow2" ;;
+                *.cdx.json) t="🧾 SBOM (CycloneDX)" ;;
+                *.manifest) t="📋 mkosi manifest" ;;
+                *)          t="📄 artifact" ;;
               esac
               echo "| ${t} | [\`${n}\`](${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}) | ${sz} |"
             done
@@ -227,6 +344,18 @@ jobs:
             echo "> **\`gcp_measurements.json\`** (attached, also on R2): the expected TDX measurements (MRTD, RTMR0-3) for this image on GCP, from [\`dstack-mr-gcp\`](https://github.com/flashbots/dstack-mr-gcp). Reproduce them yourself with the steps below."
             echo ">"
             echo "> 📖 Details: [attestation walkthrough](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/readme.md#attestation-walkthrough) · [cvm-reverse-proxy](https://github.com/flashbots/cvm-reverse-proxy)"
+            echo ""
+            echo "### 🔏 Verify provenance & SBOM"
+            echo ""
+            echo "Every artifact above (plus \`gcp_measurements.json\`) is a subject of a signed [SLSA provenance](https://slsa.dev/spec/v1.0/provenance) attestation; the \`.efi\` additionally carries a signed CycloneDX SBOM attestation. The Sigstore bundles (\`provenance.sigstore.json\`, \`sbom.sigstore.json\`) and \`SHA256SUMS\` are attached to this release and published to R2 next to the artifacts."
+            echo ""
+            echo '```bash'
+            echo "gh attestation verify <artifact> --repo ${GITHUB_REPOSITORY}"
+            echo "# offline, using the bundle from R2 or this release:"
+            echo "gh attestation verify <artifact> --repo ${GITHUB_REPOSITORY} --bundle provenance.sigstore.json"
+            echo "# fetch the signed SBOM:"
+            echo "gh attestation verify <the .efi> --repo ${GITHUB_REPOSITORY} --predicate-type https://cyclonedx.org/bom --format json"
+            echo '```'
             echo ""
             echo "### 🔁 Reproduce the measurements"
             echo ""
@@ -265,10 +394,13 @@ jobs:
             echo '   ```'
           } > release-notes.md
 
-          # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
-          # artifacts stay in R2 and are linked in the release body.
+          # Attach the measurements, checksums, attestation bundles, and the
+          # .efi UKI; the larger tar.gz/qcow2 artifacts stay in R2 and are
+          # linked in the release body.
           assets=()
-          for f in build/gcp_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
+          for f in build/gcp_measurements.json build/SHA256SUMS \
+                   build/provenance.sigstore.json build/sbom.sigstore.json \
+                   build/"${ARTIFACT_PREFIX}"_*.efi; do
             [ -e "$f" ] && assets+=("$f")
           done
 
