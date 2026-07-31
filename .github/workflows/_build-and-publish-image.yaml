@@ -1,9 +1,6 @@
 # Reusable GitHub Actions workflow for building and publishing mkosi images.
 #
-# Builds the specified image (the build emits a CycloneDX SBOM from the mkosi
-# manifest via shared/mkosi.postoutput.d/91-deb-sbom.py), signs SLSA
-# provenance and SBOM attestations for the production artifacts (keyless
-# Sigstore via GitHub OIDC), uploads everything to R2, and creates a draft
+# Builds the specified image, uploads the artifacts to R2, and creates a draft
 # GitHub Release when the build is driven by a release tag.
 #
 # Behavior:
@@ -35,14 +32,10 @@ on:
         type: boolean
         default: false
 
-# id-token + attestations are required by the actions/attest steps (keyless
-# Sigstore signing + writing to the repo attestation store). Callers must
-# grant the same scopes: called-workflow permissions are capped by the
-# calling job's.
 permissions:
   contents: write
-  id-token: write
-  attestations: write
+  id-token: write # required for Sigstore keyless signing via GitHub OIDC
+  attestations: write # required for `gh attestation verify`
 
 jobs:
   build:
@@ -157,14 +150,6 @@ jobs:
       - name: Show build artifacts
         run: ls -lh build/
 
-      # ----- Attestations ----------------------------------------------------
-      # Signing runs inline in the build job, so the OIDC signing endpoint is
-      # reachable by every step of this job (SLSA Build L2). A separate
-      # isolated signing workflow (L3-style build/sign separation) was
-      # considered and deliberately dropped to keep publishing in one place.
-      #
-      # actions/attest is pinned by commit: this is the step whose compromise
-      # would allow forging provenance.
       - name: Generate SHA256SUMS
         run: |
           set -euo pipefail
@@ -180,39 +165,36 @@ jobs:
               files+=("$f")
             fi
           done
+
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "::error::no artifacts found to checksum in build/"
             exit 1
           fi
-          # Bare filenames on purpose: attestation subject names are taken
-          # verbatim from this file.
+
           sha256sum "${files[@]}" > SHA256SUMS
           cat SHA256SUMS
 
           efi=("${ARTIFACT_PREFIX}"_*.efi)
           sbom=("${ARTIFACT_PREFIX}"_*.debian-packages.cdx.json)
+
           if [[ ${#efi[@]} -ne 1 || ${#sbom[@]} -ne 1 ]]; then
             echo "::error::expected exactly one .efi and one SBOM (efi=${#efi[@]}, sbom=${#sbom[@]})"
             exit 1
           fi
+
           {
             echo "EFI_FILE=build/${efi[0]}"
             echo "SBOM_FILE=build/${sbom[0]}"
           } >> "$GITHUB_ENV"
 
-      # One SLSA provenance attestation whose subjects are all files listed in
-      # SHA256SUMS. The artifacts live on R2; attestations are keyed by digest
-      # in the repo attestation store, so location doesn't matter.
       - name: Attest build provenance
         id: attest-provenance
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           subject-checksums: build/SHA256SUMS
-          # Storage records require push-to-registry (OCI-only).
           create-storage-record: false
 
-      # Both attest invocations in one job append to the same bundle file, so
-      # snapshot the provenance bundle before the SBOM attestation runs.
+      # Snapshot the provenance bundle before the SBOM attestation runs
       - name: Export provenance bundle
         env:
           BUNDLE_PATH: ${{ steps.attest-provenance.outputs.bundle-path }}
@@ -234,8 +216,7 @@ jobs:
           BUNDLE_PATH: ${{ steps.attest-sbom.outputs.bundle-path }}
         run: |
           set -euo pipefail
-          # If both attestations landed in one file (append mode), the SBOM
-          # bundle is the last line.
+          # If both attestations are appended, the SBOM is the last line
           if [[ "$(wc -l < "${BUNDLE_PATH}")" -le 1 ]]; then
             cp "${BUNDLE_PATH}" build/sbom.sigstore.json
           else
@@ -243,8 +224,6 @@ jobs:
           fi
           python3 -m json.tool build/sbom.sigstore.json > /dev/null
 
-      # Fail the publish before anything reaches R2 if the fresh attestations
-      # don't verify against the artifacts.
       - name: Verify attestations
         env:
           GH_TOKEN: ${{ github.token }}
@@ -321,7 +300,7 @@ jobs:
             echo "| 🔖 **Commit** | [\`${COMMIT_SHORT}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${HEAD_SHA}) |"
             echo "| 📅 **Built** | ${BUILT} |"
             echo ""
-            echo "### 💿 Artifacts"
+            echo "### 💿 Images and other artifacts"
             echo ""
             echo "| Target | File | Size |"
             echo "|---|---|--:|"

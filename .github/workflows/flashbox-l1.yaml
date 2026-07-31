@@ -35,9 +35,6 @@ jobs:
   release:
     permissions:
       contents: write
-      # Required by the attestation steps in the called workflow (keyless
-      # Sigstore signing + attestation store); called-workflow permissions
-      # are capped by this job's.
       id-token: write
       attestations: write
     uses: ./.github/workflows/_build-and-publish-image.yaml
