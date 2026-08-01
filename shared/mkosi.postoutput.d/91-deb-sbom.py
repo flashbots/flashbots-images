@@ -23,8 +23,14 @@ manifest):
   SBOM_INCLUDE_HASHES   sha256 the subject into the SBOM (default: enabled;
                         set to 0/false/no/off to skip hashing — the subject
                         filename is still recorded when known)
-  SBOM_DISTRO           purl distro qualifier (default: release from manifest)
+  SBOM_DISTRO           purl distro qualifier (default: derived from the
+                        manifest release, e.g. trixie -> debian-13)
   SBOM_NAMESPACE        purl namespace (default: debian)
+  SBOM_LOCAL_PACKAGES   space-separated name globs of packages that do NOT
+                        come from the Debian archive (default covers the
+                        locally built kernel and attested-tls-proxy); they
+                        get the "flashbots" purl namespace, no distro
+                        qualifier, and a flashbots:package-origin property
   SBOM_IMAGE_NAME       root component name (default: $IMAGE_ID / manifest stem)
   SBOM_IMAGE_VERSION    root component version (default: $IMAGE_VERSION)
   SBOM_SOURCE_COMMIT    source commit property (default: $GITHUB_SHA)
@@ -34,6 +40,7 @@ manifest):
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -51,11 +58,18 @@ SPEC_VERSION = "1.6"
 TOOL_COMPONENT = {
     "type": "application",
     "name": "mkosi-manifest-to-cyclonedx",
-    "version": "1",
+    "version": "2",
 }
 # The implicit subject next to the manifest; matches Format=uki in
 # shared/mkosi.conf. Other formats need an explicit SBOM_SUBJECT.
 SUBJECT_SUFFIX = ".efi"
+# Debian release codename -> VERSION_ID, for the syft/grype-style
+# "distro=debian-13" purl qualifier. Unknown codenames fall back verbatim.
+DEBIAN_VERSION_IDS = {"bullseye": "11", "bookworm": "12", "trixie": "13", "forky": "14"}
+# Packages installed from outside the Debian archive (locally built kernel,
+# Flashbots release debs). Overridable via SBOM_LOCAL_PACKAGES.
+LOCAL_PACKAGE_GLOBS = ("linux-image-*-mkosi-*", "attested-tls-proxy")
+LOCAL_NAMESPACE = "flashbots"
 
 Package = dict[str, Any]  # one entry of the manifest's packages[] array
 Component = dict[str, Any]  # one CycloneDX component
@@ -128,7 +142,8 @@ class Settings:
     subject: Path | None
     output: Path
     namespace: str
-    distro: str | None  # None -> use the release recorded in the manifest
+    distro: str | None  # None -> derive from the release recorded in the manifest
+    local_globs: tuple[str, ...]  # name globs of non-Debian-archive packages
     image_name: str
     image_version: str
     source_commit: str | None
@@ -157,12 +172,18 @@ class Settings:
         except ValueError:
             fail("SOURCE_DATE_EPOCH must be an integer")
 
+        local_packages = env("SBOM_LOCAL_PACKAGES")
         return cls(
             manifest=manifest,
             subject=discover_subject(env("SBOM_SUBJECT"), manifest, output_dir),
             output=output,
             namespace=env("SBOM_NAMESPACE", "debian"),
             distro=env("SBOM_DISTRO"),
+            local_globs=(
+                LOCAL_PACKAGE_GLOBS
+                if local_packages is None
+                else tuple(local_packages.split())
+            ),
             image_name=env("SBOM_IMAGE_NAME") or env("IMAGE_ID") or manifest.stem,
             image_version=env("SBOM_IMAGE_VERSION") or env("IMAGE_VERSION") or "unknown",
             source_commit=env("SBOM_SOURCE_COMMIT") or env("GITHUB_SHA"),
@@ -196,21 +217,27 @@ def package_purl(
     version: str,
     architecture: str,
     namespace: str,
-    distro: str,
+    distro: str | None,
 ) -> str:
+    # Safe sets follow canonical purl encoding: notably '+' becomes %2B.
     encoded_namespace = urllib.parse.quote(namespace, safe=".-_")
     encoded_name = urllib.parse.quote(name, safe=".-_")
-    encoded_version = urllib.parse.quote(version, safe=".-_~+:")
+    encoded_version = urllib.parse.quote(version, safe=".-_~:")
+    pairs = [("arch", architecture)]
+    if distro:
+        pairs.append(("distro", distro))
     qualifiers = urllib.parse.urlencode(
-        [("arch", architecture), ("distro", distro)],
-        quote_via=urllib.parse.quote,
-        safe=".-_~+:",
+        pairs, quote_via=urllib.parse.quote, safe=".-_~:"
     )
     return f"pkg:deb/{encoded_namespace}/{encoded_name}@{encoded_version}?{qualifiers}"
 
 
 def deb_component(
-    package: Package, index: int, namespace: str, distro: str
+    package: Package,
+    index: int,
+    namespace: str,
+    distro: str,
+    local_globs: tuple[str, ...],
 ) -> Component:
     def required(key: str) -> str:
         value = package.get(key)
@@ -222,6 +249,11 @@ def deb_component(
     version = required("version")
     architecture = required("architecture")
 
+    # Locally built / Flashbots-released debs don't exist in the Debian
+    # archive; claiming namespace "debian" for them would be false origin.
+    is_local = any(fnmatch.fnmatchcase(name, glob) for glob in local_globs)
+    group = LOCAL_NAMESPACE if is_local else namespace
+
     properties = [
         {"name": "mkosi:package-type", "value": "deb"},
         {"name": "debian:architecture", "value": architecture},
@@ -229,12 +261,18 @@ def deb_component(
     size = package.get("size")
     if isinstance(size, int):
         properties.append({"name": "mkosi:installed-size", "value": str(size)})
+    if is_local:
+        properties.append(
+            {"name": "flashbots:package-origin", "value": "flashbots"}
+        )
 
-    purl = package_purl(name, version, architecture, namespace, distro)
+    purl = package_purl(
+        name, version, architecture, group, None if is_local else distro
+    )
     return {
         "type": "library",
         "bom-ref": purl,
-        "group": namespace,
+        "group": group,
         "name": name,
         "version": version,
         "purl": purl,
@@ -243,7 +281,10 @@ def deb_component(
 
 
 def build_components(
-    packages: list[Any], namespace: str, distro: str
+    packages: list[Any],
+    namespace: str,
+    distro: str,
+    local_globs: tuple[str, ...],
 ) -> list[Component]:
     components: list[Component] = []
     seen: set[str] = set()
@@ -251,7 +292,7 @@ def build_components(
     for index, package in enumerate(packages):
         if not isinstance(package, dict) or package.get("type") != "deb":
             continue
-        component = deb_component(package, index, namespace, distro)
+        component = deb_component(package, index, namespace, distro, local_globs)
         if component["purl"] in seen:
             fail(f"duplicate Debian package identity: {component['purl']}")
         seen.add(component["purl"])
@@ -265,7 +306,7 @@ def build_components(
 
 def build_root_component(
     settings: Settings,
-    distro: str,
+    release: str,
     manifest_digest: str,
     subject_digest: str | None,
     root_ref: str,
@@ -279,7 +320,7 @@ def build_root_component(
     properties = [
         {"name": "flashbots:sbom-scope", "value": "debian-packages-only"},
         {"name": "flashbots:mkosi-manifest-sha256", "value": manifest_digest},
-        {"name": "debian:release", "value": distro},
+        {"name": "debian:release", "value": release},
         *({"name": name, "value": value} for name, value in optional_properties if value),
     ]
     component: Component = {
@@ -346,14 +387,20 @@ def write_json_atomic(path: Path, document: dict[str, Any]) -> None:
 
 def run(settings: Settings) -> None:
     config, packages, manifest_digest = load_manifest(settings.manifest)
-    distro = str(
-        settings.distro
-        or config.get("release")
-        or config.get("distribution")
-        or "debian"
+    release = str(
+        config.get("release") or config.get("distribution") or "debian"
     ).lower()
+    if settings.distro:
+        distro = settings.distro.lower()
+    elif release in DEBIAN_VERSION_IDS:
+        # syft/grype convention for the purl qualifier, e.g. trixie -> debian-13
+        distro = f"debian-{DEBIAN_VERSION_IDS[release]}"
+    else:
+        distro = release
 
-    components = build_components(packages, settings.namespace, distro)
+    components = build_components(
+        packages, settings.namespace, distro, settings.local_globs
+    )
     root_ref_seed = "\0".join(
         (settings.image_name, settings.image_version, manifest_digest,
          settings.namespace, distro)
@@ -371,7 +418,7 @@ def run(settings: Settings) -> None:
         log("warning: no subject artifact found, SBOM will carry no image hash")
 
     root_component = build_root_component(
-        settings, distro, manifest_digest, subject_digest, root_ref
+        settings, release, manifest_digest, subject_digest, root_ref
     )
     sbom = build_sbom(root_component, components, root_ref, settings.epoch)
     write_json_atomic(settings.output, sbom)
