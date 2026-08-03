@@ -203,6 +203,8 @@ make measure-portable
 
 This will write the OS image hashes to the file `./build/portable_measurements.json`.
 
+Check that the contents of this file is identical to the same file in the [release assets of the flashbots-image release](https://github.com/flashbots/flashbots-images/releases) you are building.
+
 > Note: at the time of the writing, compiling flashbox-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
 ### 3. audit and run the remote attestation software which requests a DCAP attestation

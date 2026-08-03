@@ -140,10 +140,10 @@ jobs:
       - name: Fix permissions
         run: sudo chown -R "$(id -u):$(id -g)" build/
 
-      - name: Export measurements (GCP TDX)
+      - name: Export measurements (portable)
         run: |
           set -euo pipefail
-          make measure-gcp
+          make measure-portable
 
       - name: Show build artifacts
         run: ls -lh build/
@@ -182,7 +182,7 @@ jobs:
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
             --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
-            --include "gcp_measurements.json" \
+            --include "portable_measurements.json" \
             build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
 
       - name: Create draft GitHub Release
@@ -224,11 +224,11 @@ jobs:
             done
             echo ""
             echo "> [!NOTE]"
-            echo "> **\`gcp_measurements.json\`** (attached, also on R2): the expected TDX measurements (MRTD, RTMR0-3) for this image on GCP, from [\`dstack-mr-gcp\`](https://github.com/flashbots/dstack-mr-gcp). Reproduce them yourself with the steps below."
+            echo "> **\`portable_measurements.json\`** (attached, also on R2): the OS image hashes used to compute expected TDX measurements for this image on GCP, from [\`Easy-TEE/attest\`](https://github.com/Easy-TEE/attest). Reproduce them yourself with the steps below."
             echo ">"
-            echo "> 📖 Details: [attestation walkthrough](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/readme.md#attestation-walkthrough) · [cvm-reverse-proxy](https://github.com/flashbots/cvm-reverse-proxy)"
+            echo "> 📖 Details: [attestation walkthrough](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/readme.md#attestation-walkthrough) · [attested-tls-proxy](https://github.com/flashbots/attested-tls-proxy)"
             echo ""
-            echo "### 🔁 Reproduce the measurements"
+            echo "### 🔁 Reproduce the image hashes"
             echo ""
             echo "1. Clone and check out this release:"
             echo '   ```bash'
@@ -239,36 +239,27 @@ jobs:
             echo '   ```bash'
             echo "   make build IMAGE=${IMAGE}"
             echo '   ```'
-            echo "3. Reproduce the measurements:"
+            echo "3. Reproduce the OS image hashes:"
             echo '   ```bash'
-            echo "   make measure-gcp"
+            echo "   make measure-portable"
             echo '   ```'
-            echo "   Your \`build/gcp_measurements.json\` should be identical to the attached one."
+            echo "   Your \`build/portable_measurements.json\` should be identical to the attached one."
             echo ""
             echo "### 🔐 Attest your running VM"
             echo ""
-            echo "To verify your running VM, generate an Intel-signed TDX quote and validate it against expected measurements using [\`cvm-reverse-proxy\`](https://github.com/flashbots/cvm-reverse-proxy) over attested TLS."
+            echo "To verify your running VM, generate an Intel-signed TDX quote and validate it against expected measurements using [\`attested-tls-proxy\`](https://github.com/flashbots/attested-tls-proxy) over attested TLS."
             echo ""
-            echo "1. Set your instance IP and build the client:"
             echo '   ```bash'
-            echo "   VM_IP=<your-instance-ip>"
-            echo "   git clone https://github.com/flashbots/cvm-reverse-proxy && make -C cvm-reverse-proxy build-proxy-client"
-            echo '   ```'
-            echo "2. Convert your measurements to the proxy's format (temporary [jq shim](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/scripts/gcp_measurements_to_dcap.sh)):"
-            echo '   ```bash'
-            echo "   scripts/gcp_measurements_to_dcap.sh > gcp-server-measurements.json"
-            echo '   ```'
-            echo "3. Attest:"
-            echo '   ```bash'
-            echo "   cvm-reverse-proxy/build/proxy-client --server-measurements gcp-server-measurements.json --target-addr=https://\${VM_IP}:8745 &"
-            echo "   curl -si http://127.0.0.1:8080 | grep -q X-Flashbots-Measurement && echo '✅ VM matches YOUR build' || echo '❌ mismatch'"
+            echo "   git clone https://github.com/flashbots/attested-tls-proxy"
+            echo "   cd attested-tls-proxy"
+            printf '%s\n' "   cargo run -- attested-get --allow-self-signed --measurements-file ../build/portable_measurements.json <your-instance-ip>:8745/pubkey && printf '\\n✅ VM matches YOUR build\\n'"
             echo '   ```'
           } > release-notes.md
 
           # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
           # artifacts stay in R2 and are linked in the release body.
           assets=()
-          for f in build/gcp_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
+          for f in build/portable_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
             [ -e "$f" ] && assets+=("$f")
           done
 
