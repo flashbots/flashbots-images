@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 # Convert the mkosi JSON manifest into a Debian-packages-only CycloneDX 1.6
-# SBOM next to it: <stem>.debian-packages.cdx.json (CI globs on that name).
 # Output is byte-deterministic: fixed key order, sorted components, timestamp
-# from SOURCE_DATE_EPOCH, and jq is pinned via the nix flake.
+# from SOURCE_DATE_EPOCH
 #
-# Runs as an mkosi post-output script; also works standalone with OUTPUTDIR
-# pointing at a directory containing exactly one *.manifest.
-#
-# Optional environment (set per image via Environment= in its mkosi.conf):
 #   SBOM_LOCAL_PACKAGES   comma-separated name globs of packages that do NOT
-#                         come from the Debian archive (locally built debs);
-#                         they get SBOM_LOCAL_NAMESPACE as purl namespace, no
-#                         distro qualifier, and a sbom:package-origin property
+#                         come from the Debian archive (locally built debs)
 #   SBOM_LOCAL_NAMESPACE  purl namespace for those packages (default: local)
+
 set -euo pipefail
 shopt -s nullglob
 
