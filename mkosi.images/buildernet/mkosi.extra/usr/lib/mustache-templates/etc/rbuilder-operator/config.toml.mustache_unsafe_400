@@ -1,4 +1,6 @@
 adjust_finalized_blocks = true
+any_position_max_sims_per_second = {{rbuilder.any_position_max_sims_per_second}}
+any_position_simulation_threads = {{rbuilder.any_position_simulation_threads}}
 blocklist = "{{rbuilder.blocklist}}"
 blocks_processor_url = "https://orderflow-archive.flashbots.net/api"
 bob_diff_streamer_ip =  "127.0.0.1"
