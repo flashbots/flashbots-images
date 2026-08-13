@@ -201,7 +201,7 @@ jobs:
         run: |
           set -euo pipefail
           cp "${BUNDLE_PATH}" build/provenance.sigstore.json
-          python3 -m json.tool build/provenance.sigstore.json > /dev/null
+          jq -e . build/provenance.sigstore.json > /dev/null
 
       - name: Attest SBOM
         id: attest-sbom
@@ -222,7 +222,7 @@ jobs:
           else
             tail -n 1 "${BUNDLE_PATH}" > build/sbom.sigstore.json
           fi
-          python3 -m json.tool build/sbom.sigstore.json > /dev/null
+          jq -e . build/sbom.sigstore.json > /dev/null
 
       - name: Verify attestations
         env:
