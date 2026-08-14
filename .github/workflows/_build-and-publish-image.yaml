@@ -252,7 +252,7 @@ jobs:
             echo '   ```bash'
             echo "   git clone https://github.com/flashbots/attested-tls-proxy"
             echo "   cd attested-tls-proxy"
-            printf '%s\n' "   cargo run -- attested-get --allow-self-signed --measurements-file ../build/portable_measurements.json <your-instance-ip>:8745/pubkey && printf '\\n✅ VM matches YOUR build\\n'"
+            echo "   cargo run -- attested-get --allow-self-signed --measurements-file ../build/portable_measurements.json <your-instance-ip>:8745/pubkey && printf '\\n✅ VM matches YOUR build\\n'"
             echo '   ```'
           } > release-notes.md
 
