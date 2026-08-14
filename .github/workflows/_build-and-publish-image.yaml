@@ -182,6 +182,7 @@ jobs:
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
             --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
+            --include "${ARTIFACT_PREFIX}_*.sbom.cdx.json" \
             --include "gcp_measurements.json" \
             build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
 

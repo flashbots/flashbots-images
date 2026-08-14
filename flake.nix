@@ -67,6 +67,7 @@
         qemu-utils
         parted
         jq
+        syft
         reprepro
         systemd
         bash

@@ -21,6 +21,7 @@ build_rust_package() {
 
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
+    local source_url=$git_url
     mkdir -p "$build_dir"
     set +x # don't leak github token into logs
     echo "Cloning ${git_url}"
@@ -37,6 +38,12 @@ build_rust_package() {
     # Get the git reference
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
     printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
+
+    mkdir -p "${ARTIFACTDIR:?}/sbom"
+    local repository=${source_url#*://*/}
+    local vcs_url=$(printf 'git+%s@%s' "$source_url" "$(git -C "$build_dir" rev-parse HEAD)" | jq -sRr @uri)
+    printf 'pkg:generic/%s/%s@%s?arch=%s&vcs_url=%s\n' "${repository%/*}" "$package" "$version" "$DISTRIBUTION_ARCHITECTURE" "$vcs_url" \
+        > "$ARTIFACTDIR/sbom/$package.sbom"
 
     # If binary is cached, skip compilation
     if [ -n "${extra_features}" ]; then
