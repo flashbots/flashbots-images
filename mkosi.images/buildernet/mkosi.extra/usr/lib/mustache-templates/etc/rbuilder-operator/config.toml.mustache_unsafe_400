@@ -10,6 +10,7 @@ builder_name = "{{instance_name}}"
 chain = "mainnet"
 cl_node_url = ["http://127.0.0.1:3500"]
 coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
+contract_payment_block_start = 25682194
 el_node_ipc_path = "/run/reth/reth.ipc"
 error_storage_path = "/run/rbuilder-operator/rbuilder_errors.sqlite"
 evm_caching_enable = {{rbuilder.evm_caching_enable}}
