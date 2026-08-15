@@ -52,7 +52,7 @@ build_rust_package() {
         local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     fi
     local cached_binary="${cached_binary//,/-}"
-    if [ -f "$cached_binary" ]; then
+    if [ -f "$cached_binary" ] && grep -aFq .dep-v0 "$cached_binary"; then
         echo "Using cached binary for $package version $version"
         if [ -n "${extra_features}" ]; then
             echo "| \`$package\`  | \`$version\` (\`$git_describe\`, features: ${extra_features})  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" ">> $BUILDDIR/manifest.md"
@@ -90,7 +90,7 @@ build_rust_package() {
                CARGO_TERM_COLOR='never'
         cd '/build/$package'
         cargo fetch
-        cargo build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
+        cargo auditable build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
     "
     local seconds=$(( $( date +%s ) - ts ))
     local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
