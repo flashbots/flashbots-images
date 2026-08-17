@@ -75,6 +75,7 @@
         findutils
         gnused
         gnugrep
+        gawk
         gnutar
         gzip
         xz
