@@ -61,6 +61,7 @@
         erofs-utils
         mtools
         gptfdisk
+        binutils
         util-linux
         zstd
         which
