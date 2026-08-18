@@ -60,6 +60,14 @@ make measure
 
 This generates measurement files in the `build/` directory for attestation and verification.
 
+Alternatively, to get image hashes for 'portable measurement policies':
+
+```bash
+make measure-portable
+```
+
+This will create a file `build/portable_measurements.json` which can be used for [portable measurement policies](https://github.com/flashbots/attested-tls/tree/main/crates/attestation#portable-measurement-policies).
+
 ### Running Images
 
 **Add yourself to the kvm group** (to run QEMU without sudo):
