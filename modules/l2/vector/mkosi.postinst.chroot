@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+systemctl add-wants minimal.target vector.service
+
+useradd -r -s /usr/sbin/nologin -d /var/lib/vector -G systemd-journal vector || true
+install -d -o vector -g vector -m 0750 /var/lib/vector
+install -d -o root   -g root   -m 0755 /etc/vector

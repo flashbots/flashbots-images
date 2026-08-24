@@ -1,0 +1,11 @@
+# Runtime environment for vector.service. Populated at deploy time.
+#
+# Variables consumed by /etc/vector/vector.yaml:
+#   L2_BUILDER_ENV
+#   CH_ENDPOINT
+#   CH_USER
+#   CH_PASSWORD
+#
+# Ships empty: vector falls back to placeholder endpoint and creds, sinks
+# will not ship until real values are present. Local pipeline (journald
+# read, VRL transform) still validates and runs.
