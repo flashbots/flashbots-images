@@ -1,0 +1,18 @@
+[Unit]
+Description=Download reth snapshot (native reth download, manifest mode)
+# Explicitly pull in persistent-setup dependency since ConditionPathIsDirectory
+# does not verify if the path is an actual mount point
+Requires=persistent-setup.service rbuilder-operator-rebalancer-downloader.service
+Wants=network-online.target
+After=network.target network-online.target persistent-setup.service \
+      rbuilder-operator-rebalancer-downloader.service
+ConditionPathIsDirectory=!/var/lib/persistent/reth
+
+[Service]
+Type=oneshot
+User=rbuilder-operator
+StateDirectory=persistent/reth
+ExecStart=/usr/bin/rbuilder-operator-reth download --full -y --datadir %S/persistent/reth
+
+[Install]
+WantedBy=multi-user.target

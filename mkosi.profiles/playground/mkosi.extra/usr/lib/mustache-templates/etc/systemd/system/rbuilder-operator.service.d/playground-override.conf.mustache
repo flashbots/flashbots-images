@@ -1,7 +1,7 @@
 [Service]
 # Clear the default ExecStart and use playground genesis
 ExecStart=
-ExecStart=/usr/bin/reth node \
+ExecStart=/usr/bin/rbuilder-operator-reth node \
     --full \
     --chain /var/lib/persistent/playground/genesis.json \
     --datadir %S/persistent/reth \
@@ -17,9 +17,9 @@ ExecStart=/usr/bin/reth node \
     --ws.port 8546 \
     --ws.api "eth,net,trace,web3,rpc,debug,txpool" \
     --log.stdout.format json \
+    --log.stdout.filter "info,rbuilder=debug" \
     --log.file.max-files 0 \
     --metrics "127.0.0.1:9001" \
-    --engine.persistence-threshold=0 \
-    --engine.memory-block-buffer-target=0 \
-    --ipcpath=%t/reth/reth.ipc \
-    --trusted-peers "{{{playground.el_bootnode}}}"
+    --ipcdisable \
+    --trusted-peers "{{{playground.el_bootnode}}}" \
+    --rbuilder.config %d/config.toml
