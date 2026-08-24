@@ -20,7 +20,7 @@ ESP_BYTES=$(( EFI_BYTES + 32 * MIB ))
 # produces an out-of-spec FAT32 ("Number of clusters for 32 bit FAT is less
 # then suggested minimum") that GCE's EDK2 firmware misdetects as FAT16 and
 # refuses to mount -> unbootable image (BdsDxe: Not Found).
-ESP_MIN_BYTES=$(( 350 * MIB ))
+ESP_MIN_BYTES=$(( 260 * MIB ))
 if (( ESP_BYTES < ESP_MIN_BYTES )); then ESP_BYTES=${ESP_MIN_BYTES}; fi
 DISK_GIB=$(numfmt --to-unit=1Gi --round=up $(( ESP_BYTES + MIB ))) # + 1MiB GPT overhead
 
