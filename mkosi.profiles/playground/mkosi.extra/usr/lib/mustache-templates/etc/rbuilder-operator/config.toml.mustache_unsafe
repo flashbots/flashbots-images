@@ -8,7 +8,6 @@ adjust_finalized_blocks = true
 chain = "/var/lib/persistent/playground/genesis.json"
 cl_node_url = ["http://127.0.0.1:3500"]
 coinbase_secret_key = "{{rbuilder.coinbase_secret_key}}"
-el_node_ipc_path = "/run/reth/reth.ipc"
 error_storage_path = "/run/rbuilder-operator/rbuilder_errors.sqlite"
 evm_caching_enable = {{rbuilder.evm_caching_enable}}
 extra_data = "{{rbuilder.extra_data}}"
@@ -23,9 +22,6 @@ jsonrpc_server_port = 8645
 # key_registration_url - disabled for playground
 # key_registration_url = "http://127.0.0.1:7937"
 live_builders = {{{rbuilder.live_builders}}}
-log_color = false
-log_json = true
-log_level = "info,rbuilder=debug"
 max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
 # optimistic_v3 - disabled for playground
 # optimistic_v3_server_ip = "0.0.0.0"
@@ -34,8 +30,6 @@ max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duratio
 # optimistic_v3_relay_pubkeys = {{{rbuilder.optimistic_v3_relay_pubkeys}}}
 relay_secret_key = "{{rbuilder.relay_secret_key}}"
 require_non_empty_blocklist = {{rbuilder.require_non_empty_blocklist}}
-reth_db_path = "/var/lib/persistent/reth/db"
-reth_static_files_path = "/var/lib/persistent/reth/static_files"
 root_hash_sparse_trie_version = "v2"
 root_hash_threads = {{rbuilder.root_hash_threads}}
 root_hash_use_sparse_trie = true

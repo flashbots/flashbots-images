@@ -1,25 +1,25 @@
 [Unit]
-Description=Fetch rbuilder-operator and rbuilder-rebalancer
+Description=Fetch rbuilder-operator-reth and rbuilder-rebalancer
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_SHA256SUM=6c9d4ba9b59e933dff3030f2736ef5cef615d2108ac29ab4c7626dc7926b0d65 \
-            RBUILDER_OPERATOR_TAG=v1.7.30 \
-            RBUILDER_OPERATOR_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_ARTIFACT=rbuilder-operator-v1.7.30-x86_64-unknown-linux-gnu \
-            RBUILDER_REBALANCER_SHA256SUM=5ef80958e83ae8f3a32a8b47214872337bc3048fc4eb1f1c3a7d39bce55eca26 \
-            RBUILDER_REBALANCER_TAG=v1.7.30 \
+Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=6c66e850ebefdc0734d57060d42a0713aae74b3c2b3c965f4d98871796a81313 \
+            RBUILDER_OPERATOR_RETH_TAG=v1.8.2 \
+            RBUILDER_OPERATOR_RETH_REPO=rbuilder-prism \
+            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.8.2-x86_64-unknown-linux-gnu \
+            RBUILDER_REBALANCER_SHA256SUM=c6ec66b5adc4ce1d41fe7047e7331473858554f744b041649c0cd2f4711a744a \
+            RBUILDER_REBALANCER_TAG=v1.8.2 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
-            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.7.30-x86_64-unknown-linux-gnu
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.8.2-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 
-# rbuilder-operator
-ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator ]] || /usr/bin/fetch-gh-release-artifact fetch \
-  --repo "$RBUILDER_OPERATOR_REPO" --tag "$RBUILDER_OPERATOR_TAG" \
-  --artifact-name "$RBUILDER_OPERATOR_ARTIFACT" --output-file /usr/bin/rbuilder-operator'
-ExecStart=/bin/bash -c 'echo "$RBUILDER_OPERATOR_SHA256SUM" /usr/bin/rbuilder-operator | sha256sum --check'
+# rbuilder-operator-reth (reth EL with in-process rbuilder-operator)
+ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-operator-reth ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$RBUILDER_OPERATOR_RETH_REPO" --tag "$RBUILDER_OPERATOR_RETH_TAG" \
+  --artifact-name "$RBUILDER_OPERATOR_RETH_ARTIFACT" --output-file /usr/bin/rbuilder-operator-reth'
+ExecStart=/bin/bash -c 'echo "$RBUILDER_OPERATOR_RETH_SHA256SUM" /usr/bin/rbuilder-operator-reth | sha256sum --check'
 
 # rbuilder-rebalancer
 ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || /usr/bin/fetch-gh-release-artifact fetch \
@@ -27,5 +27,5 @@ ExecStart=/bin/bash -c '[[ -f /usr/bin/rbuilder-rebalancer ]] || /usr/bin/fetch-
   --artifact-name "$RBUILDER_REBALANCER_ARTIFACT" --output-file /usr/bin/rbuilder-rebalancer'
 ExecStart=/bin/bash -c 'echo "$RBUILDER_REBALANCER_SHA256SUM" /usr/bin/rbuilder-rebalancer | sha256sum --check'
 
-ExecStart=/bin/chmod +x /usr/bin/rbuilder-operator /usr/bin/rbuilder-rebalancer
+ExecStart=/bin/chmod +x /usr/bin/rbuilder-operator-reth /usr/bin/rbuilder-rebalancer
 RemainAfterExit=yes

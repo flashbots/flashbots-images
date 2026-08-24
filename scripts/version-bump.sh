@@ -43,12 +43,13 @@ declare -A SVC_FILE=(
 )
 declare -A SVC_PREFIX=(
   [flowproxy]="FLOWPROXY"
-  [rbuilder-operator]="RBUILDER_OPERATOR"
+  # in-process binary since v1.8.1 (reth EL + rbuilder-operator in one process)
+  [rbuilder-operator]="RBUILDER_OPERATOR_RETH"
   [rbuilder-rebalancer]="RBUILDER_REBALANCER"
 )
 declare -A SVC_ARTIFACT=(
   [flowproxy]="flowproxy"
-  [rbuilder-operator]="rbuilder-operator-%TAG%-x86_64-unknown-linux-gnu"
+  [rbuilder-operator]="rbuilder-operator-reth-%TAG%-x86_64-unknown-linux-gnu"
   [rbuilder-rebalancer]="rbuilder-rebalancer-%TAG%-x86_64-unknown-linux-gnu"
 )
 
