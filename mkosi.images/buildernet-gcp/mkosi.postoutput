@@ -15,6 +15,13 @@ rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
 MIB=$((1024 * 1024))
 EFI_BYTES=$(stat -c%s "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi")
 ESP_BYTES=$(( EFI_BYTES + 32 * MIB ))
+# FAT32 requires >= 65525 clusters. systemd-repart formats the ESP with
+# 4096-byte FAT sectors and 1-sector clusters, so below ~269 MiB mkfs.fat
+# produces an out-of-spec FAT32 ("Number of clusters for 32 bit FAT is less
+# then suggested minimum") that GCE's EDK2 firmware misdetects as FAT16 and
+# refuses to mount -> unbootable image (BdsDxe: Not Found).
+ESP_MIN_BYTES=$(( 350 * MIB ))
+if (( ESP_BYTES < ESP_MIN_BYTES )); then ESP_BYTES=${ESP_MIN_BYTES}; fi
 DISK_GIB=$(numfmt --to-unit=1Gi --round=up $(( ESP_BYTES + MIB ))) # + 1MiB GPT overhead
 
 REPART_TMPDIR=$(mktemp -d)
