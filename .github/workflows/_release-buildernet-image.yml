@@ -124,7 +124,7 @@ jobs:
         run: |
           set -x
           umask 022
-          ARGS=(--force -I buildernet.conf)
+          ARGS=(--force --tools-tree=default -I buildernet.conf)
           ARGS+=(--image-version="${IMAGE_VERSION}")
           if [[ -n "${{ inputs.mkosi-profile }}" ]]; then
             ARGS+=(--profile="${{ inputs.mkosi-profile }}")
@@ -133,7 +133,8 @@ jobs:
 
       - name: Prepare cache
         run: |
-          sudo find . \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d -print0 | \
+          sudo find . \( \( -name "mkosi.builddir" -o -name "mkosi.cache" -o -name "mkosi.tools" \) -type d \
+            -o -name "mkosi.tools.manifest" -type f \) -print0 | \
             sudo tar --null -cf - -T - 2>/dev/null | pigz > ${{ inputs.cache-name }}.tar.gz
 
       - name: Upload cache

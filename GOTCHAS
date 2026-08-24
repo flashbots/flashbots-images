@@ -3,3 +3,6 @@ You don't need to explicitly depend on mounting/encrypting persistent storage be
 
 ## ExecStartPre chown
 Doing `ExecStartPre=+/bin/bash -c 'cd ${CONFIGURATION_DIRECTORY} && chown -R $USER .'` in a bunch of places because systemd does not change ownership of files inside `ConfigurationDirectory` as well as it does not change the parent directory mode if the directory already exists. https://www.freedesktop.org/software/systemd/man/257/systemd.exec.html#RuntimeDirectory=
+
+## Stale mkosi tools tree (ToolsTreePackages ignored)
+If `mkosi.tools/` already exists (locally from a previous build, or in CI restored from the R2 cache), mkosi's ToolsTree path auto-detection (`path_suffixes`) silently adopts it as a *user-supplied* tools tree: the `ToolsTree=default` from buildernet.conf is overridden, no tools config is built, the `mkosi.tools.manifest` staleness check is skipped, and `ToolsTreePackages=` changes never take effect. The manifest must be cached alongside `mkosi.tools/`, which the release workflow's "Prepare cache" step does.

@@ -23,17 +23,20 @@ help: ## display their help.
 
 .PHONY: build build-dev build-local smoke boot clean clean-vm stop-vm
 
+# --tools-tree=default: without it, a pre-existing mkosi.tools/ is silently
+# adopted as a user-supplied tools tree and never rebuilt, so ToolsTreePackages
+# changes don't take effect
 build: ## build all BuilderNet images (azure, gcp, qemu)
-	$(WRAPPER) mkosi $(ARCH) --force -I buildernet.conf build
+	$(WRAPPER) mkosi $(ARCH) --force --tools-tree=default -I buildernet.conf build
 
 build-dev: ## build with devtools profile (apt, tcpdump, strace, ...)
-	$(WRAPPER) mkosi $(ARCH) --force --profile=devtools -I buildernet.conf build
+	$(WRAPPER) mkosi $(ARCH) --force --tools-tree=default --profile=devtools -I buildernet.conf build
 
 build-local: ## build with local+devtools profiles (root autologin console, for `make boot`)
-	$(WRAPPER) mkosi $(ARCH) --force --profile=local --profile=devtools -I buildernet.conf build
+	$(WRAPPER) mkosi $(ARCH) --force --tools-tree=default --profile=local --profile=devtools -I buildernet.conf build
 
-smoke: ## tiny quick image build to validate the toolchain 
-	$(WRAPPER) mkosi -C tests/smoke --force build
+smoke: ## tiny quick image build to validate the toolchain
+	$(WRAPPER) mkosi -C tests/smoke --force --tools-tree=default build
 	@echo "Smoke build OK"
 
 ##@ Run
