@@ -4,10 +4,7 @@ export SOURCE_DATE_EPOCH=0
 
 # systemd-stub > 255 merges .osrel section into initrd at runtime
 # This removes .osrel to make initrd contents deterministic
-shopt -s nullglob
-for uki in "$OUTPUTDIR"/*.efi; do
-    objcopy --remove-section=.osrel "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
-done
+objcopy --remove-section=.osrel "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi"
 
 # For dm-verity the UKI is embedded in the ESP
 for raw in "$OUTPUTDIR"/*.raw; do
