@@ -15,7 +15,6 @@ User=rbuilder-operator
 StateDirectory=persistent/rbuilder-operator persistent/reth
 StateDirectoryMode=0775
 RuntimeDirectory=rbuilder-operator
-EnvironmentFile=%E/rbuilder-operator/rbuilder-operator.env
 LoadCredential=config.toml:%E/rbuilder-operator/config.toml
 ExecStartPre=/bin/bash -c '[[ -f /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json ]] || \
              echo "[]" > /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json'
