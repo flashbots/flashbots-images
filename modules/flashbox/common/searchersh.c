@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     if (command == NULL) {
         // If there's no token at all (e.g., empty or whitespace-only string),
         // we print an error and quit.
-        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize, input-cert\n");
+        fprintf(stderr, "No command provided. Valid commands are: toggle, status, logs, tail-the-logs, restart-sync-proxy, reboot [force], initialize, input-cert\n");
         free(arg_copy); // free the memory
         return 1;       // return error code 1
     }
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
     // 1) "toggle"
     // 2) "status"
     // 3) "logs"
-    // 4) "restart-lighthouse"
+    // 4) "restart-sync-proxy"
     // Anything else -> invalid.
     
     // If command == "toggle", call /usr/bin/toggle via sudo
@@ -177,11 +177,11 @@ int main(int argc, char *argv[]) {
         return 1; // return error code 1
     }
 
-    // If command == "restart-lighthouse", restart the lighthouse systemd service
-    else if (strcmp(command, "restart-lighthouse") == 0) {
-        execl("/usr/bin/sudo", "sudo", "/usr/bin/systemctl", "restart", "lighthouse", NULL);
+    // If command == "restart-sync-proxy", restart the sync-proxy systemd service
+    else if (strcmp(command, "restart-sync-proxy") == 0) {
+        execl("/usr/bin/sudo", "sudo", "/usr/bin/systemctl", "restart", "sync-proxy", NULL);
 
-        perror("execl failed (restart-lighthouse)");
+        perror("execl failed (restart-sync-proxy)");
         free(arg_copy);
         return 1;
     }
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
     }
 
     // If we reach here, the command didn't match any of the valid commands
-    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-lighthouse, reboot [force], initialize, input-cert\n");
+    fprintf(stderr, "Invalid command. Valid commands are: toggle, status, logs, tail-the-logs, restart-sync-proxy, reboot [force], initialize, input-cert\n");
     free(arg_copy); // Clean up allocated memory
     return 1;       // Return error code 1
 }
