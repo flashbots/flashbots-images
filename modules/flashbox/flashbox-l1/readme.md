@@ -49,7 +49,7 @@ Together, they provide the “no-frontrunning” guarantee to order flow provide
     3. Print delayed logs during production mode without triggering maintenance mode
 - Searchers write logs to a file from their container which is also mounted on the host. The host runs ncat to forward and delay logs from this file to another file on the host, which can be accessed externally by the searcher via the dropbear SSH command above. The delay is currently configured to be five minutes.
     - The host will also run logrotate to maintain storage usage, compressing .log files daily and deleting .log files older than five days.
-- The searcher’s proprietary EL node communicates with a Lighthouse CL node run on the host over a shared JWT secret file mount and the engine API on port 8551.
+- The searcher’s proprietary EL node is driven over the engine API on port 8551 by an external sync cluster (CL + nginx mirror) running in the same VPC. On the host, `sync-proxy` receives the mirrored engine calls on port 8552 and forwards them to the container. The JWT secret shared with the sync cluster is fetched from Vault at boot and mounted read-only into the container.
 
 To recap, searchers have two access points to the machine, both via SSH:
 1. Data plane: accessing the rootless podman container through OpenSSH server
@@ -70,7 +70,7 @@ Firewall Rules
 | 10022 | Input                     | Data Plane: Open SSH            | Podman               | TCP       | DISABLED        | ENABLED          |
 | 27017 | Input                     | Searcher Input Channel          | Podman               | UDP       | ENABLED         | ENABLED          |
 | 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
-| 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
+| 8552  | Input **IP WHITELISTED**  | sync-proxy (Engine API mirror from sync cluster) | Host | TCP       | ENABLED         | ENABLED          |
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP   | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
@@ -82,13 +82,12 @@ Firewall Rules
 
 **<u>Searcher Network Namespace iptables</u>**
 
-In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and port 123, which is necessary to maintain time synchronization.
+In production mode, all outgoing connections are IP whitelisted to builders except port 123, which is necessary to maintain time synchronization. Inbound, the host accepts engine calls on port 8552 (sync-proxy) only from internal VPC addresses.
 
-But, we don’t want the searcher container to be able to send state diff information out through the open ports on the host, so we block this at the searcher network namespace with iptables.
+But, we don’t want the searcher container to be able to reach host-only services or send state diff information out through the open ports on the host, so we block these at the searcher network namespace with iptables (the podman subnet is itself an internal address, hence the 8552 drop).
 
 ```
-iptables -A OUTPUT -p tcp --dport 9000 -j DROP
-iptables -A OUTPUT -p udp --dport 9000 -j DROP
+iptables -A OUTPUT -p tcp --dport 8552 -j DROP
 iptables -A OUTPUT -p udp --dport 123 -j DROP
 ```
 
@@ -99,7 +98,7 @@ iptables only covers ipv4. For security purposes, we block ipv6 with a kernel fl
 Machine Specs and Cost
 ------------------------
 
-We deploy GCP [Confidential VMs](https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview) on the **c3-standard** machine series (Intel Sapphire Rapids) with Intel TDX support, in **`us-east4` (Northern Virginia)** to colocate with builders. Lighthouse (consensus) runs on the host, while the searcher runs their own execution client (modified Geth or Reth) and bot inside the container.
+We deploy GCP [Confidential VMs](https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview) on the **c3-standard** machine series (Intel Sapphire Rapids) with Intel TDX support, in **`us-east4` (Northern Virginia)** to colocate with builders. Consensus is provided by an external sync cluster in the same VPC (no CL runs inside the image; only the thin `sync-proxy` forwarder on the host), while the searcher runs their own execution client (modified Geth or Reth) and bot inside the container.
 
 In the future, we hope to add bare metal support, which will lower this cost dramatically.
 
@@ -475,8 +474,8 @@ ssh searcher@<machine ip> logs 100
 # tail the logs
 ssh searcher@<machine ip> tail-the-logs
 
-# restart lighthouse on the host
-ssh searcher@<machine ip> restart-lighthouse
+# restart sync-proxy (engine API forwarder) on the host
+ssh searcher@<machine ip> restart-sync-proxy
 
 # reboot the host virtual machine. Optional: --force
 ssh searcher@<machine ip> reboot [--force] 
@@ -491,7 +490,7 @@ ssh -p 10022 root@<machine IP>
 # write logs to this file for log output service to pick up
 /var/log/searcher/bob.log
 
-# configure EL to use this shared mount to communicate with lighthouse on the host
+# configure EL to use this shared JWT secret (same secret the sync cluster's CL signs with)
 /secrets/jwt.hex
 
 # disk
@@ -508,24 +507,24 @@ geth --datadir /persistent \
   --ws.api eth,web3,net,txpool,admin \
   --syncmode snap \
 
-# view lighthouse logs
-tail -f /var/log/lighthouse/beacon.log
+# view sync-proxy logs (are engine calls arriving / being accepted by my EL?)
+tail -f /var/log/sync-proxy/sync-proxy.log
 ```
 
-### **lighthouse**
+### **sync-proxy**
 
-Lighthouse is run on the host with the following configuration:
+No consensus client runs inside the image. An operator-run sync cluster (CL + reference EL + nginx mirror, same GCP VPC) mirrors its Engine API calls to every flashbox. On the host, [`sync-proxy`](https://github.com/flashbots/sync-proxy) listens on port 8552 (internal source addresses only) and forwards them to the searcher's EL:
 
 ```bash
---network mainnet \
---execution-endpoint http://localhost:8551 \
---execution-jwt /tmp/jwt.hex \
---checkpoint-sync-url https://mainnet.checkpoint.sigp.io \
---disable-deposit-contract-sync \
---datadir "/persistent/lighthouse" \
---disable-optimistic-finalized-sync \
---disable-quic
+sync-proxy \
+  -addr 0.0.0.0:8552 \
+  -builders http://localhost:8551 \
+  -request-timeout 2000 \
+  -mirror-mode \                 # ACK immediately with an empty 200, forward async
+  -metrics-addr 127.0.0.1:9106   # scraped by the local Prometheus
 ```
+
+sync-proxy passes the CL's `Authorization` header through untouched; the searcher's EL validates it against the shared secret in `/secrets/jwt.hex`, which `engine-jwt.service` fetches from Vault at boot (`ENGINE_API_JWT_SECRET`). The local Prometheus turns the forward counters into the remote-written boolean `flashbox:searcher_receiving_engine_calls` (1 iff the EL accepted a forwarded `engine_newPayload`/`forkchoiceUpdated` in the last 5 minutes).
 
 ### **logrotate**
 
@@ -551,8 +550,8 @@ Developer Notes
 4. Start dropbear server for `initialize`, `toggle`, etc. (**name:** `dropbear.service`) (**after:** `wait-for-key.service`, `searcher-firewall.service`)
 5. Open a log socket and forward text from it to the delayed log file after 300s (**name:** searcher-log-reader.service) (**after:** `/persistent` is mounted)
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)
-7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
-8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
+7. Fetch the shared Engine API JWT secret from Vault into `/tmp/jwt.hex` (**name:** `engine-jwt.service`) (**after:** `network-online.target`); sync-proxy (**name:** `sync-proxy.service`) (**after:** `/persistent` is mounted)
+8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `engine-jwt.service`, `searcher-firewall.service`, `/persistent` is mounted)
 9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
 10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 
