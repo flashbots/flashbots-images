@@ -27,7 +27,8 @@ scrape_configs:
       - targets: ['localhost:9256']
 
   # sync-proxy (flashbox-l1): forwards of mirrored Engine API calls to the
-  # searcher EL. Only present on l1; on other images the target is simply down.
+  # searcher EL. This observability module is currently only included by
+  # flashbox-l1; on an image without sync-proxy this target would just be down.
   - job_name: 'sync-proxy'
     static_configs:
       - targets: ['localhost:9106']

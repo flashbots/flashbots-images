@@ -539,6 +539,8 @@ The image is configured to automatically delete logs that are more than 5 days o
 
 - The delayed log file (`/persistent/delayed_logs/output.log`) that searchers read via SSH commands is also rotated daily, meaning you can only see logs from the current day when accessing them externally.
 
+- The sync-proxy log (`/persistent/sync_proxy_logs/sync-proxy.log`, visible in the container at `/var/log/sync-proxy/`) is rotated daily or at 500 MB, keeping 5 compressed copies (`/etc/logrotate.d/sync-proxy`).
+
 Developer Notes
 -------------
 
@@ -551,7 +553,7 @@ Developer Notes
 5. Open a log socket and forward text from it to the delayed log file after 300s (**name:** searcher-log-reader.service) (**after:** `/persistent` is mounted)
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)
 7. Fetch the shared Engine API JWT secret from Vault into `/tmp/jwt.hex` (**name:** `engine-jwt.service`) (**after:** `network-online.target`); sync-proxy (**name:** `sync-proxy.service`) (**after:** `/persistent` is mounted)
-8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `engine-jwt.service`, `searcher-firewall.service`, `/persistent` is mounted)
+8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `engine-jwt.service`, `sync-proxy-init.service`, `searcher-firewall.service`, `/persistent` is mounted). Note: the container **requires** the JWT fetch to have succeeded — without the shared secret the EL could not be driven anyway, so we fail loudly instead of starting with a missing or made-up secret.
 9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
 10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 

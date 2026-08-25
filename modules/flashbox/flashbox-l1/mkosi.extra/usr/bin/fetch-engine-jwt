@@ -42,7 +42,9 @@ fi
 
 . /usr/lib/flashbox/vault.sh
 
-# Vault/metadata may not be reachable right after boot: ~5 minutes of retries.
+# Vault/metadata may not be reachable right after boot: 20 attempts, 15s apart,
+# plus curl's own --retry inside vault_read_secret (worst case well over 5 min).
+# engine-jwt.service is Type=oneshot, which has no start timeout by default.
 for attempt in $(seq 1 20); do
     if data=$(vault_read_secret) \
         && secret=$(echo "$data" | jq -re .ENGINE_API_JWT_SECRET) \
