@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# Create user and group
+# Create user
 # NOTE: Due to a limitation in mkosi, all folders are owned by root by default
 # https://github.com/systemd/mkosi/issues/3065
-mkosi-chroot groupadd -r eth
-mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
+mkosi-chroot useradd -r -s /bin/false sync-proxy
 
-mkosi-chroot systemctl add-wants minimal.target lighthouse.service
+mkosi-chroot systemctl add-wants minimal.target engine-jwt.service sync-proxy.service

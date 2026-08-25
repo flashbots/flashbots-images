@@ -1,0 +1,59 @@
+#!/bin/bash
+set -eu -o pipefail
+
+# Boot-time fetch of the Engine API JWT secret shared with the external sync
+# cluster. The secret is written to /tmp/jwt.hex, which the searcher container
+# bind-mounts read-only at /secrets/jwt.hex for its EL (--authrpc.jwtsecret).
+#
+# sync-proxy itself never reads this file: it passes the CL's Authorization
+# header through untouched, and the searcher's EL validates it against the
+# same shared secret.
+#
+# Failure semantics: searcher-container.service Requires this unit. Without the
+# secret the box cannot be driven by the sync cluster, so on GCP we retry for a
+# bounded time and then fail loudly rather than start the container with a
+# missing (podman would create a directory) or made-up secret.
+
+JWT_PATH=/tmp/jwt.hex
+DEV_SECRET=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+
+write_secret() {
+    printf '%s' "$1" > "$JWT_PATH.tmp"
+    chmod 644 "$JWT_PATH.tmp"
+    mv "$JWT_PATH.tmp" "$JWT_PATH"
+}
+
+if [ -f "$JWT_PATH" ]; then
+    echo "Engine JWT already present at $JWT_PATH, skipping"
+    exit 0
+fi
+
+# Local QEMU dev image: fixed, well-known test secret (matches flashbox-l2 dev config).
+if grep -q QEMU /sys/class/dmi/id/sys_vendor 2>/dev/null && [ -f /etc/devmode ]; then
+    echo "Running in local QEMU dev image, using default test JWT secret"
+    write_secret "$DEV_SECRET"
+    exit 0
+fi
+
+if ! grep -q Google /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    echo "ERROR: not on GCP and not a QEMU dev image, cannot obtain engine JWT" >&2
+    exit 1
+fi
+
+. /usr/lib/flashbox/vault.sh
+
+# Vault/metadata may not be reachable right after boot: ~5 minutes of retries.
+for attempt in $(seq 1 20); do
+    if data=$(vault_read_secret) \
+        && secret=$(echo "$data" | jq -re .ENGINE_API_JWT_SECRET) \
+        && echo "$secret" | grep -qE '^[0-9a-f]{64}$'; then
+        write_secret "$secret"
+        echo "Engine JWT secret written to $JWT_PATH"
+        exit 0
+    fi
+    echo "Engine JWT fetch attempt $attempt failed, retrying in 15s" >&2
+    sleep 15
+done
+
+echo "ERROR: could not fetch a valid ENGINE_API_JWT_SECRET from Vault" >&2
+exit 1

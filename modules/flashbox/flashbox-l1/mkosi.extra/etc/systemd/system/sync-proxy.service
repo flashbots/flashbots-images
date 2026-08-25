@@ -1,0 +1,30 @@
+[Unit]
+Description=sync-proxy - forwards mirrored Engine API calls to the searcher EL
+After=network-online.target persistent-mount.service
+Wants=network-online.target
+Requires=persistent-mount.service
+
+[Service]
+Type=exec
+User=sync-proxy
+Group=sync-proxy
+ExecStartPre=+/usr/bin/sync-proxy-init
+# Listens on the internal-only sync-proxy port (see firewall-config) and forwards
+# to the searcher container's EL on the published Engine API port. Mirror mode:
+# ACK immediately with an empty 200 (the nginx mirror on the sync node discards
+# responses anyway) and forward asynchronously. Metrics stay on localhost for
+# the local Prometheus (recording_rules.yml turns them into flashbox:* booleans).
+ExecStart=/usr/bin/sync-proxy \
+        -addr 0.0.0.0:8552 \
+        -builders http://localhost:8551 \
+        -request-timeout 2000 \
+        -mirror-mode \
+        -metrics-addr 127.0.0.1:9106 \
+        -json
+Restart=always
+RestartSec=5s
+StandardOutput=append:/persistent/sync_proxy_logs/sync-proxy.log
+StandardError=append:/persistent/sync_proxy_logs/sync-proxy.log
+
+[Install]
+WantedBy=minimal.target

@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+# Log directory: written by systemd (StandardOutput=append:), rotated by
+# logrotate, and bind-mounted read-only into the searcher container at
+# /var/log/sync-proxy so searchers can tail whether engine calls arrive.
+mkdir -p /persistent/sync_proxy_logs
+chmod 755 /persistent/sync_proxy_logs
