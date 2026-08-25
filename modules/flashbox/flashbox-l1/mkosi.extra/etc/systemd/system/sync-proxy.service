@@ -1,14 +1,15 @@
 [Unit]
 Description=sync-proxy - forwards mirrored Engine API calls to the searcher EL
-After=network-online.target persistent-mount.service
+# sync-proxy-init.service creates the log directory; it must exist before this
+# unit starts because systemd opens the StandardOutput file before any Exec*.
+After=network-online.target sync-proxy-init.service
 Wants=network-online.target
-Requires=persistent-mount.service
+Requires=sync-proxy-init.service
 
 [Service]
 Type=exec
 User=sync-proxy
 Group=sync-proxy
-ExecStartPre=+/usr/bin/sync-proxy-init
 # Listens on the internal-only sync-proxy port (see firewall-config) and forwards
 # to the searcher container's EL on the published Engine API port. Mirror mode:
 # ACK immediately with an empty 200 (the nginx mirror on the sync node discards

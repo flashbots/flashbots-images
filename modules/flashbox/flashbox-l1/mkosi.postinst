@@ -6,4 +6,4 @@ set -euxo pipefail
 # https://github.com/systemd/mkosi/issues/3065
 mkosi-chroot useradd -r -s /bin/false sync-proxy
 
-mkosi-chroot systemctl add-wants minimal.target engine-jwt.service sync-proxy.service
+mkosi-chroot systemctl add-wants minimal.target engine-jwt.service sync-proxy-init.service sync-proxy.service
