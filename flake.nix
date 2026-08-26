@@ -81,6 +81,7 @@
         erofs-utils
         mtools
         gptfdisk
+        binutils
         util-linux
         zstd
         which
@@ -94,6 +95,7 @@
         findutils
         gnused
         gnugrep
+        gawk
         gnutar
         gzip
         xz
