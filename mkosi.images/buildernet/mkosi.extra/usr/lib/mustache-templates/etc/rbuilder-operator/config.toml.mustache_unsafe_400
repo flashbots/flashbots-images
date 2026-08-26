@@ -40,6 +40,7 @@ shared_orderflow_signers = {{{rbuilder.shared_orderflow_signers}}}
 shared_orderflow_refund_recipients = {{{rbuilder.shared_orderflow_refund_recipients}}}
 system_recipient_allowlist = {{{rbuilder.system_recipient_allowlist}}}
 time_to_keep_mempool_txs_secs = {{rbuilder.time_to_keep_mempool_txs_secs}}
+watchdog_timeout_sec = {{rbuilder.watchdog_timeout_sec}}
 
 [built_blocks_clickhouse_config]
 host = "{{rbuilder.clickhouse_host}}"
