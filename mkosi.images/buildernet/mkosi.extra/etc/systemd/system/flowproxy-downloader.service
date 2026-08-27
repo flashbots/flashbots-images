@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=FLOWPROXY_SHA256SUM=a6aa17ce1a8dce737d101a088e54cd3d8a964f666f703bb78928ffab9e6a7a10 \
-            FLOWPROXY_TAG=v2.8.0 \
+Environment=FLOWPROXY_SHA256SUM=b9eaf46cb8e566bd3a75d8385b33fbe1fe36145083454b04bf2f36f6250a8a8b \
+            FLOWPROXY_TAG=v2.9.0 \
             FLOWPROXY_REPO=flowproxy-private \
             FLOWPROXY_ARTIFACT=flowproxy
 EnvironmentFile=%E/gh_token.env
