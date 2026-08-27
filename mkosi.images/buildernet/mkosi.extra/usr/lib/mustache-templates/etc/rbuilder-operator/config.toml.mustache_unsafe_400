@@ -36,6 +36,7 @@ root_hash_sparse_trie_version = "v2"
 root_hash_threads = {{rbuilder.root_hash_threads}}
 root_hash_use_sparse_trie = true
 simulation_threads = {{rbuilder.simulation_threads}}
+simulation_use_random_coinbase = {{rbuilder.simulation_use_random_coinbase}}
 shared_orderflow_signers = {{{rbuilder.shared_orderflow_signers}}}
 shared_orderflow_refund_recipients = {{{rbuilder.shared_orderflow_refund_recipients}}}
 system_recipient_allowlist = {{{rbuilder.system_recipient_allowlist}}}
