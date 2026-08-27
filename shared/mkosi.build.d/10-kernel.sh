@@ -3,18 +3,22 @@ set -euxo pipefail
 shopt -s inherit_errexit  # propagate errexit to $() subshells
 shopt -s nullglob         # non-matching globs expand to nothing
 
-# KERNEL_VERSION must be set (Debian major.minor, e.g. "6.16").
-# Must match a linux-source package available in the pinned snapshot mirror.
-if [[ -z "${KERNEL_VERSION:-}" ]]; then
-    echo "ERROR: KERNEL_VERSION is not set. Set it in mkosi.conf Environment= (e.g. KERNEL_VERSION=6.16)" >&2
+KERNEL_REPO="${KERNEL_REPO:-https://github.com/gregkh/linux}"
+
+if [[ -z "${KERNEL_GIT_SHA:-}" ]]; then
+    echo "ERROR: KERNEL_GIT_SHA is not set. Set it to a full 40-character commit hash in mkosi.conf via Environment=" >&2
+    exit 1
+fi
+
+# Must match a linux-config package available in the pinned snapshot mirror.
+if [[ -z "${KERNEL_CONFIG_VERSION:-}" ]]; then
+    echo "ERROR: KERNEL_CONFIG_VERSION is not set. Set it in mkosi.conf via Environment=" >&2
     exit 1
 fi
 
 # Read distribution info from mkosi config JSON
 snapshot=$(jq -r '.Snapshot' "$MKOSI_CONFIG")
-release=$(jq -re '.Release' "$MKOSI_CONFIG")
 echo "Snapshot: $snapshot"
-echo "Release: $release"
 
 # Auto-discover config fragments from registered directories
 # KERNEL_CONFIG_SNIPPETS is processed first, then KERNEL_CONFIG_SNIPPETS_* in alphabetical order
@@ -38,22 +42,24 @@ done
 KERNEL_FLAVOR=cloud
 LOCALVERSION="-mkosi-${KERNEL_FLAVOR}"
 
-echo "Building kernel ${KERNEL_VERSION} (Debian source)"
+echo "Building kernel ${KERNEL_GIT_SHA}"
+echo "Base Debian config: linux-config-${KERNEL_CONFIG_VERSION}"
 echo "LOCALVERSION: $LOCALVERSION"
 echo "Config fragments (${#config_paths[@]}):"
 for f in "${config_paths[@]}"; do echo "  $f"; done
 echo "Patches (${#patch_paths[@]}):"
 for f in "${patch_paths[@]}"; do echo "  $f"; done
 
-# Cache key from version + localversion + config/patch contents
+# Cache key from commit + config version + localversion + config/patch contents
 cache_hash=$(
-    { echo "KERNEL_VERSION=${KERNEL_VERSION}"; \
+    { echo "KERNEL_GIT_SHA=${KERNEL_GIT_SHA}"; \
+      echo "KERNEL_CONFIG_VERSION=${KERNEL_CONFIG_VERSION}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
       cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
     | sha256sum | cut -d' ' -f1 | cut -c1-12
 )
-cache_dir="$BUILDDIR/kernel-${KERNEL_VERSION}-${cache_hash}"
+cache_dir="$BUILDDIR/kernel-${KERNEL_GIT_SHA:0:12}-${cache_hash}"
 cached_deb="$cache_dir/kernel.deb"
 cached_headers_deb="$cache_dir/headers.deb"
 
@@ -65,7 +71,7 @@ EOF
 # Use cached kernel .deb if available
 if [[ -f "$cached_deb" ]] && [[ -s "$cached_deb" ]]; then
     echo "Using cached kernel .deb: $cached_deb"
-    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | reused from cache  | \`$( du -sh "$cached_deb" | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
+    echo "| \`kernel\`  | \`${KERNEL_GIT_SHA:0:12}\` (config hash \`${cache_hash}\`)  | reused from cache  | \`$( du -sh "$cached_deb" | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
 else
     ts=$( date +%s )
 
@@ -73,29 +79,34 @@ else
 
     # Build directory layout (chroot-relative paths, then host paths derived from BUILDROOT)
     chroot_kernel_build_dir="/build/kernel-build"
-    chroot_kernel_src_dir="${chroot_kernel_build_dir}/linux-source-${KERNEL_VERSION}"
+    chroot_kernel_src_dir="${chroot_kernel_build_dir}/linux"
     chroot_kconfig_dir="${chroot_kernel_build_dir}/kconfig"
     kernel_build_dir="${BUILDROOT}${chroot_kernel_build_dir}"
     kernel_src_dir="${BUILDROOT}${chroot_kernel_src_dir}"
     kconfig_dir="${BUILDROOT}${chroot_kconfig_dir}"
 
-    apt-get -y install "linux-source-${KERNEL_VERSION}/${release}-backports" --install-recommends
-
-    source_tarball="${BUILDROOT}/usr/src/linux-source-${KERNEL_VERSION}.tar.xz"
-    if [[ ! -f "${source_tarball}" ]]; then
-        echo "ERROR: Source tarball not found: ${source_tarball}" >&2
+    # Speed up clone by only fetching the necessary commit
+    mkdir -p "${kernel_src_dir}"
+    git init -q "${kernel_src_dir}"
+    git -C "${kernel_src_dir}" remote add origin "${KERNEL_REPO}"
+    git -C "${kernel_src_dir}" fetch --depth 1 origin "${KERNEL_GIT_SHA}"
+    git -C "${kernel_src_dir}" checkout -q FETCH_HEAD
+    # Verify that the fetched commit matches the expected hash
+    fetched_sha=$(git -C "${kernel_src_dir}" rev-parse HEAD)
+    if [[ "${fetched_sha}" != "${KERNEL_GIT_SHA}" ]]; then
+        echo "ERROR: fetched ${fetched_sha}, expected ${KERNEL_GIT_SHA}" >&2
         exit 1
     fi
-    mkdir -p "${kernel_build_dir}"
-    tar xaf "${source_tarball}" -C "${kernel_build_dir}/"
+    rm -rf "${kernel_src_dir}/.git"
 
     if [[ ! -f "${kernel_src_dir}/scripts/kconfig/merge_config.sh" ]]; then
         echo "ERROR: merge_config.sh not found in kernel source" >&2
         exit 1
     fi
-    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_VERSION}/config.amd64_none_${KERNEL_FLAVOR}-amd64.xz"
+    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_CONFIG_VERSION}/config.amd64_none_${KERNEL_FLAVOR}-amd64.xz"
     if [[ ! -f "${cloud_config_xz}" ]]; then
         echo "ERROR: Debian ${KERNEL_FLAVOR} config not found: ${cloud_config_xz}" >&2
+        echo "       Make sure BuildPackages= lists linux-config-${KERNEL_CONFIG_VERSION}" >&2
         exit 1
     fi
 
@@ -178,11 +189,11 @@ else
 
     rm -rf "${kernel_build_dir}"
 
-    echo "| \`kernel\`  | \`${KERNEL_VERSION}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh "$cached_deb" | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
+    echo "| \`kernel\`  | \`${KERNEL_GIT_SHA:0:12}\` (config hash \`${cache_hash}\`)  | built  | \`$( du -sh "$cached_deb" | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 fi
 
 if [[ -n "${KERNEL_MODULES:-}" ]]; then
-    mkosi-chroot dpkg -i "${CHROOT_BUILDDIR}/kernel-${KERNEL_VERSION}-${cache_hash}/headers.deb"
+    mkosi-chroot dpkg -i "${CHROOT_BUILDDIR}/$(basename "${cache_dir}")/headers.deb"
     echo "Kernel headers installed into the build environment"
 fi
 
