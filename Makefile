@@ -26,7 +26,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure clean check-module
+.PHONY: all build build-dev setup measure measure-portable clean check-module
 
 # Default target
 all: build
@@ -51,6 +51,10 @@ build-dev: setup ## Build module with development tools
 measure: ## Export TDX measurements for the built EFI file
 	@$(WRAPPER) measured-boot $(FILE) build/measurements.json --direct-uki
 	echo "Measurements exported to build/measurements.json"
+
+measure-portable: ## Export portable measurements for the built EFI file
+	@$(WRAPPER) bash -c 'attest measure portable "$$1" > build/portable_measurements.json' _ "$(FILE)"
+	echo "Portable measurements exported to build/portable_measurements.json"
 
 measure-gcp: ## Export TDX measurements for GCP
 	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json

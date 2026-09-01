@@ -22,7 +22,7 @@ TDX Mental Model
 First, searchers verify that the TDX operator, in this case Flashbots, cannot access or observe code inside a TDX machine through a process called **attestation:**
 
 - Searchers audit the TDX image that only their public SSH key can access the machine, and then build and measure (hash) the image locally.
-- Then, searchers request and verify the measurement from the cloud provider (in our case Azure) is the same to confirm the exact image they audited is running on the TDX machine they will upload their code to.
+- Then, searchers request and verify the measurement from the cloud provider (in our case Google Cloud Platform) is the same to confirm the exact image they audited is running on the TDX machine they will upload their code to.
 
 But, in the TDX image, the searcher is also restricted to its own user group without root privileges. This allows us to implement sandboxing and log delays on the host safely, without the searcher being able to override or interfere with these restrictions. So, even though the searcher is given SSH access to the machine, the searcher is sufficiently restricted to guarantee they would not be able to expose any sensitive data submitted by the order flow provider.
 
@@ -132,7 +132,7 @@ Attestation Walkthrough
 
 Once searchers receive the IP for their TDX Machine deployed by Flashbots, they should first perform the process of attestation.
 
-*At a high level, searchers will audit the minimal VM image prepared by Flashbots does not introduce malicious code and contains the right SSH configuration. Builders will audit the firewall rules and log delay. Then they will confirm that exact image is running on the TDX VM Flashbots deployed by “measuring” the image (by hashing its files) and comparing their local measurement to that measured by Azure.*
+*At a high level, searchers will audit the minimal VM image prepared by Flashbots does not introduce malicious code and contains the right SSH configuration. Builders will audit the firewall rules and log delay. Then they will confirm that exact image is running on the TDX VM Flashbots deployed by “measuring” the image (by hashing its files) and comparing their local measurement to that measured by GCP.*
 
 ### 1. build the VM image
 
@@ -190,97 +190,28 @@ On the first startup, after the searcher's SSH key is received and stored, the s
 
 ### 2. audit and run the local measurement software
 
-Under the hood, Intel TDX attestation relies on a process called measured-boot.
-
-[Measured boot]((https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot)) uses a Trusted Platform Module (TPM) to measure every part of the boot process:
-
-<img alt="edgeless-measured-boot" src="https://github.com/user-attachments/assets/ac1e4568-47a4-4eb5-8b57-eefe91141a24" />
-
-*[https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot](https://docs.edgeless.systems/constellation/2.10/architecture/images#measured-boot)*
-
-Azure’s vTPM “hash-chains” each stage of the boot process, ensuring the integrity of the entire boot chain up to the root file system.
-
-<img alt="azure-measured-boot" src="https://github.com/user-attachments/assets/1faabc57-3dd8-4630-9932-f6c5441a722c" />
-
-*[https://learn.microsoft.com/en-us/azure/security/fundamentals/measured-boot-host-attestation#measured-boot](https://learn.microsoft.com/en-us/azure/security/fundamentals/measured-boot-host-attestation#measured-boot)*
-
 In order to leverage attestation, Flashbots:
 1. uses MKOSI to ensure reproducible builds, such that each time anyone builds the image, the measurement will be the same, even on different hardware
 2. packages the entire image inside the initramfs, such that any change to the image will result in a different measurement
-
-Flashbots has adapted Edgeless Constellation’s [measured-boot](https://github.com/edgelesssys/constellation/tree/ffde0ef7b7d3277c63f3c67ee666237f5863c744/image/measured-boot) library to simulate the measurements locally, which dissects the .efi image and measures the initramfs and unified kernel PE sections.
-
-Only [PCR 4, 9, and 11](https://constellation-docs.netlify.app/constellation/2.2/architecture/attestation#runtime-measurements) are meaningful, since the other PCR’s in Azure’s vTPM are not reproducible due to their proprietary closed-source implementations. But, these 3 measurements are enough to ensure Flashbots does not have access to the searcher VM, as any change in the image will generate different PCR 4, 9, and 11 measurements! You can test and verify this claim yourself by changing a line of code, building the new image, and running the measurement software again.
 
 ```bash
 cd flashbots-images
 
 # assuming you've run make build IMAGE=flashbox-l1
-make measure
+make measure-portable
 ```
 
-<details>
-<summary>Expected Output</summary>
+This will write the OS image hashes to the file `./build/portable_measurements.json`.
 
-    ```
-    ubuntu@builder:~/flashbots-images$ make measure
-    EFI Boot Stages:
-      Stage 1 - Unified Kernel Image (UKI): 320af1bf8257b6fd1a47b8fa865bdde7bdfdbf235894804b6b15b676296b1ba4
-      Stage 2 - Linux                     : eb1a69b12b47b6b3d4716bad94323d27173cba5f4285b918a2bf59ea5cb3c9ea
-    Linux LOAD_FILE2 protocol:
-      cmdline: "console=tty0 console=ttyS0,115200n8 mitigations=auto,nosmt spec_store_bypass_disable=on nospectre_v2\x00"
-      initrd (digest 0cc531c70b473425e513310dfb4cbcfd5161444a07d318b4d5b816f557d589a6)
-    UKI sections:
-      Section  1 - .linux   (   5829632 bytes):     0da293e37ad5511c59be47993769aacb91b243f7d010288e118dc90e95aaef5a, 7439b377dbba898b0db23928be49fb906aa5551cfc01395bc37b8bd50d8f5530
-      Section  2 - .osrel   (       308 bytes):     3fb9e4e3cc810d4326b5c13cef18aee1f9df8c5f4f7f5b96665724fa3b846e08, 94e5e922dec19c3ab3e3c85b5d30dbb563098a430418a70c11a5b729721fae39
-      Section  3 - .cmdline (       101 bytes):     461203a89f23e36c3a4dc817f905b00484d2cf7e7d9376f13df91c41d84abe46, 5b20d03fb990ccafdcfa1ddb37feff37141e728776ed89f335798f3c3899a135
-      Section  4 - .initrd  ( 166037465 bytes):     15ee37e75f1e8d42080e91fdbbd2560780918c81fe3687ae6d15c472bbdaac75, 0cc531c70b473425e513310dfb4cbcfd5161444a07d318b4d5b816f557d589a6
-      Section  5 - .uname   (         7 bytes):     da7a6d941caa9d28b8a3665c4865c143db8f99400ac88d883370ae3021636c30, 2200d673ad92228af377b9573ed86e7a4e36a87a2a9a08d8c1134aca3ddb021c
-      Section  6 - .sbat    (       309 bytes):     ff552fd255be18a3d61c0da88976fc71559d13aad12d1dfe1708cf950cc4b74c, eae67f3a8f5614d71bd75143feeecbb3c12cd202192e2830f0fb1c6df0f4a139
-      Section  7 - .data   :        not measured
-      Section  8 - .reloc  :        not measured
-      Section  9 - .rodata :        not measured
-      Section 10 - .sdmagic:        not measured
-      Section 11 - .text   :        not measured
-    PCR[ 4]: 176543f594059b26292565a3c07b5eaa34122cf2ce7f53b149b6fb85c3046d30
-    PCR[ 9]: 817c80c72f0a42bd72d4c7130f0d48c39a6d3ac6def92da085dec16feb822518
-    PCR[11]: 46a1b5dd625d967205699242a2de2815e539424c3132306b91f31bcda442693f
-    PCR[12]: 0000000000000000000000000000000000000000000000000000000000000000
-    PCR[13]: 0000000000000000000000000000000000000000000000000000000000000000
-    PCR[15]: 0000000000000000000000000000000000000000000000000000000000000000
-    ```
-</details>
-
-Then, copy and paste PCR 4, 9, and 11 into the following format and save as `measurements.json`
-
-**The image built locally, and as measured by Azure, should match the following hashes!**
-```bash
-[
-  {
-      "measurement_id": "azure-tdx-example-01",
-      "attestation_type": "azure-tdx",
-      "measurements": {
-          "4": {
-              "expected": "176543f594059b26292565a3c07b5eaa34122cf2ce7f53b149b6fb85c3046d30"
-          },
-          "9": {
-              "expected": "817c80c72f0a42bd72d4c7130f0d48c39a6d3ac6def92da085dec16feb822518"
-          },
-          "11": {
-              "expected": "46a1b5dd625d967205699242a2de2815e539424c3132306b91f31bcda442693f"
-          }
-      }
-  }
-]
-```
-
-> Note: at the time of the writing, those measurements were acquired by building from commit ef5dd2727ba4569d530c67822dc96778f54a295a, if you're viewing this from main branch please ensure to build from the same commit to get the same measurements.
+Check that the contents of this file is identical to the same file in the [release assets of the flashbots-image release](https://github.com/flashbots/flashbots-images/releases) you are building.
 
 > Note: at the time of the writing, compiling flashbox-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
-### 3. audit and run the remote attestation software which requests the measurement from Azure’s vTPM
+### 3. audit and run the remote attestation software which requests a DCAP attestation
 
-Flashbots again leverages Edgeless Constellation’s [attested TLS](https://docs.edgeless.systems/constellation/architecture/attestation#attested-tls-atls) and other attestation primitives to interact with Azure’s attestation service. attested-tls-proxy fetches Azure's vTPM measurement and compares it with the locally supplied measurement.
+Flashbots uses a custom [attested TLS protocol](https://github.com/flashbots/attested-tls-proxy/blob/main/attested-tls/README.md) to retrieve a TDX DCAP attestation and compare it with expected measurement values built from the locally supplied OS image hashes.
+
+After deploying to GCP, and uploading SSH public key via a POST request:
 
 ```bash
 # download remote attestation tool
@@ -297,8 +228,8 @@ cargo run -- client \
   --log-debug \
   <VM IP>:8745
 
-# To trigger remote attestation, open a new terminal and run this command:
-curl http://127.0.0.1:8080
+# If attestation can be successfully validated against the given image hashes
+# you should see the measurement values displayed as in the example output below.
 
 # Bind the attested host keys to known_hosts.
 # This ensures the ssh server the searcher connects to is the one running on the
