@@ -3,12 +3,17 @@ Description=A small, standalone service that moves funds between BuilderNet acco
 Documentation=https://github.com/flashbots/rbuilder
 Wants=network-online.target rbuilder-operator-rebalancer-downloader.service
 After=network.target network-online.target rbuilder-operator.service rbuilder-operator-rebalancer-downloader.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=exec
 DynamicUser=yes
 EnvironmentFile=%E/rbuilder-rebalancer/rbuilder-rebalancer.env
 ExecStart=/usr/bin/rbuilder-rebalancer %E/rbuilder-rebalancer/config.toml
+Restart=on-failure
+RestartSec=5s
+RestartSteps=5
+RestartMaxDelaySec=1min
 
 [Install]
 WantedBy=multi-user.target
