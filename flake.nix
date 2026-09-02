@@ -59,7 +59,16 @@
       pname = "attest";
       version = "0.0.1";
       src = attest-src;
-      cargoLock = {
+      cargoDeps = (pkgs.rustPlatform.importCargoLock.override {
+        fetchurl = args:
+          pkgs.fetchurl (args
+            // {
+              url = builtins.replaceStrings
+                ["https://crates.io/api/v1/crates"]
+                ["https://static.crates.io/crates"]
+                args.url;
+            });
+      }) {
         lockFile = "${attest-src}/Cargo.lock";
         outputHashes = {
           "dcap-qvl-0.3.12" = "sha256-rLTp5wIhXRAcBtJb7lfd1TAg7yPRnwa0cBa1YT4LwKU=";
