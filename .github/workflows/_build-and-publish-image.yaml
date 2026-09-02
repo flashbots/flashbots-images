@@ -34,8 +34,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
   build:
@@ -150,50 +148,6 @@ jobs:
       - name: Show build artifacts
         run: ls -lh build/
 
-      - name: Generate SHA256SUMS
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          cd build
-          efi=("${ARTIFACT_PREFIX}"_*.efi) sbom=("${ARTIFACT_PREFIX}"_*.sbom.cdx.json)
-          ((${#efi[@]} == 1 && ${#sbom[@]} == 1))
-          sha256sum "${ARTIFACT_PREFIX}"_*.{efi,raw,tar.gz,qcow2,sbom.cdx.json} \
-            portable_measurements.json >SHA256SUMS
-          printf 'EFI_FILE=build/%s\nSBOM_FILE=build/%s\n' "${efi[0]}" "${sbom[0]}" >>"$GITHUB_ENV"
-
-      - name: Attest build provenance
-        id: attest-provenance
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
-        with:
-          subject-checksums: build/SHA256SUMS
-
-      - name: Export provenance bundle
-        env:
-          BUNDLE_PATH: ${{ steps.attest-provenance.outputs.bundle-path }}
-        run: cp "${BUNDLE_PATH}" build/provenance.sigstore.json
-
-      - name: Attest SBOM
-        id: attest-sbom
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
-        with:
-          subject-path: ${{ env.EFI_FILE }}
-          sbom-path: ${{ env.SBOM_FILE }}
-
-      - name: Export SBOM bundle
-        env:
-          BUNDLE_PATH: ${{ steps.attest-sbom.outputs.bundle-path }}
-        run: cp "${BUNDLE_PATH}" build/sbom.sigstore.json
-
-      - name: Verify attestations
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
-            --bundle build/provenance.sigstore.json
-          gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
-            --bundle build/sbom.sigstore.json \
-            --predicate-type https://cyclonedx.org/bom
-
       - name: Install rclone
         run: |
           set -euo pipefail
@@ -224,13 +178,11 @@ jobs:
           acl = private
           use_data_integrity_protections = false
           EOF
+          # Upload only the image artifacts and measurements.
           rclone copy -P --retries 3 --retries-sleep 20s --error-on-no-transfer \
             --s3-upload-concurrency=8 --transfers=8 \
-            --include "${ARTIFACT_PREFIX}_*.{efi,raw,tar.gz,qcow2}" \
-            --include "${ARTIFACT_PREFIX}_*.sbom.cdx.json" \
+            --include "${ARTIFACT_PREFIX}_*.{efi,tar.gz,qcow2}" \
             --include "portable_measurements.json" \
-            --include "SHA256SUMS" \
-            --include "*.sigstore.json" \
             build "r2:${R2_BUCKET}/${R2_PATH_PREFIX}/${VERSION_DIR}/"
 
       - name: Create draft GitHub Release
@@ -255,21 +207,18 @@ jobs:
             echo "| 🔖 **Commit** | [\`${COMMIT_SHORT}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${HEAD_SHA}) |"
             echo "| 📅 **Built** | ${BUILT} |"
             echo ""
-            echo "### 💿 Artifacts"
+            echo "### 💿 Images"
             echo ""
             echo "| Target | File | Size |"
             echo "|---|---|--:|"
-            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.raw build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2 \
-                     build/"${ARTIFACT_PREFIX}"_*.sbom.cdx.json; do
+            for f in build/"${ARTIFACT_PREFIX}"_*.efi build/"${ARTIFACT_PREFIX}"_*.tar.gz build/"${ARTIFACT_PREFIX}"_*.qcow2; do
               n="$(basename "$f")"
               sz="$(du -h "$f" | cut -f1)"
               case "$n" in
-                *.efi)      t="🐧 UKI (EFI)" ;;
-                *.raw)      t="💽 Raw disk" ;;
-                *.tar.gz)   t="☁️ GCP disk" ;;
-                *.qcow2)    t="🧪 QEMU qcow2" ;;
-                *.cdx.json) t="🧾 SBOM (CycloneDX)" ;;
-                *)          t="📄 artifact" ;;
+                *.efi)    t="🐧 UKI (EFI)" ;;
+                *.tar.gz) t="☁️ GCP disk" ;;
+                *.qcow2)  t="🧪 QEMU qcow2" ;;
+                *)        t="📄 artifact" ;;
               esac
               echo "| ${t} | [\`${n}\`](${R2_PUBLIC_BASE_URL}/${R2_PATH_PREFIX}/${VERSION_DIR}/${n}) | ${sz} |"
             done
@@ -278,15 +227,6 @@ jobs:
             echo "> **\`portable_measurements.json\`** (attached, also on R2): the OS image hashes used to compute expected TDX measurements for this image on GCP, from [\`Easy-TEE/attest\`](https://github.com/Easy-TEE/attest). Reproduce them yourself with the steps below."
             echo ">"
             echo "> 📖 Details: [attestation walkthrough](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/readme.md#attestation-walkthrough) · [attested-tls-proxy](https://github.com/flashbots/attested-tls-proxy)"
-            echo ""
-            echo "### 🔏 Verify build and SBOM"
-            echo ""
-            echo "Checksums and Sigstore verification bundles are attached."
-            echo ""
-            echo '```bash'
-            echo "gh attestation verify <artifact> --repo ${GITHUB_REPOSITORY} --bundle provenance.sigstore.json"
-            echo "gh attestation verify <the .efi> --repo ${GITHUB_REPOSITORY} --bundle sbom.sigstore.json --predicate-type https://cyclonedx.org/bom"
-            echo '```'
             echo ""
             echo "### 🔁 Reproduce the image hashes"
             echo ""
@@ -316,10 +256,10 @@ jobs:
             echo '   ```'
           } > release-notes.md
 
+          # Attach the measurements and the .efi UKI; the larger tar.gz/qcow2
+          # artifacts stay in R2 and are linked in the release body.
           assets=()
-          for f in build/portable_measurements.json build/SHA256SUMS \
-                   build/provenance.sigstore.json build/sbom.sigstore.json \
-                   build/"${ARTIFACT_PREFIX}"_*.efi; do
+          for f in build/portable_measurements.json build/"${ARTIFACT_PREFIX}"_*.efi; do
             [ -e "$f" ] && assets+=("$f")
           done
 
