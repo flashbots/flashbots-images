@@ -27,6 +27,38 @@ ATTESTATION_PORT = 8745
 PROXY_LISTEN = "127.0.0.1:18080"
 
 
+def attestation_diagnostics(vm_ip, tmp_path):
+    """Return the expected policy and the measurements reported by the VM."""
+    actual_path = tmp_path / "actual_measurements.json"
+    try:
+        result = subprocess.run(
+            [
+                os.environ["PROXY_CLIENT"], "get-tls-cert",
+                "--allowed-remote-attestation-type", "gcp-tdx",
+                "--allow-self-signed",
+                "--out-measurements", str(actual_path),
+                f"{vm_ip}:{ATTESTATION_PORT}",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+        )
+        diagnostic_error = result.stderr.strip() or "<none>"
+    except subprocess.TimeoutExpired:
+        diagnostic_error = "diagnostic attestation timed out after 120 seconds"
+
+    with open(os.environ["MEASUREMENTS_DCAP"]) as expected_file:
+        expected = expected_file.read()
+    actual = actual_path.read_text() if actual_path.exists() else "<unavailable>"
+
+    return (
+        f"expected portable policy:\n{expected}\n"
+        f"actual GCP-TDX measurements:\n{actual}\n"
+        f"diagnostic stderr:\n{diagnostic_error}"
+    )
+
+
 def test_deploy(vm_ip):
     # wait-for-key's HTTP server is the first externally visible signal
     # that the image booted; 8745 stays closed until a key is registered.
@@ -45,7 +77,7 @@ def test_push_key(vm_ip, searcher_key):
     assert resp.status_code == 200, resp.text
 
 
-def test_attest(vm_ip):
+def test_attest(vm_ip, tmp_path):
     # the key push releases wait-for-key, which lets dropbear and then
     # attested-tls-proxy start. The port coming up validates the boot
     # chain, so that part stays a hard failure
@@ -59,6 +91,7 @@ def test_attest(vm_ip):
     proxy = subprocess.Popen(
         [
             os.environ["PROXY_CLIENT"], "client",
+            "--log-debug",
             "--listen-addr", PROXY_LISTEN,
             "--measurements-file", os.environ["MEASUREMENTS_DCAP"],
             "--allow-self-signed",
@@ -78,11 +111,11 @@ def test_attest(vm_ip):
                 time.sleep(2)
         if proxy.poll() is not None:
             out = proxy.stdout.read().decode(errors="replace")
-            print(out)
-            # the client verifies at startup and exits on rejection
-            # ("Measurements not accepted"), so this path is the same
-            # whitelisted soft-fail as a 502 below
-            pytest.xfail(f"attestation client exited:\n{out}")
+            pytest.fail(
+                f"attestation client exited:\n{out}\n"
+                f"{attestation_diagnostics(vm_ip, tmp_path)}",
+                pytrace=False,
+            )
         assert resp is not None, "proxy client never started listening"
 
         debug = (
@@ -98,13 +131,11 @@ def test_attest(vm_ip):
         print(debug)
 
         if "X-Flashbots-Measurement" not in resp.headers:
-            # soft-fail ("whitelisted"): the official release-notes
-            # attestation flow is broken for this image (stale client),
-            # and mrtd/rtmr0 rot when GCP rolls firmware. The debug text
-            # goes in the reason so it lands on screen without -s
-            pytest.xfail(
+            pytest.fail(
                 f"quote did not verify against expected measurements "
-                f"(HTTP {resp.status_code} through proxy)\n{debug}"
+                f"(HTTP {resp.status_code} through proxy)\n{debug}\n"
+                f"{attestation_diagnostics(vm_ip, tmp_path)}",
+                pytrace=False,
             )
     finally:
         proxy.kill()
