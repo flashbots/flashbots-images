@@ -52,8 +52,8 @@
     attest-src = pkgs.fetchFromGitHub {
       owner = "Easy-TEE";
       repo = "attest";
-      rev = "e7f59c78f9eabd5d1ac7c9e96da46027878d038c";
-      hash = "sha256-4PKNsN8j2P6YJfzghz0U28+Bm3BhS/CveR/mSx3oUg8=";
+      rev = "12f1e29f6ea63ecc2f80f39c2c1f1172720bcf24";
+      hash = "sha256-Ekn8SMhgOzdK3RCGIUVviyge56gX08ZQVFWopsnOneM=";
     };
     attest = pkgs.rustPlatform.buildRustPackage {
       pname = "attest";
