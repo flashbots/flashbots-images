@@ -28,7 +28,7 @@ rm -f ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
 # Dynamically size ESP partition and disk from EFI file
 MIB=$((1024 * 1024))
 EFI_BYTES=$(stat -c%s "${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.efi")
-ESP_BYTES=$(( EFI_BYTES + 32 * MIB ))
+ESP_BYTES=$(( ((EFI_BYTES + MIB - 1) / MIB + 32) * MIB ))
 DISK_GIB=$(numfmt --to-unit=1Gi --round=up $(( ESP_BYTES + MIB ))) # + 1MiB GPT overhead
 
 REPART_TMPDIR=$(mktemp -d)
