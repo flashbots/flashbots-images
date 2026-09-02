@@ -1,0 +1,2 @@
+pytest>=8
+requests>=2.31
