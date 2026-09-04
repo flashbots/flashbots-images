@@ -13,6 +13,7 @@ So the order here is load-bearing: attestation is only reachable AFTER
 the key push, and a failure cascades into the tests below it by design.
 """
 
+import json
 import os
 import subprocess
 import time
@@ -20,11 +21,14 @@ import time
 import pytest
 import requests
 
-from conftest import wait_for_port
+from conftest import DATA_SSH_PORT, wait_for_port
 
 KEY_REGISTER_PORT = 8080
 ATTESTATION_PORT = 8745
 PROXY_LISTEN = "127.0.0.1:18080"
+RETH_VERSION = "v2.5.2"
+RETH_ARCHIVE_SHA256 = \
+    "e360895ac51b351ff0c44573f0f619bb1e7c3ff2df55502af1190c14c9b5ef6d"
 
 
 def attestation_diagnostics(vm_ip, tmp_path):
@@ -59,6 +63,55 @@ def attestation_diagnostics(vm_ip, tmp_path):
     )
 
 
+def fetch_attested_host_keys(vm_ip, tmp_path):
+    """Fetch SSH host keys only after the VM quote passes verification."""
+    proxy = subprocess.Popen(
+        [
+            os.environ["PROXY_CLIENT"], "client",
+            "--log-debug",
+            "--listen-addr", PROXY_LISTEN,
+            "--measurements-file", os.environ["MEASUREMENTS_DCAP"],
+            "--allow-self-signed",
+            f"{vm_ip}:{ATTESTATION_PORT}",
+        ],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    try:
+        resp = None
+        for _ in range(30):
+            if proxy.poll() is not None:
+                break
+            try:
+                resp = requests.get(f"http://{PROXY_LISTEN}/pubkey", timeout=10)
+                break
+            except requests.ConnectionError:
+                time.sleep(2)
+        if proxy.poll() is not None:
+            out = proxy.stdout.read().decode(errors="replace")
+            pytest.fail(
+                f"attestation client exited:\n{out}\n"
+                f"{attestation_diagnostics(vm_ip, tmp_path)}",
+                pytrace=False,
+            )
+        assert resp is not None, "proxy client never started listening"
+        assert "X-Flashbots-Measurement" in resp.headers, (
+            f"quote did not verify against expected measurements\n"
+            f"{attestation_diagnostics(vm_ip, tmp_path)}"
+        )
+        assert resp.status_code == 200, \
+            f"attested /pubkey returned HTTP {resp.status_code}: {resp.text}"
+
+        host_keys = [line.strip() for line in resp.text.splitlines()
+                     if line.strip()]
+        assert host_keys and all(
+            key.split()[0].startswith(("ssh-", "ecdsa-", "sk-"))
+            for key in host_keys
+        ), f"attested /pubkey returned no valid SSH host keys: {resp.text!r}"
+        return host_keys
+    finally:
+        proxy.kill()
+
+
 def test_deploy(vm_ip):
     # wait-for-key's HTTP server is the first externally visible signal
     # that the image booted; 8745 stays closed until a key is registered.
@@ -84,75 +137,10 @@ def test_attest(vm_ip, tmp_path, known_hosts_file):
     assert wait_for_port(vm_ip, ATTESTATION_PORT, timeout=60, interval=5), \
         "attested-tls-proxy (8745) did not come up after key registration"
 
-    # PROXY_CLIENT is attested-tls-proxy (what the image runs since #168),
-    # NOT cvm-reverse-proxy: the new protocol (TLS 1.3 + ALPN
-    # flashbots-ratls/1) makes the old proxy-client fail the handshake
-    # with "illegal parameter"
-    proxy = subprocess.Popen(
-        [
-            os.environ["PROXY_CLIENT"], "client",
-            "--log-debug",
-            "--listen-addr", PROXY_LISTEN,
-            "--measurements-file", os.environ["MEASUREMENTS_DCAP"],
-            "--allow-self-signed",
-            f"{vm_ip}:{ATTESTATION_PORT}",
-        ],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    )
-    try:
-        resp = None
-        for _ in range(30):
-            if proxy.poll() is not None:
-                break
-            try:
-                resp = requests.get(
-                    f"http://{PROXY_LISTEN}/pubkey", timeout=10,
-                )
-                break
-            except requests.ConnectionError:
-                time.sleep(2)
-        if proxy.poll() is not None:
-            out = proxy.stdout.read().decode(errors="replace")
-            pytest.fail(
-                f"attestation client exited:\n{out}\n"
-                f"{attestation_diagnostics(vm_ip, tmp_path)}",
-                pytrace=False,
-            )
-        assert resp is not None, "proxy client never started listening"
-
-        debug = (
-            f"response headers through proxy: {dict(resp.headers)}\n"
-        )
-        # the header is only set after the quote verified against our
-        # measurements; on mismatch the proxy client logs what the quote
-        # actually contained, so capture that for comparing later
-        if "X-Flashbots-Measurement" not in resp.headers:
-            proxy.kill()
-            debug += f"proxy client output:\n" \
-                     f"{proxy.stdout.read().decode(errors='replace')}"
-        print(debug)
-
-        if "X-Flashbots-Measurement" not in resp.headers:
-            pytest.fail(
-                f"quote did not verify against expected measurements "
-                f"(HTTP {resp.status_code} through proxy)\n{debug}\n"
-                f"{attestation_diagnostics(vm_ip, tmp_path)}",
-                pytrace=False,
-            )
-
-        assert resp.status_code == 200, \
-            f"attested /pubkey returned HTTP {resp.status_code}: {resp.text}"
-        host_keys = [line.strip() for line in resp.text.splitlines()
-                     if line.strip()]
-        assert host_keys and all(
-            key.split()[0].startswith(("ssh-", "ecdsa-", "sk-"))
-            for key in host_keys
-        ), f"attested /pubkey returned no valid SSH host keys: {resp.text!r}"
-        known_hosts_file.write_text("".join(
-            f"{vm_ip} {key}\n" for key in host_keys
-        ))
-    finally:
-        proxy.kill()
+    host_keys = fetch_attested_host_keys(vm_ip, tmp_path)
+    known_hosts_file.write_text("".join(
+        f"{vm_ip} {key}\n" for key in host_keys
+    ))
 
 
 def test_initialize_disk(searchersh, disk_passphrase):
@@ -167,7 +155,84 @@ def test_initialize_disk(searchersh, disk_passphrase):
     assert init.returncode == 0, init.stdout + init.stderr
 
 
-def test_ssh_in(searchersh):
-    status = searchersh("status")
-    assert status.returncode == 0, status.stdout + status.stderr
-    assert status.stdout.strip(), "status returned nothing"
+def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
+    assert wait_for_port(vm_ip, DATA_SSH_PORT, timeout=120, interval=5), \
+        f"searcher container SSH ({DATA_SSH_PORT}) did not come up"
+
+    # The container creates its OpenSSH host key after disk initialization.
+    # Fetch /pubkey through attested TLS again before trusting that new key.
+    host_keys = fetch_attested_host_keys(vm_ip, tmp_path)
+    with known_hosts_file.open("a") as known_hosts:
+        known_hosts.writelines(
+            f"[{vm_ip}]:{DATA_SSH_PORT} {key}\n" for key in host_keys
+        )
+
+    result = containersh("true")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_lighthouse_syncing(containersh):
+    deadline = time.monotonic() + 180
+    snapshot = None
+    while time.monotonic() < deadline:
+        result = containersh(
+            "grep -F '\"msg\":\"Slot timer\"' "
+            "/var/log/lighthouse/beacon.log 2>/dev/null | tail -n 1"
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            snapshot = json.loads(result.stdout)
+            if "Sync" in str(snapshot.get("sync_state", "")):
+                break
+        time.sleep(5)
+
+    assert snapshot is not None, "Lighthouse produced no Slot timer sync status"
+    assert "Sync" in str(snapshot.get("sync_state", "")), snapshot
+    print(f"Lighthouse sync status: {json.dumps(snapshot, sort_keys=True)}")
+
+
+def test_install_reth(containersh):
+    archive = f"reth-{RETH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+    url = f"https://github.com/paradigmxyz/reth/releases/download/{RETH_VERSION}/{archive}"
+    result = containersh(
+        f"set -eu; "
+        f"apt-get update -qq; "
+        f"DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates; "
+        f"curl -fsSL '{url}' -o /tmp/reth.tar.gz; "
+        f"echo '{RETH_ARCHIVE_SHA256}  /tmp/reth.tar.gz' | sha256sum -c -; "
+        f"tar -xzf /tmp/reth.tar.gz -C /usr/local/bin reth; "
+        f"chmod 0755 /usr/local/bin/reth; "
+        f"/usr/local/bin/reth --version; "
+        f"nohup /usr/local/bin/reth node "
+        f"--datadir /persistent/reth "
+        f"--authrpc.jwtsecret /secrets/jwt.hex "
+        f"--authrpc.addr 0.0.0.0 --authrpc.port 8551 "
+        f"--http --http.addr 127.0.0.1 --http.api eth,net "
+        f">>/var/log/searcher/bob.log 2>&1 </dev/null & "
+        f"echo $! >/persistent/reth.pid",
+        timeout=300,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert RETH_VERSION.removeprefix("v") in result.stdout, result.stdout
+
+
+def test_reth_syncing(containersh):
+    request = json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "eth_syncing", "params": [],
+    })
+    deadline = time.monotonic() + 300
+    last_response = None
+    while time.monotonic() < deadline:
+        result = containersh(
+            "curl -fsS -H 'Content-Type: application/json' "
+            f"--data '{request}' http://127.0.0.1:8545",
+        )
+        if result.returncode == 0:
+            last_response = json.loads(result.stdout)
+            if isinstance(last_response.get("result"), dict):
+                break
+        time.sleep(5)
+
+    assert last_response is not None, "Reth JSON-RPC did not become available"
+    assert isinstance(last_response.get("result"), dict), \
+        f"Reth did not report active syncing: {last_response}"
+    print(f"Reth sync status: {json.dumps(last_response['result'], sort_keys=True)}")

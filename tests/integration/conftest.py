@@ -14,6 +14,8 @@ SSH_OPTS = [
     "-o", "LogLevel=ERROR",
 ]
 
+DATA_SSH_PORT = 10022
+
 
 @pytest.fixture(scope="session")
 def vm_ip():
@@ -71,6 +73,24 @@ def searchersh(vm_ip, searcher_key, known_hosts_file):
              f"searcher@{vm_ip}", command],
             capture_output=True, text=True, timeout=timeout,
             input=input_text,
+        )
+
+    return run
+
+
+@pytest.fixture(scope="session")
+def containersh(vm_ip, searcher_key, known_hosts_file):
+    """Run a command inside the searcher's container over OpenSSH."""
+
+    def run(command, timeout=60):
+        return subprocess.run(
+            ["ssh", *SSH_OPTS,
+             "-o", "StrictHostKeyChecking=yes",
+             "-o", f"UserKnownHostsFile={known_hosts_file}",
+             "-p", str(DATA_SSH_PORT),
+             "-i", searcher_key["private"],
+             f"root@{vm_ip}", command],
+            capture_output=True, text=True, timeout=timeout,
         )
 
     return run
