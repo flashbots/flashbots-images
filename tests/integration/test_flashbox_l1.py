@@ -88,16 +88,24 @@ def fetch_attested_host_keys(vm_ip, tmp_path):
                 time.sleep(2)
         if proxy.poll() is not None:
             out = proxy.stdout.read().decode(errors="replace")
+            details = attestation_diagnostics(vm_ip, tmp_path)
+            print(f"attestation client exited:\n{out}\n{details}", flush=True)
             pytest.fail(
                 f"attestation client exited:\n{out}\n"
-                f"{attestation_diagnostics(vm_ip, tmp_path)}",
+                f"{details}",
                 pytrace=False,
             )
         assert resp is not None, "proxy client never started listening"
-        assert "X-Flashbots-Measurement" in resp.headers, (
-            f"quote did not verify against expected measurements\n"
-            f"{attestation_diagnostics(vm_ip, tmp_path)}"
-        )
+        if "X-Flashbots-Measurement" not in resp.headers:
+            details = attestation_diagnostics(vm_ip, tmp_path)
+            print(
+                f"quote did not verify against expected measurements\n{details}",
+                flush=True,
+            )
+            pytest.fail(
+                f"quote did not verify against expected measurements\n{details}",
+                pytrace=False,
+            )
         assert resp.status_code == 200, \
             f"attested /pubkey returned HTTP {resp.status_code}: {resp.text}"
 
@@ -155,6 +163,7 @@ def test_initialize_disk(searchersh, disk_passphrase):
     assert init.returncode == 0, init.stdout + init.stderr
 
 
+@pytest.mark.dependency(name="container_ssh")
 def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
     assert wait_for_port(vm_ip, DATA_SSH_PORT, timeout=120, interval=5), \
         f"searcher container SSH ({DATA_SSH_PORT}) did not come up"
@@ -168,9 +177,16 @@ def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
         )
 
     result = containersh("true")
+    if result.returncode != 0:
+        print(
+            f"container SSH failed ({result.returncode}):\n"
+            f"{result.stdout}{result.stderr}",
+            flush=True,
+        )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+@pytest.mark.dependency(depends=["container_ssh"])
 def test_lighthouse_syncing(containersh):
     deadline = time.monotonic() + 180
     snapshot = None
@@ -190,6 +206,7 @@ def test_lighthouse_syncing(containersh):
     print(f"Lighthouse sync status: {json.dumps(snapshot, sort_keys=True)}")
 
 
+@pytest.mark.dependency(name="reth_installed", depends=["container_ssh"])
 def test_install_reth(containersh):
     archive = f"reth-{RETH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
     url = f"https://github.com/paradigmxyz/reth/releases/download/{RETH_VERSION}/{archive}"
@@ -215,6 +232,7 @@ def test_install_reth(containersh):
     assert RETH_VERSION.removeprefix("v") in result.stdout, result.stdout
 
 
+@pytest.mark.dependency(depends=["reth_installed"])
 def test_reth_syncing(containersh):
     request = json.dumps({
         "jsonrpc": "2.0", "id": 1, "method": "eth_syncing", "params": [],
