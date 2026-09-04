@@ -165,8 +165,10 @@ def test_initialize_disk(searchersh, disk_passphrase):
 
 @pytest.mark.dependency(name="container_ssh")
 def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
-    assert wait_for_port(vm_ip, DATA_SSH_PORT, timeout=120, interval=5), \
-        f"searcher container SSH ({DATA_SSH_PORT}) did not come up"
+    # Podman's forwarding port opens before OpenSSH finishes installing.
+    assert wait_for_port(vm_ip, DATA_SSH_PORT, timeout=120, interval=5,
+                         banner_prefix=b"SSH-2.0-"), \
+        f"searcher container SSH ({DATA_SSH_PORT}) sent no banner within 120 seconds"
 
     # The container creates its OpenSSH host key after disk initialization.
     # Fetch /pubkey through attested TLS again before trusting that new key.

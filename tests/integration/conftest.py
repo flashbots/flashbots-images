@@ -96,12 +96,18 @@ def containersh(vm_ip, searcher_key, known_hosts_file):
     return run
 
 
-def wait_for_port(ip, port, timeout=900, interval=10):
+def wait_for_port(ip, port, timeout=900, interval=10, banner_prefix=None):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with socket.create_connection((ip, port), timeout=5):
-                return True
+            with socket.create_connection((ip, port), timeout=5) as connection:
+                if banner_prefix is None:
+                    return True
+                with connection.makefile("rb") as stream:
+                    banner = stream.readline(255)
+                if banner.startswith(banner_prefix) and banner.endswith(b"\n"):
+                    return True
         except OSError:
-            time.sleep(interval)
+            pass
+        time.sleep(interval)
     return False
