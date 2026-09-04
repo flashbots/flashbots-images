@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/_release-buildernet-image.yml
     with:
       r2-path-prefix: "buildernet-images"
-      checksum-globs: "buildernet-*.{efi,tar.gz,vhd,qcow2}"
-      r2-include: "buildernet-*.{efi,tar.gz,vhd,qcow2,minisig,sha256}"
+      checksum-globs: "buildernet-*.{efi,tar.gz,vhd,qcow2,json}"
+      r2-include: "buildernet-*.{efi,tar.gz,vhd,qcow2,minisig,sha256,json}"
       cache-name: "cache"
     secrets: inherit
