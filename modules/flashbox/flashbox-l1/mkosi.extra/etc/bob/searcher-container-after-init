@@ -13,10 +13,10 @@ exec_in_container '
 # no DNS). US nodes are listed first for latency. Mapping all IPs to
 # rpc.buildernet.org here means failover is dial-level (next IP on connect
 # failure), not health-aware like the BuilderNet load balancer.
-34.85.211.230  fb-gcp-use4-00.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
 200.225.47.181 fb-om-use1-00.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
-34.150.234.122 nethermind-gcp-eastus-101.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
-34.12.189.183  fb-gcp-euw4-00.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
-34.91.129.156  nethermind-gcp-westeurope-100.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
+200.225.47.183 fb-om-use1-01.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
+198.203.202.53  fb-om-euw1-00.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
+198.203.202.55  fb-om-euw1-01.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
+198.203.203.37  fb-om-ap1-00.nodes.buildernet.org direct-ap.buildernet.org rpc.buildernet.org
 34.104.157.101 fb-gcp-ane1-00.nodes.buildernet.org direct-ap.buildernet.org rpc.buildernet.org
 EOF'

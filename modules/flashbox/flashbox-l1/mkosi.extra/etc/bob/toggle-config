@@ -12,11 +12,11 @@ PRODUCTION_ENDPOINTS=(
     "3.136.107.142:Flashbots protect tx"
     "3.149.14.12:Flashbots protect tx"
     # BuilderNet (tx stream + bundle submission share these IPs)
-    "34.85.211.230:BuilderNet fb-gcp-use4-00"
     "200.225.47.181:BuilderNet fb-om-use1-00"
-    "34.150.234.122:BuilderNet nethermind-eastus"
-    "34.12.189.183:BuilderNet fb-gcp-euw4-00"
-    "34.91.129.156:BuilderNet nethermind-westeurope"
+    "200.225.47.183:BuilderNet fb-om-use1-01"
+    "198.203.202.53:BuilderNet fb-om-euw1-00"
+    "198.203.202.55:BuilderNet fb-om-euw1-01"
+    "198.203.203.37:BuilderNet fb-om-ap1-00"
     "34.104.157.101:BuilderNet fb-gcp-ane1-00"
 )
 
