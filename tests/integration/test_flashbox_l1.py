@@ -77,7 +77,7 @@ def test_push_key(vm_ip, searcher_key):
     assert resp.status_code == 200, resp.text
 
 
-def test_attest(vm_ip, tmp_path):
+def test_attest(vm_ip, tmp_path, known_hosts_file):
     # the key push releases wait-for-key, which lets dropbear and then
     # attested-tls-proxy start. The port coming up validates the boot
     # chain, so that part stays a hard failure
@@ -105,7 +105,9 @@ def test_attest(vm_ip, tmp_path):
             if proxy.poll() is not None:
                 break
             try:
-                resp = requests.get(f"http://{PROXY_LISTEN}", timeout=10)
+                resp = requests.get(
+                    f"http://{PROXY_LISTEN}/pubkey", timeout=10,
+                )
                 break
             except requests.ConnectionError:
                 time.sleep(2)
@@ -137,6 +139,18 @@ def test_attest(vm_ip, tmp_path):
                 f"{attestation_diagnostics(vm_ip, tmp_path)}",
                 pytrace=False,
             )
+
+        assert resp.status_code == 200, \
+            f"attested /pubkey returned HTTP {resp.status_code}: {resp.text}"
+        host_keys = [line.strip() for line in resp.text.splitlines()
+                     if line.strip()]
+        assert host_keys and all(
+            key.split()[0].startswith(("ssh-", "ecdsa-", "sk-"))
+            for key in host_keys
+        ), f"attested /pubkey returned no valid SSH host keys: {resp.text!r}"
+        known_hosts_file.write_text("".join(
+            f"{vm_ip} {key}\n" for key in host_keys
+        ))
     finally:
         proxy.kill()
 

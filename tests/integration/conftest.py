@@ -9,8 +9,6 @@ import pytest
 
 SSH_OPTS = [
     "-o", "BatchMode=yes",
-    "-o", "StrictHostKeyChecking=no",
-    "-o", "UserKnownHostsFile=/dev/null",
     "-o", "ConnectTimeout=10",
     "-o", "IdentitiesOnly=yes",
     "-o", "LogLevel=ERROR",
@@ -56,12 +54,20 @@ def disk_passphrase():
 
 
 @pytest.fixture(scope="session")
-def searchersh(vm_ip, searcher_key):
+def known_hosts_file(tmp_path_factory):
+    return tmp_path_factory.mktemp("ssh") / "known_hosts"
+
+
+@pytest.fixture(scope="session")
+def searchersh(vm_ip, searcher_key, known_hosts_file):
     """Run a searchersh menu command over dropbear."""
 
     def run(command, timeout=60, input_text=None):
         return subprocess.run(
-            ["ssh", *SSH_OPTS, "-i", searcher_key["private"],
+            ["ssh", *SSH_OPTS,
+             "-o", "StrictHostKeyChecking=yes",
+             "-o", f"UserKnownHostsFile={known_hosts_file}",
+             "-i", searcher_key["private"],
              f"searcher@{vm_ip}", command],
             capture_output=True, text=True, timeout=timeout,
             input=input_text,
