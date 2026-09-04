@@ -3,23 +3,13 @@ set -euxo pipefail
 
 source scripts/make_git_package.sh
 
-# Compile lighthouse
-LIGHTHOUSE_BUILD_CMD="
-    export CARGO_INCREMENTAL=0
-    export LC_ALL=C
-    export TZ=UTC
-    export SOURCE_DATE_EPOCH=\$(git log -1 --pretty=%ct)
-    export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
-
-    cargo build --bin lighthouse \
-        --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,jemalloc-unprefixed \
-        --profile release \
-        --locked \
-        --target x86_64-unknown-linux-gnu
-"
+# Build sync-proxy: receives Engine API calls mirrored from the external sync
+# cluster and forwards them to the searcher's EL (see readme.md, "sync-proxy").
+# TODO: switch to a release tag once the mirror-mode/metrics PRs are merged upstream.
+SYNC_PROXY_REF="870715b"
 make_git_package \
-    "lighthouse" \
-    "v8.2.1" \
-    "https://github.com/sigp/lighthouse.git" \
-    "$LIGHTHOUSE_BUILD_CMD" \
-    "target/x86_64-unknown-linux-gnu/release/lighthouse:/usr/bin/lighthouse"
+    "sync-proxy" \
+    "$SYNC_PROXY_REF" \
+    "https://github.com/flashbots/sync-proxy" \
+    "go build -trimpath -ldflags \"-s -w -buildid= -X main.version=${SYNC_PROXY_REF}\" -o ./build/sync-proxy ." \
+    "build/sync-proxy:/usr/bin/sync-proxy"

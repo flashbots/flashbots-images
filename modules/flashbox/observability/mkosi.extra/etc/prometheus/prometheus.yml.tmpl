@@ -26,6 +26,17 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9256']
 
+  # sync-proxy (flashbox-l1): forwards of mirrored Engine API calls to the
+  # searcher EL. This observability module is currently only included by
+  # flashbox-l1; on an image without sync-proxy this target would just be down.
+  - job_name: 'sync-proxy'
+    static_configs:
+      - targets: ['localhost:9106']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'syncproxy_.*'
+        action: keep
+
 # Remote write via the internal Prometheus metrics proxy at the fixed proxy IP,
 # so no DNS resolution happens on the VM; TLS SNI + cert validation are
 # overridden via tls_config.server_name to match the cert the proxy's upstream

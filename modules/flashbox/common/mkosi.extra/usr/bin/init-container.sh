@@ -79,9 +79,10 @@ ns_iptables -A OUTPUT -d 169.254.169.254 -j DROP
 # Block container from reaching the internal Prometheus Proxy
 ns_iptables -A OUTPUT -d $PROMETHEUS_PROXY_IP -j DROP
 
-# Block consensus layer P2P port (TCP and UDP)
-ns_iptables -A OUTPUT -p tcp --dport 9000 -j DROP
-ns_iptables -A OUTPUT -p udp --dport 9000 -j DROP
+# Block the host's sync-proxy listener (flashbox-l1). The host firewall only
+# admits internal source addresses to this port, and the podman subnet is
+# internal too — so the container must be blocked here.
+ns_iptables -A OUTPUT -p tcp --dport 8552 -j DROP
 
 # Block NTP port (UDP, rarely TCP)
 ns_iptables -A OUTPUT -p udp --dport 123 -j DROP
