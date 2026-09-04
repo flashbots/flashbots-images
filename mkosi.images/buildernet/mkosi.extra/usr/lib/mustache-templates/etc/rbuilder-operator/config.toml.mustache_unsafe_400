@@ -1,4 +1,3 @@
-adjust_finalized_blocks = true
 any_position_max_sims_per_second = {{rbuilder.any_position_max_sims_per_second}}
 any_position_simulation_threads = {{rbuilder.any_position_simulation_threads}}
 blocklist = "{{rbuilder.blocklist}}"
@@ -26,6 +25,7 @@ key_registration_url = "http://127.0.0.1:7937"
 live_builders = {{{rbuilder.live_builders}}}
 max_bob_state_filters = 35
 max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
+mev_blocker_delayed_refund_pct = {{rbuilder.mev_blocker_delayed_refund_pct}}
 priority_update_events = {{{rbuilder.priority_update_events}}}
 priority_update_grpc_server_ip = "127.0.0.1"
 priority_update_grpc_server_port = 8745

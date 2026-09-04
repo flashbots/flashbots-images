@@ -5,14 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=8e0a1a87b27faf84306233a243ca5e777614affd5a2e4b61aef4b6f68e14ff3e \
-            RBUILDER_OPERATOR_RETH_TAG=v1.9.0 \
+Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=b062a7c6be0c81738f327759cdf03abbcc03cbb99d43ad3adf39011e5f72b048 \
+            RBUILDER_OPERATOR_RETH_TAG=v1.10.3 \
             RBUILDER_OPERATOR_RETH_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.9.0-x86_64-unknown-linux-gnu \
-            RBUILDER_REBALANCER_SHA256SUM=c6ec66b5adc4ce1d41fe7047e7331473858554f744b041649c0cd2f4711a744a \
-            RBUILDER_REBALANCER_TAG=v1.9.0 \
+            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.10.3-x86_64-unknown-linux-gnu \
+            RBUILDER_REBALANCER_SHA256SUM=cecf4e5854559e1cba5446c6e101594a9554f5463ce854084db857ec824de71d \
+            RBUILDER_REBALANCER_TAG=v1.10.3 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
-            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.9.0-x86_64-unknown-linux-gnu
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.10.3-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 
 # rbuilder-operator-reth (reth EL with in-process rbuilder-operator)
