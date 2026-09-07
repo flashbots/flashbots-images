@@ -17,7 +17,9 @@ syft scan "dir:$root" \
   --source-version "$IMAGE_VERSION" \
   -o cyclonedx-json |
   jq --arg file "${image##*/}" --arg sha "$sha" '
-    del(.serialNumber)
+    # actions/attest requires serialNumber; derive a UUIDv8 from the image hash to stay reproducible
+    def hexval: . as $c | "0123456789abcdef" | index($c);
+    .serialNumber = "urn:uuid:\($sha[0:8])-\($sha[8:12])-8\($sha[13:16])-\(["8","9","a","b"][($sha[16:17] | hexval) % 4])\($sha[17:20])-\($sha[20:32])"
     | del(.components[].properties[]? | select(.name == "syft:cpe23"))
     | .metadata.timestamp = "1970-01-01T00:00:00Z"
     | .metadata.component += {

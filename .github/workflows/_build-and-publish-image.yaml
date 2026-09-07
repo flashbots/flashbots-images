@@ -156,10 +156,13 @@ jobs:
           shopt -s nullglob
           cd build
           efi=("${ARTIFACT_PREFIX}"_*.efi) sbom=("${ARTIFACT_PREFIX}"_*.sbom.cdx.json)
-          ((${#efi[@]} == 1 && ${#sbom[@]} == 1))
+          ((${#efi[@]} == 1 && ${#sbom[@]} <= 1))
+          if ((${#sbom[@]} == 0)); then
+            echo "::warning::no ${ARTIFACT_PREFIX}_*.sbom.cdx.json in build/, skipping SBOM attestation"
+          fi
           sha256sum "${ARTIFACT_PREFIX}"_*.{efi,raw,tar.gz,qcow2,sbom.cdx.json} \
             portable_measurements.json >SHA256SUMS
-          printf 'EFI_FILE=build/%s\nSBOM_FILE=build/%s\n' "${efi[0]}" "${sbom[0]}" >>"$GITHUB_ENV"
+          printf 'EFI_FILE=build/%s\nSBOM_FILE=%s\n' "${efi[0]}" "${sbom[0]:+build/${sbom[0]}}" >>"$GITHUB_ENV"
 
       - name: Attest build provenance
         id: attest-provenance
@@ -174,12 +177,14 @@ jobs:
 
       - name: Attest SBOM
         id: attest-sbom
+        if: ${{ env.SBOM_FILE != '' }}
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           subject-path: ${{ env.EFI_FILE }}
           sbom-path: ${{ env.SBOM_FILE }}
 
       - name: Export SBOM bundle
+        if: ${{ env.SBOM_FILE != '' }}
         env:
           BUNDLE_PATH: ${{ steps.attest-sbom.outputs.bundle-path }}
         run: cp "${BUNDLE_PATH}" build/sbom.sigstore.json
@@ -190,9 +195,11 @@ jobs:
         run: |
           gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
             --bundle build/provenance.sigstore.json
-          gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
-            --bundle build/sbom.sigstore.json \
-            --predicate-type https://cyclonedx.org/bom
+          if [[ -n "${SBOM_FILE}" ]]; then
+            gh attestation verify "${EFI_FILE}" --repo "${GITHUB_REPOSITORY}" \
+              --bundle build/sbom.sigstore.json \
+              --predicate-type https://cyclonedx.org/bom
+          fi
 
       - name: Install rclone
         run: |
@@ -285,7 +292,9 @@ jobs:
             echo ""
             echo '```bash'
             echo "gh attestation verify <artifact> --repo ${GITHUB_REPOSITORY} --bundle provenance.sigstore.json"
-            echo "gh attestation verify <the .efi> --repo ${GITHUB_REPOSITORY} --bundle sbom.sigstore.json --predicate-type https://cyclonedx.org/bom"
+            if [[ -n "${SBOM_FILE}" ]]; then
+              echo "gh attestation verify <the .efi> --repo ${GITHUB_REPOSITORY} --bundle sbom.sigstore.json --predicate-type https://cyclonedx.org/bom"
+            fi
             echo '```'
             echo ""
             echo "### 🔁 Reproduce the image hashes"
