@@ -15,6 +15,7 @@ NvVars
 
 .temp
 tmp/
+__pycache__/
 
 # IDEs/agents/whatnot
 
