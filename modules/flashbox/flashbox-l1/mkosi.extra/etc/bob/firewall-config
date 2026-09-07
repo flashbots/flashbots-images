@@ -38,7 +38,6 @@ FLASHBOTS_TX_STREAM_2="3.149.14.12"
 #
 # Production mode has no DNS, so these are addressed by IP; the hostnames searchers
 # connect to (for TLS) are mapped statically in searcher-container-after-init.
-# Keep this list in sync with devops/terraform/cloudflare/buildernet/_config.tf.
 BUILDERNET_FB_OM_USE1_00="200.225.47.181"  # fb-om-use1-00  (US east)
 BUILDERNET_FB_OM_USE1_01="200.225.47.183"  # fb-om-use1-01  (US east)
 BUILDERNET_FB_OM_EUW1_00="198.203.202.53"  # fb-om-euw1-00  (EU west)
