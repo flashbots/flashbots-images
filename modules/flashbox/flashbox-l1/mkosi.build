@@ -11,7 +11,7 @@ LIGHTHOUSE_BUILD_CMD="
     export SOURCE_DATE_EPOCH=\$(git log -1 --pretty=%ct)
     export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
-    cargo build --bin lighthouse \
+    cargo auditable build --bin lighthouse \
         --features gnosis,slasher-lmdb,slasher-mdbx,slasher-redb,jemalloc-unprefixed \
         --profile release \
         --locked \

@@ -21,6 +21,7 @@ build_rust_package() {
 
     # Clone the repository
     local build_dir="$BUILDROOT/build/$package"
+    local source_url=$git_url
     mkdir -p "$build_dir"
     set +x # don't leak github token into logs
     echo "Cloning ${git_url}"
@@ -38,6 +39,12 @@ build_rust_package() {
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
     printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
 
+    mkdir -p "${ARTIFACTDIR:?}/sbom"
+    local repository=${source_url#*://*/}
+    local vcs_url=$(printf 'git+%s@%s' "$source_url" "$(git -C "$build_dir" rev-parse HEAD)" | jq -sRr @uri)
+    printf 'pkg:generic/%s/%s@%s?arch=%s&vcs_url=%s\n' "${repository%/*}" "$package" "$version" "$DISTRIBUTION_ARCHITECTURE" "$vcs_url" \
+        > "$ARTIFACTDIR/sbom/$package.sbom"
+
     # If binary is cached, skip compilation
     if [ -n "${extra_features}" ]; then
         local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}-${extra_features}/${package}"
@@ -45,7 +52,7 @@ build_rust_package() {
         local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     fi
     local cached_binary="${cached_binary//,/-}"
-    if [ -f "$cached_binary" ]; then
+    if [ -f "$cached_binary" ] && grep -aFq .dep-v0 "$cached_binary"; then
         echo "Using cached binary for $package version $version"
         if [ -n "${extra_features}" ]; then
             echo "| \`$package\`  | \`$version\` (\`$git_describe\`, features: ${extra_features})  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" ">> $BUILDDIR/manifest.md"
@@ -83,7 +90,7 @@ build_rust_package() {
                CARGO_TERM_COLOR='never'
         cd '/build/$package'
         cargo fetch
-        cargo build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
+        cargo auditable build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
     "
     local seconds=$(( $( date +%s ) - ts ))
     local duration=$( printf "%dm%ds" $(( seconds / 60 )) $(( seconds % 60 )) )
