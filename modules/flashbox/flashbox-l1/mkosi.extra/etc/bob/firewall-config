@@ -38,12 +38,13 @@ FLASHBOTS_TX_STREAM_2="3.149.14.12"
 #
 # Production mode has no DNS, so these are addressed by IP; the hostnames searchers
 # connect to (for TLS) are mapped statically in searcher-container-after-init.
-BUILDERNET_FB_USE4="34.85.211.230"     # fb-gcp-use4-00            (US east)
-BUILDERNET_FB_USE1="200.225.47.181"    # fb-om-use1-00             (US east)
-BUILDERNET_NM_USE="34.150.234.122"     # nethermind-gcp-eastus-101 (US east)
-BUILDERNET_FB_EUW4="34.12.189.183"     # fb-gcp-euw4-00            (EU west)
-BUILDERNET_NM_EUW="34.91.129.156"      # nethermind-gcp-westeurope (EU west)
-BUILDERNET_FB_ANE1="34.104.157.101"    # fb-gcp-ane1-00            (AP northeast)
+# Keep this list in sync with devops/terraform/cloudflare/buildernet/_config.tf.
+BUILDERNET_FB_OM_USE1_00="200.225.47.181"  # fb-om-use1-00  (US east)
+BUILDERNET_FB_OM_USE1_01="200.225.47.183"  # fb-om-use1-01  (US east)
+BUILDERNET_FB_OM_EUW1_00="198.203.202.53"  # fb-om-euw1-00  (EU west)
+BUILDERNET_FB_OM_EUW1_01="198.203.202.55"  # fb-om-euw1-01  (EU west)
+BUILDERNET_FB_OM_AP1_00="198.203.203.37"   # fb-om-ap1-00   (AP northeast)
+BUILDERNET_FB_GCP_ANE1_00="34.104.157.101" # fb-gcp-ane1-00 (AP northeast)
 
 # Prometheus metrics proxy
 PROMETHEUS_PROXY_IP="10.88.0.100"
@@ -105,7 +106,7 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
 drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 "Flashbots Protect (DROP before accept-all rules)"
 
 # Block BuilderNet endpoints during maintenance. 
-drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 "BuilderNet (DROP before accept-all rules)"
+drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_OM_AP1_00,$BUILDERNET_FB_GCP_ANE1_00 "BuilderNet (DROP before accept-all rules)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -130,4 +131,4 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
 
 # BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_USE4,$BUILDERNET_FB_USE1,$BUILDERNET_NM_USE,$BUILDERNET_FB_EUW4,$BUILDERNET_NM_EUW,$BUILDERNET_FB_ANE1 $HTTPS_PORT "BuilderNet tx stream + bundle submission"
+accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_OM_AP1_00,$BUILDERNET_FB_GCP_ANE1_00 $HTTPS_PORT "BuilderNet tx stream + bundle submission"
