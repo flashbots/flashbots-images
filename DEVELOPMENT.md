@@ -228,16 +228,16 @@ set -euxo pipefail
 
 source scripts/build_rust_package.sh
 
-# Build a Rust package
+# Build a Rust package (see modules/flashbox/common/mkosi.build for real uses)
 build_rust_package \
-    "lighthouse" \                             # Package name
-    "v7.0.1" \                                 # Git tag
-    "https://github.com/sigp/lighthouse.git" \ # Repository URL
-    "$LIGHTHOUSE_BINARY" \                     # Pre-built binary (optional)
-    "modern" \                                 # Cargo features (optional)
-    "-l z -l zstd -l snappy"                   # Extra RUSTFLAGS (optional)
+    "input-only-proxy" \                                 # Package name
+    "v0.0.2" \                                           # Git tag
+    "https://github.com/flashbots/input-only-proxy" \    # Repository URL
+    "$PREBUILT_BINARY" \                                 # Pre-built binary (optional, from Environment=)
+    "some-feature" \                                     # Cargo features (optional)
+    "-l z -l zstd"                                       # Extra RUSTFLAGS (optional)
 
-# Package will be installed to /usr/bin/lighthouse
+# Package will be installed to /usr/bin/input-only-proxy
 ```
 
 ### Building Generic Projects

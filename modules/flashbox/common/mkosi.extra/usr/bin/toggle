@@ -189,7 +189,7 @@ configure_mode_rules() {
 
 ###############################################################################
 # Container Namespace Rule Verification
-# Check that the searcher-container-netns iptables rules blocking port 9000 are active
+# Check that the searcher-container-netns iptables DROP rules (sync-proxy port, NTP, input channels, metadata, metrics proxy) are active
 ###############################################################################
 check_searcher_namespace_rules() {
     local cont_name="searcher-container"
@@ -214,8 +214,7 @@ check_searcher_namespace_rules() {
 
     # 3) Check if the DROP rules on critical ports are present in OUTPUT chain
     #    -C (check) returns 0 if a matching rule is found, 1 otherwise
-    if nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 9000 -j DROP 2>/dev/null \
-       && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --dport 9000 -j DROP 2>/dev/null \
+    if nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 8552 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p udp --sport 27017 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27017 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --sport 27018 -j DROP 2>/dev/null \
@@ -223,10 +222,10 @@ check_searcher_namespace_rules() {
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -p tcp --dport 123 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -d 169.254.169.254 -j DROP 2>/dev/null \
        && nsenter --target "$pid" --net $IPTABLES -C OUTPUT -d $PROMETHEUS_PROXY_IP -j DROP 2>/dev/null; then
-        echo "OK: searcher-container firewall rules (DROP tcp/udp dport 9000/123, tcp/udp sport 27017, tcp sport 27018, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are ACTIVE."
+        echo "OK: searcher-container firewall rules (DROP tcp dport 8552, tcp/udp dport 123, tcp/udp sport 27017, tcp sport 27018, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are ACTIVE."
         return 0
     else
-        echo "WARNING: One or more searcher-container firewall rules (DROP ports 9000/27017/27018/123, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are NOT found."
+        echo "WARNING: One or more searcher-container firewall rules (DROP ports 8552/27017/27018/123, GCE metadata 169.254.169.254, metrics proxy 10.88.0.100) are NOT found."
         return 1
     fi
 }

@@ -16,8 +16,16 @@ HTTP_PORT=80
 HTTPS_PORT=443
 NTP_PORT=123
 NTP_NTS_PORT=4460
-CL_P2P_PORT=9000
 EL_P2P_PORT=30303
+
+# sync-proxy: receives Engine API calls mirrored from the sync cluster (CL +
+# nginx mirror) that runs in our own VPC, and forwards them to the searcher EL.
+# Inbound only, restricted to internal source addresses. The searcher netns has
+# a DROP towards this port (see init-container.sh) because the podman subnet is
+# inside this range too.
+# TODO(devops): narrow to the sync cluster's subnet / mirror IP.
+SYNC_PROXY_PORT=8552
+SYNC_PROXY_ALLOWED_SRC="10.0.0.0/8"
 
 # Flashbots bundle (always on)
 FLASHBOTS_BUNDLE_1="18.221.59.61"
@@ -61,18 +69,13 @@ accept_dst_port $CHAIN_ALWAYS_IN tcp $SEARCHER_INPUT_TCP_PORT "Searcher TCP inpu
 #    which serves searcher-container openssh server pubkey
 accept_dst_port $CHAIN_ALWAYS_IN tcp $ATTESTED_TLS_PROXY_PORT "attested-tls-proxy"
 
-# Note: this is CL running on the host
-accept_dst_port $CHAIN_ALWAYS_IN tcp $CL_P2P_PORT "CL P2P (TCP)"
-accept_dst_port $CHAIN_ALWAYS_IN udp $CL_P2P_PORT "CL P2P (UDP)"
+# Engine API drive from the sync cluster must work in both modes so the searcher
+# EL stays in sync during maintenance as well.
+accept_src_ip_dst_port $CHAIN_ALWAYS_IN tcp "$SYNC_PROXY_ALLOWED_SRC" $SYNC_PROXY_PORT "sync-proxy (Engine API mirror from VPC)"
 
 ###########################################################################
 # (2) ALWAYS_OUT: Outbound rules that are always applied
 ###########################################################################
-
-# Note: this is CL running on the host, searcher netns has DROP on those
-# See also init-container.sh
-accept_dst_port $CHAIN_ALWAYS_OUT tcp $CL_P2P_PORT "CL P2P (TCP)"
-accept_dst_port $CHAIN_ALWAYS_OUT udp $CL_P2P_PORT "CL P2P (UDP)"
 
 # Note: this is accessible only from host, searcher netns has DROP on those
 accept_dst_port $CHAIN_ALWAYS_OUT udp $NTP_PORT "NTP"

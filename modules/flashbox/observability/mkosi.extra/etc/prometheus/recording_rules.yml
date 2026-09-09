@@ -43,3 +43,19 @@ groups:
           (sum(rate(node_network_receive_bytes_total{device!~"lo"}[5m]))
           + sum(rate(node_network_transmit_bytes_total{device!~"lo"}[5m])))
           > bool 0
+
+      # flashbox-l1 only. 1 if the searcher's EL accepted (2xx) at least one
+      # forwarded engine_newPayload/forkchoiceUpdated in the last 5m — i.e. the
+      # sandbox is demonstrably receiving engine calls from the sync cluster.
+      # 0 if calls arrive but the EL is down, hanging, or rejecting the JWT
+      # (those show up as result="error"/"http_error" instead). `or vector(0)`
+      # makes it an explicit 0 (not an absent series) before the first-ever
+      # successful forward, so "never worked" alerts the same as "stopped working".
+      - record: flashbox:searcher_receiving_engine_calls
+        expr: >
+          (sum(rate(syncproxy_forwards_total{result="success",method=~"engine_(newPayload|forkchoiceUpdated).*"}[5m]))
+          > bool 0) or vector(0)
+
+      # flashbox-l1 only. 1 if the sync-proxy metrics endpoint is scrapeable.
+      - record: flashbox:sync_proxy_is_up
+        expr: up{job="sync-proxy"}

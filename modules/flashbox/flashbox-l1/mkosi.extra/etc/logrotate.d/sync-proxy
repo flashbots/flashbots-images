@@ -1,0 +1,12 @@
+# Rotate sync-proxy logs daily, keeping 5 old copies. copytruncate so the
+# systemd append: writer and any tail inside the container keep their handles.
+/persistent/sync_proxy_logs/*.log {
+    daily
+    rotate 5
+    copytruncate
+    missingok
+    notifempty
+    compress
+    dateformat -%Y%m%d-%H%M%S
+    maxsize 500M
+}
