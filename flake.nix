@@ -52,8 +52,8 @@
     attest-src = pkgs.fetchFromGitHub {
       owner = "Easy-TEE";
       repo = "attest";
-      rev = "e7f59c78f9eabd5d1ac7c9e96da46027878d038c";
-      hash = "sha256-4PKNsN8j2P6YJfzghz0U28+Bm3BhS/CveR/mSx3oUg8=";
+      rev = "12f1e29f6ea63ecc2f80f39c2c1f1172720bcf24";
+      hash = "sha256-Ekn8SMhgOzdK3RCGIUVviyge56gX08ZQVFWopsnOneM=";
     };
     attest = pkgs.rustPlatform.buildRustPackage {
       pname = "attest";
@@ -81,6 +81,7 @@
         erofs-utils
         mtools
         gptfdisk
+        binutils
         util-linux
         zstd
         which
@@ -94,6 +95,7 @@
         findutils
         gnused
         gnugrep
+        gawk
         gnutar
         gzip
         xz
@@ -113,8 +115,8 @@
           src = pkgsForSystem.fetchFromGitHub {
             owner = "systemd";
             repo = "mkosi";
-            rev = "df51194bc2d890d4c267af644a1832d2d53339ac";
-            hash = "sha256-rGGzE9xIR8WvK07GBnaAmeLpmnM3Uy51wqyrmuHuWXo=";
+            rev = "f33cc45db3ddf0ed57594b58c9c161169d46e03c";
+            hash = "sha256-wjgucAQzjMy7GJiB+pbmYs3Fxvmg77gGGKIWlrJrarQ=";
           };
           # TODO: remove these patch hunks from upstream nixpkgs next time mkosi has a release
           # The latest mkosi doesn't need them
@@ -122,10 +124,15 @@
           postPatch = let
             fd = "${pkgs.patchutils}/bin/filterdiff";
           in ''
-            { ${fd} -x '*/run.py' --hunks=x2   ${builtins.elemAt old.patches 0}
+            { ${fd} -x '*/run.py' --hunks=x2,6 ${builtins.elemAt old.patches 0}
               ${fd} -i '*/run.py' --hunks=x1-2 ${builtins.elemAt old.patches 0}
               ${fd} --hunks=x1                 ${builtins.elemAt old.patches 1}
-            } | patch -p1
+            } | patch -p1 -F0
+
+            # From original nix package
+            substituteInPlace mkosi/__init__.py --replace-fail \
+              'systemd_tool_version(python_binary(context.config), ukify, sandbox=context.sandbox)' \
+              'systemd_tool_version(ukify, sandbox=context.sandbox)'
 
             # Don't add /usr/bin and /usr/sbin to the PATH, only use /nix
             sed -i -E '\#^\s+"/usr/(bin|sbin)",$#d' mkosi/run.py

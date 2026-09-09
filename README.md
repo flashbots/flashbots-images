@@ -68,6 +68,14 @@ make measure-portable
 
 This will create a file `build/portable_measurements.json` which can be used for [portable measurement policies](https://github.com/flashbots/attested-tls/tree/main/crates/attestation#portable-measurement-policies).
 
+To require GCP provenance as well as the image measurements:
+
+```bash
+make measure-portable-gcp
+```
+
+This also generates `build/portable_measurements.json` and writes a policy with `attestation_type: "gcp-tdx"` to `build/measurements-gcp.json`, ready to pass to `attested-tls-proxy --measurements-file`. Both portable measurement targets accept `FILE=/path/to/image.efi` (default: `build/latest.efi`).
+
 ### Running Images
 
 **Add yourself to the kvm group** (to run QEMU without sudo):

@@ -200,9 +200,17 @@ cd flashbots-images
 make measure-portable
 ```
 
-This will write the OS image hashes to the file `./build/portable_measurements.json`.
+This writes the OS image hashes to `./build/portable_measurements.json`.
 
-Check that the contents of this file is identical to the same file in the [release assets of the flashbots-image release](https://github.com/flashbots/flashbots-images/releases) you are building.
+If you are deploying on GCP, use this command instead:
+
+```bash
+make measure-portable-gcp
+```
+
+This generates the same `./build/portable_measurements.json` and also writes a GCP-only attestation policy to `./build/measurements-gcp.json`.
+
+Check that the contents of `portable_measurements.json` are identical to the same file in the [release assets of the flashbots-image release](https://github.com/flashbots/flashbots-images/releases) you are building.
 
 > Note: at the time of the writing, compiling flashbox-l1 image is not reproducible if building under ARM mac with Rosetta. Please use x86_64 Linux for now.
 
@@ -210,26 +218,30 @@ Check that the contents of this file is identical to the same file in the [relea
 
 Flashbots uses a custom [attested TLS protocol](https://github.com/flashbots/attested-tls-proxy/blob/main/attested-tls/README.md) to retrieve a TDX DCAP attestation and compare it with expected measurement values built from the locally supplied OS image hashes.
 
+For GCP deployments, if the clients measurement policy specifies `"attestation_type": "gcp-tdx"`, GCP provenance verification will be used in addition to DCAP quote and image measurement verification. The verifier checks the platform identifier (PPID) from the quote's PCK certificate against Google's confidential host registry. The `make measure-portable-gcp` command above specifies this in the policy to enable these checks.
+
 After deploying to GCP, and uploading SSH public key via a POST request:
 
 ```bash
 # download remote attestation tool
 git clone https://github.com/flashbots/attested-tls-proxy.git
+cp build/measurements-gcp.json attested-tls-proxy/measurements.json
 cd attested-tls-proxy
 
 # This will run the client proxy that is listening on port 8080
 # and use the server reverse proxy on the deployed image as a target,
 # marshalling the measurements.json for validation of the attestation.
-cargo run -- client \
+cargo run --locked -- client \
   --listen-addr 127.0.0.1:8080 \
   --allow-self-signed \
   --measurements-file ./measurements.json \
   --log-debug \
   <VM IP>:8745
 
-# If attestation can be successfully validated against the given image hashes
+# If GCP provenance and attestation validate against the given image hashes,
 # you should see the measurement values displayed as in the example output below.
 
+# In a second terminal, while the client proxy remains running:
 # Bind the attested host keys to known_hosts.
 # This ensures the ssh server the searcher connects to is the one running on the
 # attested machine. The attested :8745 channel and the host (dropbear) control-plane
