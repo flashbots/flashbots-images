@@ -26,7 +26,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure measure-portable clean check-module
+.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module
 
 # Default target
 all: build
@@ -55,6 +55,10 @@ measure: ## Export TDX measurements for the built EFI file
 measure-portable: ## Export portable measurements for the built EFI file
 	@$(WRAPPER) bash -c 'attest measure portable "$$1" > build/portable_measurements.json' _ "$(FILE)"
 	echo "Portable measurements exported to build/portable_measurements.json"
+
+measure-portable-gcp: measure-portable ## Export a portable GCP-only attestation policy for the built EFI file
+	@$(WRAPPER) bash -c 'jq -e "[{attestation_type: \"gcp-tdx\", dcap_image_hashes: .dcap}]" build/portable_measurements.json > build/measurements-gcp.json'
+	echo "GCP attestation policy exported to build/measurements-gcp.json"
 
 measure-gcp: ## Export TDX measurements for GCP
 	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
