@@ -16,4 +16,5 @@ jobs:
       checksum-globs: "buildernet-*.qcow2"
       r2-include: "buildernet-*.{qcow2,minisig,sha256}"
       cache-name: "cache-playground"
+      portable-measurements: false
     secrets: inherit
