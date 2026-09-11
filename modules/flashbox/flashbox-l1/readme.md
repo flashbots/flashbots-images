@@ -13,6 +13,7 @@ Using Intel TDX, Flashbots has built a way for searchers to trustlessly backrun 
   - [BuilderNet](#searching-on-buildernets-bottom-of-block)
 - [Disk Persistence](#disk-persistence)
 - [Searcher Commands and Services](#searcher-commands-and-services)
+  - [Input Channels](#input-channels)
 - [Developer Notes](#developer-notes)
 - [Security](#security)
 
@@ -30,11 +31,12 @@ But, in the TDX image, the searcher is also restricted to its own user group wit
 
 Image Overview
 ------------------------
-There are three key features of the image:
+There are four key features of the image:
 
 1. **Network namespaces and firewall rules** that enforce a searcher cannot SSH into the container while transactions are being streamed in, and the only way information can leave is through the order flow provider's endpoints.
 2. A **log delay** script that enforces a 5 minute (~25 block) delay until the searcher can view their machine logs.
 3. **Mode switching** which allows a searcher to toggle between production and maintenance modes, where the SSH connection is cut and restored respectively.
+4. **Inbound-only input channels** that let a searcher push data into the container during production mode, authenticated with their SSH key, without any path for data to flow back out.
 
 Together, they provide the “no-frontrunning” guarantee to order flow providers while balancing searcher bot visibility and maintenance.
 
@@ -47,9 +49,13 @@ Together, they provide the “no-frontrunning” guarantee to order flow provide
     2. Toggle between production and maintenance modes
     2. Check which mode the machine is in
     3. Print delayed logs during production mode without triggering maintenance mode
-- Searchers write logs to a file from their container which is also mounted on the host. The host runs ncat to forward and delay logs from this file to another file on the host, which can be accessed externally by the searcher via the dropbear SSH command above. The delay is currently configured to be five minutes.
+- Searchers write logs to a file from their container which is also mounted on the host. The host runs [`delay-pipe`](https://github.com/flashbots/delay-pipe) to forward and delay logs from this file to another file on the host, which can be accessed externally by the searcher via the dropbear SSH command above. The delay is currently configured to be five minutes.
     - The host will also run logrotate to maintain storage usage, compressing .log files daily and deleting .log files older than five days.
 - The searcher’s proprietary EL node communicates with a Lighthouse CL node run on the host over a shared JWT secret file mount and the engine API on port 8551.
+- Searchers can push data (e.g. bot updates, configuration, state snapshots) into the container during production mode over two **inbound-only input channels**, without opening the SSH data plane:
+    - **UDP 27017** is forwarded by podman straight into the container.
+    - **TCP 27018** is terminated on the host by [input-only-proxy](https://github.com/flashbots/input-only-proxy). The proxy requires a TLS 1.3 client certificate whose Ed25519 key matches the searcher's registered SSH public key, then forwards the decrypted stream to a Unix socket at `/persistent/input/input.sock` that the searcher's process inside the container listens on. Data is buffered without bound between the TLS reader and the socket writer, so the container's consumption speed cannot be observed by the sender. See [Input Channels](#input-channels) for the client workflow.
+    - Both channels are strictly one-way: iptables in the container's network namespace drops any packet the container tries to send from ports 27017 or 27018, so the channels cannot be used to leak order flow.
 
 To recap, searchers have two access points to the machine, both via SSH:
 1. Data plane: accessing the rootless podman container through OpenSSH server
@@ -68,7 +74,8 @@ Firewall Rules
 | 8080  | Input + Output            | SSH Registration                | Host                 | TCP       | DISABLED        | ENABLED          |
 | 22    | Input                     | Control Plane: Dropbear SSH     | Host                 | TCP       | ENABLED         | ENABLED          |
 | 10022 | Input                     | Data Plane: Open SSH            | Podman               | TCP       | DISABLED        | ENABLED          |
-| 27017 | Input                     | Searcher Input Channel          | Podman               | UDP       | ENABLED         | ENABLED          |
+| 27017 | Input                     | Searcher UDP Input Channel      | Podman               | UDP       | ENABLED         | ENABLED          |
+| 27018 | Input                     | Searcher TCP Input Channel ([input-only-proxy](https://github.com/flashbots/input-only-proxy)) | Host | TCP | ENABLED | ENABLED |
 | 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
 | 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
@@ -87,10 +94,23 @@ In production mode, all outgoing connections are IP whitelisted to builders exce
 But, we don’t want the searcher container to be able to send state diff information out through the open ports on the host, so we block this at the searcher network namespace with iptables.
 
 ```
+# CL P2P and NTP are host-only egress
 iptables -A OUTPUT -p tcp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 123 -j DROP
+iptables -A OUTPUT -p tcp --dport 123 -j DROP
+
+# Input channels are one-way: the container may not reply on them
+iptables -A OUTPUT -p udp --sport 27017 -j DROP
+iptables -A OUTPUT -p tcp --sport 27017 -j DROP
+iptables -A OUTPUT -p tcp --sport 27018 -j DROP
+
+# GCE metadata server and the host-side Prometheus metrics proxy
+iptables -A OUTPUT -d 169.254.169.254 -j DROP
+iptables -A OUTPUT -d 10.88.0.100 -j DROP
 ```
+
+The `toggle` command refuses to switch into production mode unless every one of these rules is present in the container's network namespace.
 
 **<u>ipv6</u>**
 
@@ -187,6 +207,10 @@ On the first startup, after the searcher's SSH key is received and stored, the s
 `Tdx-init` prompts the searcher for a passphrase via stdin, [formats]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L43)) the disk with LUKS2 encryption using this passphrase, and [embeds]((https://github.com/flashbots/tdx-init/blob/c357e1b5d9bc386c3446e87bddb6dd53ac01ea97/passphrase.go#L77)) the searcher's SSH key as metadata in the LUKS header.
 
 **This design ensures that only the searcher whose SSH key initialized the disk can decrypt it across image reboots.**
+
+**<u>Input Channel Authentication</u>**
+
+The searcher's SSH public key is also the credential for the TCP input channel on port 27018. [`input-only-proxy`](https://github.com/flashbots/input-only-proxy) reads the key from `/etc/searcher_key` and accepts only TLS client certificates carrying that exact Ed25519 key, so auditing this component is part of confirming that nobody else can push data into the container. The image builds it from source at the version pinned in [`mkosi.build`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.build); the service definition is in [`input-only-proxy.service`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.extra/etc/systemd/system/input-only-proxy.service). See [Input Channels](#input-channels) for how the channel is used.
 
 ### 2. audit and run the local measurement software
 
@@ -490,6 +514,9 @@ ssh searcher@<machine ip> tail-the-logs
 # restart lighthouse on the host
 ssh searcher@<machine ip> restart-lighthouse
 
+# print the input-only-proxy TLS server certificate (see Input Channels below)
+ssh searcher@<machine ip> input-cert
+
 # reboot the host virtual machine. Optional: --force
 ssh searcher@<machine ip> reboot [--force] 
 ```
@@ -505,6 +532,9 @@ ssh -p 10022 root@<machine IP>
 
 # configure EL to use this shared mount to communicate with lighthouse on the host
 /secrets/jwt.hex
+
+# listen on this Unix socket to receive data sent over the TCP input channel (port 27018)
+/persistent/input/input.sock
 
 # disk
 /persistent
@@ -538,6 +568,54 @@ Lighthouse is run on the host with the following configuration:
 --disable-optimistic-finalized-sync \
 --disable-quic
 ```
+
+### **input channels**
+
+Two inbound-only channels let searchers stream data into the container while in production mode, when the SSH data plane is closed.
+
+**<u>UDP 27017</u>**
+
+Podman forwards UDP port 27017 directly into the container. The image adds no authentication or encryption on this channel; whatever the searcher runs behind it is responsible for that. Anything the container tries to send back from port 27017 is dropped.
+
+**<u>TCP 27018 (input-only-proxy)</u>**
+
+TCP port 27018 is served on the host by [input-only-proxy](https://github.com/flashbots/input-only-proxy), a small Rust daemon pinned to `v0.0.2` in [`mkosi.build`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.build). It runs with:
+
+```bash
+input-only-proxy \
+  --listen 0.0.0.0:27018 \
+  --unix-socket /persistent/input/input.sock \
+  --pubkey-file /etc/searcher_key \
+  --cert-base-path /persistent/input-proxy
+```
+
+How it works:
+
+- **Authentication**: the connection is TLS 1.3 with mutual authentication. The client must present a certificate whose Ed25519 public key equals the searcher's registered SSH public key in `/etc/searcher_key`. Any other key gets a TLS `AccessDenied` alert. Since only one SSH key can ever be registered, only the searcher can use the channel.
+- **Server certificate**: self-signed, generated on first run and stored on the encrypted persistent disk as `/persistent/input-proxy.crt` and `.key`. Fetch it with the `input-cert` control-plane command and pin it in your client. The dropbear host key you fetched via the attested `/pubkey` endpoint is what makes that fetch trustworthy. The certificate is regenerated if the disk is re-initialized.
+- **Unidirectional**: bytes flow only from the client to the container. The proxy never writes back to the TCP client, and the container's network namespace drops packets from source port 27018.
+- **Timing isolation**: decrypted data is queued in an unbounded buffer before being written to the Unix socket, so how fast (or whether) the container reads it has no effect on TCP timing observable from outside.
+- **Container side**: the host directory `/persistent/input` is mounted at `/persistent/input` in the container and owned by the container's root user. The searcher's process must create and listen on `/persistent/input/input.sock`; the proxy connects to it once per inbound TLS connection and fails the connection if the socket is absent.
+- **Availability**: the proxy starts after the persistent disk is unlocked, so the channel is live only after `initialize`.
+
+Client workflow, using the tooling shipped in the [input-only-proxy repository](https://github.com/flashbots/input-only-proxy):
+
+```bash
+git clone https://github.com/flashbots/input-only-proxy.git
+cd input-only-proxy
+
+# 1. Derive a TLS client certificate from the same SSH key you registered (one time)
+./scripts/ssh_to_tls_cert.py ~/.ssh/id_ed25519 client-cert.pem
+
+# 2. Fetch and pin the server certificate over the (attested) control plane
+ssh -i ~/.ssh/id_ed25519 searcher@<machine IP> input-cert > server.crt
+
+# 3. Connect, verifying the server certificate; the example client is an
+#    interactive prompt that sends each line you type into the container
+cargo run --example tls_client -- <machine IP>:27018 client-cert.pem server.crt
+```
+
+The example client is for testing the channel end to end. For real transfers, use any TLS 1.3 client that presents `client-cert.pem` and trusts `server.crt`, and write your payload to the connection.
 
 ### **logrotate**
 
