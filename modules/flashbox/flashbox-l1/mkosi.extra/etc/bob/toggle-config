@@ -20,6 +20,8 @@ PRODUCTION_ENDPOINTS=(
     "34.104.157.101:BuilderNet fb-gcp-ane1-00"
 )
 
+BUILDERNET_ADDRESS_STATE="/persistent/buildernet-dns/addresses"
+
 # Maintenance ports (format: "protocol:port:description")
 MAINTENANCE_ENDPOINTS=(
     "tcp:10022:SSH data port"
@@ -31,3 +33,57 @@ MAINTENANCE_ENDPOINTS=(
     "tcp:30303:EL P2P"
     "udp:30303:EL P2P"
 )
+
+kill_image_production_connections() {
+    # The production selector has already been removed, so no new HTTPS flow
+    # can be admitted. Deleting all existing TCP/443 state also covers an
+    # address removed by a refresh that was interrupted before its own cleanup.
+    echo "     - All production HTTPS flows (including dynamic BuilderNet endpoints)"
+    /usr/sbin/conntrack -D -p tcp --dport 443 2>/dev/null || true
+}
+
+check_image_production_prerequisites() {
+    local state_addresses nft_addresses
+
+    if ! systemctl is-active --quiet dnsdist.service; then
+        echo "ERROR: BuilderNet exact-name DNS proxy is not active"
+        return 1
+    fi
+    if [[ ! -s "$BUILDERNET_ADDRESS_STATE" ]]; then
+        echo "ERROR: No last-known-good BuilderNet DNS address set is available"
+        return 1
+    fi
+
+    if ! /usr/sbin/nft list set ip filter buildernet_v4 >/dev/null 2>&1; then
+        echo "ERROR: BuilderNet nftables set is missing"
+        return 1
+    fi
+    state_addresses=$(sort -u "$BUILDERNET_ADDRESS_STATE")
+    nft_addresses=$(
+        /usr/sbin/nft -j list set ip filter buildernet_v4 |
+            /usr/bin/jq -r '
+                .nftables[]
+                | .set?
+                | select(.family == "ip" and .table == "filter" and .name == "buildernet_v4")
+                | .elem[]?
+            ' |
+            sort -u
+    )
+    if [[ "$state_addresses" != "$nft_addresses" ]]; then
+        echo "ERROR: BuilderNet address state and nftables set differ"
+        return 1
+    fi
+
+    # example.com has A records, so resolving it here would prove that the
+    # searcher bypassed the exact-name policy. Upstream availability is not a
+    # prerequisite: the selected LKG policy intentionally survives DNS outages.
+    if su -s /bin/sh searcher -c \
+        "podman exec searcher-container getent ahostsv4 example.com" \
+        >/dev/null 2>&1; then
+        echo "ERROR: Searcher DNS resolved a non-allowlisted name"
+        return 1
+    fi
+
+    echo "OK: BuilderNet exact-name DNS proxy and last-known-good address set are active"
+    return 0
+}

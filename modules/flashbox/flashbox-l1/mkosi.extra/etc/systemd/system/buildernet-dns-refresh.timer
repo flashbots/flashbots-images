@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically refresh BuilderNet firewall addresses
+
+[Timer]
+OnBootSec=5s
+OnUnitInactiveSec=60s
+RandomizedDelaySec=5s
+AccuracySec=1s
+Unit=buildernet-dns-refresh.service
+
+[Install]
+WantedBy=minimal.target

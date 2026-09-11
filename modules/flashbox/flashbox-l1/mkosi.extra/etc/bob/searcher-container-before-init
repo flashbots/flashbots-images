@@ -5,6 +5,8 @@ ENGINE_API_PORT=8551
 EL_P2P_PORT=30303
 
 BOB_SEARCHER_EXTRA_PODMAN_FLAGS="\
+    --network pasta:--no-map-gw,--dns-forward,169.254.2.3,--dns-host,127.0.0.55 \
+    --dns 169.254.2.3 \
     -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT}/udp \

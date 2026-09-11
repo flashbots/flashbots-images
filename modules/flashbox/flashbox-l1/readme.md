@@ -59,7 +59,9 @@ Firewall Rules
 ------------------------
 <img alt="tee-searcher-networking" src="https://github.com/user-attachments/assets/8dd72ece-44de-4907-9d2d-1dd32b7c1468" />
 
-**IMPORTANT: Searchers, you will not have DNS access during production mode!**
+**IMPORTANT: During production mode, DNS returns A records only for exactly
+`rpc.buildernet.org` and `direct-{ap,eu,us}.buildernet.org`. AAAA queries for
+those names receive NODATA; all other queries receive NXDOMAIN locally.**
 
 **<u>Host Network Namespace iptables</u>**
 
@@ -74,7 +76,8 @@ Firewall Rules
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP   | ENABLED         | DISABLED         |
 | 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
-| 53    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
+| 53    | Output **NAME WHITELISTED** | BuilderNet DNS                | Local DNS proxy      | TCP + UDP | ENABLED         | ENABLED          |
+| 53/853 | Output                   | Direct DNS / DNS-over-TLS       | External DNS         | TCP + UDP | DISABLED        | ENABLED          |
 | 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
 | 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
@@ -305,6 +308,14 @@ https://backruns.tee-searcher.flashbots.net
 ### Searching on BuilderNet's Bottom of Block
 
 BuilderNet serves both the state diff stream and bundle submission over the same HTTPS endpoint (`rpc.buildernet.org`). Because they share one endpoint, both are reachable only in **production mode** — unlike the Flashbots bundle RPC, which is always on.
+
+The host resolves `rpc.buildernet.org` and the three regional
+`direct-{ap,eu,us}.buildernet.org` names through Cloudflare DNS-over-TLS and
+requires DNSSEC-authenticated responses before atomically updating the production
+IP allowlist. If a refresh fails, the previous successfully validated address set
+is retained as the last-known-good set on the encrypted persistent volume and is
+restored after reboot if needed. DNS names with additional prefixes or subdomains
+are not included in the allowlist.
 
 **<u>Subscribing to BuilderNet's State Diff Stream</u>**
 

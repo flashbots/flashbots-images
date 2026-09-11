@@ -109,19 +109,23 @@ check_delay() {
 # Kill established connections via conntrack
 ###############################################################################
 kill_production_connections() {
+    echo "Killing leftover production flows:"
     if [ ${#PRODUCTION_ENDPOINTS[@]} -eq 0 ]; then
-        echo "Killing leftover production flows:"
         echo "     - No production endpoints configured"
-        return
+    else
+        for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
+            local ip="${endpoint%%:*}"
+            local name="${endpoint#*:}"
+            echo "     - $name ($ip)"
+            $CONNTRACK -D -d "$ip" 2>/dev/null || true
+        done
     fi
 
-    echo "Killing leftover production flows:"
-    for endpoint in "${PRODUCTION_ENDPOINTS[@]}"; do
-        local ip="${endpoint%%:*}"
-        local name="${endpoint#*:}"
-        echo "     - $name ($ip)"
-        $CONNTRACK -D -d "$ip" 2>/dev/null || true
-    done
+    # Dynamic endpoint cleanup must run after the production selector has been
+    # removed. Images can provide this hook to avoid racing a refresh.
+    if declare -F kill_image_production_connections >/dev/null; then
+        kill_image_production_connections
+    fi
 }
 
 kill_maintenance_connections() {
@@ -249,6 +253,13 @@ move_to_production() {
     # Check the searcher-container-netns iptables rules are active first:
     if ! check_searcher_namespace_rules; then
         echo "Error: Required searcher-container-netns iptables rules not active!"
+        return 1
+    fi
+
+    # Images may define additional fail-closed checks in toggle-config.
+    if declare -F check_image_production_prerequisites >/dev/null \
+       && ! check_image_production_prerequisites; then
+        echo "Error: Image-specific production prerequisites are not satisfied!"
         return 1
     fi
 

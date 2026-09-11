@@ -36,14 +36,30 @@ FLASHBOTS_TX_STREAM_2="3.149.14.12"
 # toggle-config PRODUCTION_ENDPOINTS). Consequently BuilderNet bundle submission
 # works only in production mode, unlike the always-on Flashbots bundles.
 #
-# Production mode has no DNS, so these are addressed by IP; the hostnames searchers
-# connect to (for TLS) are mapped statically in searcher-container-after-init.
+# The static addresses below are retained only as maintenance-mode deny rules and
+# conntrack cleanup coverage for addresses used by older images. Production access
+# is granted exclusively through the DNSSEC-refreshed buildernet_v4 nftables set.
 BUILDERNET_FB_OM_USE1_00="200.225.47.181"  # fb-om-use1-00  (US east)
 BUILDERNET_FB_OM_USE1_01="200.225.47.183"  # fb-om-use1-01  (US east)
 BUILDERNET_FB_OM_EUW1_00="198.203.202.53"  # fb-om-euw1-00  (EU west)
 BUILDERNET_FB_OM_EUW1_01="198.203.202.55"  # fb-om-euw1-01  (EU west)
 BUILDERNET_FB_OM_AP1_00="198.203.203.37"   # fb-om-ap1-00   (AP northeast)
 BUILDERNET_FB_GCP_ANE1_00="34.104.157.101" # fb-gcp-ane1-00 (AP northeast)
+
+# Searcher-only DNS proxy. dnsdist talks to Cloudflare using authenticated DoT;
+# the searcher itself cannot use this destination rule because pasta runs as the
+# searcher user while the rule is restricted to the _dnsdist uid.
+CLOUDFLARE_DNS="1.1.1.1"
+CLOUDFLARE_DNS_UID="_dnsdist"
+
+# iptables-nft and nft share the ip/filter table. Preserve this set across
+# firewall-service restarts so a failed refresh retains the last-known-good
+# addresses. The kernel set starts empty after reboot; the refresh service
+# restores its validated persistent copy before attempting a live refresh.
+BUILDERNET_NFT_SET="buildernet_v4"
+if ! /usr/sbin/nft list set ip filter "$BUILDERNET_NFT_SET" >/dev/null 2>&1; then
+    /usr/sbin/nft add set ip filter "$BUILDERNET_NFT_SET" '{ type ipv4_addr; }'
+fi
 
 # Prometheus metrics proxy
 PROMETHEUS_PROXY_IP="10.88.0.100"
@@ -87,6 +103,21 @@ accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $FLASHBOTS_BUNDLE_1,$FLASHBOTS_BUNDLE_2
 # Prometheus metrics proxy (searcher netns has a DROP on this IP — see init-container.sh)
 accept_dst_ip_port $CHAIN_ALWAYS_OUT tcp $PROMETHEUS_PROXY_IP $HTTPS_PORT "Prometheus metrics proxy"
 
+# The only production-capable path to a recursive DNS service. This is DoT, not
+# plain DNS, and only the unprivileged exact-name proxy may open the connection.
+iptables -A "$CHAIN_ALWAYS_OUT" -p tcp -d "$CLOUDFLARE_DNS" --dport "$DNS_OVER_TLS_PORT" \
+    -m owner --uid-owner "$CLOUDFLARE_DNS_UID" \
+    -m conntrack --ctstate NEW -j ACCEPT \
+    -m comment --comment "BuilderNet DNS proxy to Cloudflare DoT"
+
+# Do not let a compromised DNS parser pivot to host loopback services, the
+# dynamically allowed HTTPS addresses, or maintenance-mode general egress.
+# Replies to searcher queries are ESTABLISHED and accepted before this chain.
+iptables -A "$CHAIN_ALWAYS_OUT" \
+    -m owner --uid-owner "$CLOUDFLARE_DNS_UID" \
+    -m conntrack --ctstate NEW -j DROP \
+    -m comment --comment "Confine BuilderNet DNS proxy egress"
+
 ###########################################################################
 # (3) MAINTENANCE_IN: Inbound rules for Maintenance Mode
 ###########################################################################
@@ -106,6 +137,13 @@ drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2
 
 # Block BuilderNet endpoints during maintenance. 
 drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_OM_AP1_00,$BUILDERNET_FB_GCP_ANE1_00 "BuilderNet (DROP before accept-all rules)"
+
+# Also block every current dynamically resolved address before maintenance's
+# general HTTPS allow rule. Established connections are deleted on mode changes
+# and whenever the resolver removes an address from the set.
+/usr/sbin/nft add rule ip filter "$CHAIN_MAINTENANCE_OUT" \
+    ip daddr @"$BUILDERNET_NFT_SET" drop \
+    comment '"BuilderNet dynamic endpoints"'
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -129,5 +167,9 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
 
-# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_OM_AP1_00,$BUILDERNET_FB_GCP_ANE1_00 $HTTPS_PORT "BuilderNet tx stream + bundle submission"
+# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS
+# endpoint. Only DNSSEC-authenticated A records in the current LKG set match.
+/usr/sbin/nft add rule ip filter "$CHAIN_PRODUCTION_OUT" \
+    ip daddr @"$BUILDERNET_NFT_SET" tcp dport "$HTTPS_PORT" \
+    ct state new accept \
+    comment '"BuilderNet DNSSEC endpoints"'

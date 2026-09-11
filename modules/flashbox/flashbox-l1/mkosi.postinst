@@ -8,3 +8,6 @@ mkosi-chroot groupadd -r eth
 mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
 
 mkosi-chroot systemctl add-wants minimal.target lighthouse.service
+mkosi-chroot systemctl add-wants minimal.target \
+    dnsdist.service \
+    buildernet-dns-refresh.timer

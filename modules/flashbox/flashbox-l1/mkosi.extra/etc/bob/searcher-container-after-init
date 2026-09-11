@@ -1,22 +1,11 @@
 # This script is sourced from init-container.sh and contains image-specific stuff
 # See also: bob-common/mkosi.extra/usr/bin/init-container.sh
 
-echo "Injecting static hosts into searcher container..."
+echo "Injecting static Flashbots hosts into searcher container..."
 exec_in_container '
     cat <<EOF >> /etc/hosts
 3.149.14.12   tx.tee-searcher.flashbots.net
 3.136.107.142 tx.tee-searcher.flashbots.net
 18.221.59.61  backruns.tee-searcher.flashbots.net
 3.15.88.156   backruns.tee-searcher.flashbots.net
-
-# BuilderNet. Searchers connect by hostname so TLS validates (production mode has
-# no DNS). US nodes are listed first for latency. Mapping all IPs to
-# rpc.buildernet.org here means failover is dial-level (next IP on connect
-# failure), not health-aware like the BuilderNet load balancer.
-200.225.47.181 fb-om-use1-00.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
-200.225.47.183 fb-om-use1-01.nodes.buildernet.org direct-us.buildernet.org rpc.buildernet.org
-198.203.202.53  fb-om-euw1-00.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
-198.203.202.55  fb-om-euw1-01.nodes.buildernet.org direct-eu.buildernet.org rpc.buildernet.org
-198.203.203.37  fb-om-ap1-00.nodes.buildernet.org direct-ap.buildernet.org rpc.buildernet.org
-34.104.157.101 fb-gcp-ane1-00.nodes.buildernet.org direct-ap.buildernet.org rpc.buildernet.org
 EOF'

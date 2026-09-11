@@ -1,0 +1,238 @@
+#!/bin/bash
+set -euo pipefail
+
+readonly DNS_SERVER="${BUILDERNET_DNS_SERVER:-127.0.0.55}"
+readonly DNS_PORT="${BUILDERNET_DNS_PORT:-53}"
+readonly NFT_FAMILY="ip"
+readonly NFT_TABLE="filter"
+readonly NFT_SET="buildernet_v4"
+readonly STATE_DIR="${STATE_DIRECTORY:-/persistent/buildernet-dns}"
+readonly STATE_FILE="$STATE_DIR/addresses"
+readonly RUNTIME_DIR="${RUNTIME_DIRECTORY:-/run/buildernet-dns-refresh}"
+
+readonly -a BUILDERNET_NAMES=(
+    "rpc.buildernet.org"
+    "direct-ap.buildernet.org"
+    "direct-eu.buildernet.org"
+    "direct-us.buildernet.org"
+)
+
+die() {
+    echo "ERROR: $*; retaining the last-known-good BuilderNet address set" >&2
+    exit 1
+}
+
+is_public_ipv4() {
+    local ip="$1"
+    local a b c d
+
+    if [[ ! "$ip" =~ ^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+        return 1
+    fi
+
+    IFS=. read -r a b c d <<<"$ip"
+    if ((a > 255 || b > 255 || c > 255 || d > 255)); then
+        return 1
+    fi
+
+    # Reject non-global and special-use ranges. The BuilderNet load balancers
+    # must never turn the production HTTPS rule into access to local services,
+    # cloud metadata, private networks, multicast, or documentation ranges.
+    if ((a == 0 || a == 10 || a == 127 || a >= 224)); then
+        return 1
+    fi
+    if ((a == 100 && b >= 64 && b <= 127)); then
+        return 1
+    fi
+    if ((a == 169 && b == 254)); then
+        return 1
+    fi
+    if ((a == 172 && b >= 16 && b <= 31)); then
+        return 1
+    fi
+    if ((a == 192 && b == 0 && (c == 0 || c == 2))); then
+        return 1
+    fi
+    if ((a == 192 && b == 168)); then
+        return 1
+    fi
+    if ((a == 192 && b == 88 && c == 99)); then
+        return 1
+    fi
+    if ((a == 198 && (b == 18 || b == 19))); then
+        return 1
+    fi
+    if ((a == 198 && b == 51 && c == 100)); then
+        return 1
+    fi
+    if ((a == 203 && b == 0 && c == 113)); then
+        return 1
+    fi
+
+    return 0
+}
+
+resolve_exact_a() {
+    local name="$1"
+    local attempt reply addresses
+
+    # A DNSSEC key/signature rollout can briefly leave recursive-cache shards
+    # without an authenticated answer. Retry before falling back to the LKG set.
+    for attempt in 1 2 3 4 5; do
+        addresses=""
+        if reply=$(/usr/bin/dig \
+            @"$DNS_SERVER" -p "$DNS_PORT" "$name" A \
+            +tcp +dnssec +adflag +nocookie +time=5 +tries=1 \
+            +noall +comments +answer) &&
+            grep -q "status: NOERROR" <<<"$reply" &&
+            grep -Eq '^;; flags:.*[[:space:]]ad[;[:space:]]' <<<"$reply" &&
+            addresses=$(awk -v expected="${name}." '
+                BEGIN { count = 0; signatures = 0; invalid = 0 }
+                /^;/ || NF == 0 { next }
+                {
+                    if (tolower($1) != tolower(expected) || toupper($3) != "IN") {
+                        invalid = 1
+                        next
+                    }
+                    if (toupper($4) == "A") {
+                        print $5
+                        count++
+                    } else if (toupper($4) == "RRSIG" && toupper($5) == "A") {
+                        signatures++
+                    } else {
+                        invalid = 1
+                    }
+                }
+                END {
+                    if (invalid || count == 0 || signatures == 0) exit 1
+                }
+            ' <<<"$reply"); then
+            printf '%s\n' "$addresses"
+            return 0
+        fi
+
+        echo "WARNING: attempt $attempt did not return a direct, DNSSEC-authenticated A answer for $name" >&2
+        if ((attempt < 5)); then
+            sleep 1
+        fi
+    done
+
+    # Accept only direct A records owned by the exact requested name. A CNAME
+    # (especially one leaving buildernet.org) is deliberately not followed.
+    die "no valid DNS answer for $name after 5 attempts"
+}
+
+validate_address_file() {
+    local file="$1"
+    local ip count
+
+    [[ -s "$file" ]] || return 1
+    count=$(wc -l <"$file")
+    ((count <= 64)) || return 1
+
+    while IFS= read -r ip; do
+        [[ -n "$ip" ]] && is_public_ipv4 "$ip" || return 1
+    done <"$file"
+}
+
+read_current_addresses() {
+    /usr/sbin/nft -j list set "$NFT_FAMILY" "$NFT_TABLE" "$NFT_SET" |
+        /usr/bin/jq -r '
+            .nftables[]
+            | .set?
+            | select(.family == "ip" and .table == "filter" and .name == "buildernet_v4")
+            | .elem[]?
+        ' |
+        sort -u
+}
+
+replace_nft_set() {
+    local addresses_file="$1"
+    local transaction_file="$2"
+    local element_list
+
+    element_list=$(paste -sd, "$addresses_file")
+    {
+        printf 'flush set %s %s %s\n' "$NFT_FAMILY" "$NFT_TABLE" "$NFT_SET"
+        printf 'add element %s %s %s { %s }\n' \
+            "$NFT_FAMILY" "$NFT_TABLE" "$NFT_SET" "$element_list"
+    } >"$transaction_file"
+
+    # nft applies the whole file as one netlink transaction. A failed batch
+    # leaves the live set unchanged.
+    /usr/sbin/nft -f "$transaction_file"
+}
+
+main() {
+    local name ip
+    local raw_file candidate_file transaction_file old_live_file lkg_file state_tmp
+
+    install -d -m 0700 "$STATE_DIR" "$RUNTIME_DIR"
+    exec 9>"$RUNTIME_DIR/refresh.lock"
+    if ! flock -n 9; then
+        echo "BuilderNet DNS refresh is already running"
+        return 0
+    fi
+
+    raw_file=$(mktemp)
+    candidate_file=$(mktemp)
+    transaction_file=$(mktemp)
+    old_live_file=$(mktemp)
+    lkg_file=$(mktemp)
+    trap 'rm -f "$raw_file" "$candidate_file" "$transaction_file" "$old_live_file" "$lkg_file"' EXIT
+
+    # systemd.volatile=overlay discards root-filesystem changes on reboot, so
+    # the LKG state is kept on /persistent. Restore it only when the live set is
+    # empty. A corrupt state file fails closed and is never loaded.
+    read_current_addresses >"$old_live_file" || die "could not read the nftables set"
+    if [[ ! -s "$old_live_file" && -r "$STATE_FILE" ]]; then
+        sort -u "$STATE_FILE" >"$lkg_file"
+        if validate_address_file "$lkg_file"; then
+            replace_nft_set "$lkg_file" "$transaction_file" ||
+                die "could not restore the last-known-good nftables set"
+            echo "Restored last-known-good BuilderNet address set"
+        else
+            echo "WARNING: Ignoring invalid last-known-good BuilderNet address state" >&2
+        fi
+    fi
+
+    for name in "${BUILDERNET_NAMES[@]}"; do
+        resolve_exact_a "$name" >>"$raw_file"
+    done
+
+    while IFS= read -r ip; do
+        is_public_ipv4 "$ip" || die "DNS returned prohibited IPv4 address '$ip'"
+    done <"$raw_file"
+
+    sort -u "$raw_file" >"$candidate_file"
+    validate_address_file "$candidate_file" || die "DNS returned an invalid address set"
+
+    # Read the live set immediately before replacement. This, rather than the
+    # state file, is authoritative for cleanup after an interrupted prior run.
+    read_current_addresses >"$old_live_file" || die "could not read the nftables set"
+
+    # Prepare state bookkeeping before touching the live firewall. The final
+    # rename is same-filesystem and atomic.
+    state_tmp="$STATE_FILE.new"
+    install -m 0600 "$candidate_file" "$state_tmp"
+
+    replace_nft_set "$candidate_file" "$transaction_file" || {
+        rm -f "$state_tmp"
+        die "could not atomically replace the nftables set"
+    }
+
+    # The host firewall accepts ESTABLISHED traffic before mode-specific rules.
+    # Tear down flows immediately after removing addresses from the set, before
+    # doing any state-file bookkeeping that could fail independently.
+    comm -23 "$old_live_file" "$candidate_file" | while IFS= read -r ip; do
+        [[ -n "$ip" ]] || continue
+        echo "Removing established connections to retired BuilderNet address $ip"
+        /usr/sbin/conntrack -D -d "$ip" 2>/dev/null || true
+    done
+
+    mv -f "$state_tmp" "$STATE_FILE"
+
+    echo "BuilderNet address set refreshed: $(tr '\n' ' ' <"$candidate_file")"
+}
+
+main "$@"

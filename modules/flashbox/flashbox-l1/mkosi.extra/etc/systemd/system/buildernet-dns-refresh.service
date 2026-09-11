@@ -1,0 +1,35 @@
+[Unit]
+Description=Refresh DNSSEC-authenticated BuilderNet firewall addresses
+After=network-online.target time-sync.target dnsdist.service searcher-firewall.service persistent-mount.service
+Wants=network-online.target
+Requires=dnsdist.service searcher-firewall.service persistent-mount.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/refresh-buildernet-dns
+RuntimeDirectory=buildernet-dns-refresh
+RuntimeDirectoryMode=0700
+UMask=0077
+
+# This fixed-input process is the only component allowed to mutate the host
+# firewall set. The attacker-facing DNS parser has no CAP_NET_ADMIN.
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectProc=invisible
+ProtectSystem=strict
+ReadWritePaths=/persistent/buildernet-dns
+RestrictAddressFamilies=AF_INET AF_NETLINK AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native

@@ -13,6 +13,7 @@ So the order here is load-bearing: attestation is only reachable AFTER
 the key push, and a failure cascades into the tests below it by design.
 """
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -189,6 +190,39 @@ def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
             flush=True,
         )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.dependency(depends=["container_ssh"])
+def test_buildernet_dns_allowlist(containersh):
+    resolv_conf = containersh("cat /etc/resolv.conf")
+    assert resolv_conf.returncode == 0, resolv_conf.stdout + resolv_conf.stderr
+    nameservers = [
+        line.split()[1]
+        for line in resolv_conf.stdout.splitlines()
+        if line.split()[:1] == ["nameserver"]
+    ]
+    assert nameservers == ["169.254.2.3"], resolv_conf.stdout
+
+    for name in (
+        "rpc.buildernet.org",
+        "direct-ap.buildernet.org",
+        "direct-eu.buildernet.org",
+        "direct-us.buildernet.org",
+    ):
+        result = containersh(f"getent ahostsv4 {name}")
+        assert result.returncode == 0, result.stdout + result.stderr
+        addresses = {line.split()[0] for line in result.stdout.splitlines()}
+        assert addresses, f"{name} returned no IPv4 addresses"
+        assert all(
+            ipaddress.ip_address(address).is_global for address in addresses
+        ), f"{name} returned non-global addresses: {sorted(addresses)}"
+
+    # Both an unrelated name and a prefixed lookalike must hit the terminal
+    # NXDOMAIN rule. The latter guards against accidentally changing the exact
+    # QName matcher into suffix matching.
+    for name in ("example.com", "leak.rpc.buildernet.org"):
+        denied = containersh(f"getent ahostsv4 {name}")
+        assert denied.returncode != 0, denied.stdout
 
 
 @pytest.mark.dependency(depends=["container_ssh"])
