@@ -39,9 +39,12 @@ frontend default
   http-request redirect scheme https code 301 unless { ssl_fc }
 
   # BoB
-  acl is_bob          path /bob
-  acl is_websocket    hdr(Upgrade) -i websocket
-  acl bob_allowed_ip  src,map(/etc/haproxy/bob_allowed_ips.map) -m found
+  acl is_bob                path /bob
+  acl is_pamm_quote_stream  path /pamm_quote_stream
+  acl is_pamm_price_levels  path /pamm_price_levels
+  acl is_pamm_rpc           path /pamm/rpc
+  acl is_websocket          hdr(Upgrade) -i websocket
+  acl bob_allowed_ip        src,map(/etc/haproxy/bob_allowed_ips.map) -m found
 
   # L7: per-request rate + bandwidth limits
 
@@ -80,6 +83,11 @@ frontend default
   # Route /bob to rbuilder
   use_backend bob_of if is_bob is_websocket
 
+  # Route the public pAMM endpoints to pamm-stream
+  use_backend pamm_stream if is_pamm_quote_stream is_websocket
+  use_backend pamm_stream if is_pamm_price_levels is_websocket
+  use_backend pamm_stream if is_pamm_rpc
+
   default_backend user_of
 
 frontend system
@@ -117,3 +125,11 @@ backend bob_of
   option httpchk GET /readyz
   http-check expect status 200
   server bob1 127.0.0.1:6789 check port 6070 inter 5s fall 3 rise 1
+
+backend pamm_stream
+  timeout tunnel 1h
+  http-request set-path /ws/pamm_quote_stream if { path /pamm_quote_stream }
+  http-request set-path /ws/pamm_price_levels if { path /pamm_price_levels }
+  option httpchk GET /readyz
+  http-check expect status 200
+  server pamm_stream1 127.0.0.1:8080 check inter 5s fall 3 rise 1

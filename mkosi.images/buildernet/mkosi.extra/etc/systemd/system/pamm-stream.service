@@ -1,0 +1,26 @@
+[Unit]
+Description=pAMM state update WebSocket stream for BuilderNet
+Documentation=https://github.com/flashbots/pamm-stream
+Wants=network-online.target rbuilder-operator.service
+After=network.target network-online.target rbuilder-operator.service pamm-stream-downloader.service
+Requires=pamm-stream-downloader.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+Environment=HTTP_ADDR=127.0.0.1:8080 \
+            PRIORITY_UPDATE_GRPC_ENDPOINT=http://127.0.0.1:8745 \
+            RETH_HTTP_URL=http://127.0.0.1:8545 \
+            LEVELS_ENABLED=true \
+            RUST_LOG=info \
+	    VENUE_REGISTRY_PATH=%d/venues.toml
+LoadCredential=venues.toml:%E/pamm-stream/venues.toml
+ExecStart=/usr/bin/pamm-stream
+LimitNOFILE=65535
+Restart=on-failure
+RestartSec=5s
+RestartSteps=5
+RestartMaxDelaySec=1min
+
+[Install]
+WantedBy=multi-user.target
