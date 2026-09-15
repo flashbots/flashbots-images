@@ -13,7 +13,7 @@ Environment=HTTP_ADDR=127.0.0.1:8080 \
             RETH_HTTP_URL=http://127.0.0.1:8545 \
             LEVELS_ENABLED=true \
             RUST_LOG=info \
-	    VENUE_REGISTRY_PATH=%d/venues.toml
+	          VENUE_REGISTRY_PATH=%d/venues.toml
 LoadCredential=venues.toml:%E/pamm-stream/venues.toml
 ExecStart=/usr/bin/pamm-stream
 LimitNOFILE=65535

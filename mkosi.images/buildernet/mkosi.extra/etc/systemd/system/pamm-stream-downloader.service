@@ -5,10 +5,10 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=PAMM_STREAM_SHA256SUM=091bcaf1bfd9a8241020a05cfd5a67530f8d2014c91d906fcb41f26336975a08 \
-            PAMM_STREAM_TAG=v0.0.7 \
+Environment=PAMM_STREAM_SHA256SUM=29e4c7a5607477237c69447762aa5e25acc7f365d46add16a0fb62168fb0dd72 \
+            PAMM_STREAM_TAG=v0.0.10 \
             PAMM_STREAM_REPO=pamm-stream \
-            PAMM_STREAM_ARTIFACT=pamm-stream-v0.0.7-linux-x86_64
+            PAMM_STREAM_ARTIFACT=pamm-stream-v0.0.10-linux-x86_64
 EnvironmentFile=%E/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/pamm-stream ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$PAMM_STREAM_REPO" --tag "$PAMM_STREAM_TAG" \
