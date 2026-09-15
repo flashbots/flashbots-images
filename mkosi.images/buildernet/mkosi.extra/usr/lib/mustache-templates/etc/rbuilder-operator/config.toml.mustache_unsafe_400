@@ -55,6 +55,16 @@ memory_max_size_mb = 1024
 send_timeout_ms = 10000
 end_timeout_ms = 10000
 
+[order_events_clickhouse_config]
+host = "{{rbuilder.clickhouse_host}}"
+database = "{{rbuilder.clickhouse_database}}"
+username = "{{rbuilder.clickhouse_username}}"
+password = "{{rbuilder.clickhouse_password}}"
+send_timeout_ms = 10000
+end_timeout_ms = 10000
+emit_revert_data = true
+in_block_value_threshold_wei = 150000000000000000
+
 {{{rbuilder.builders}}}
 
 {{{rbuilder.bidding_gateways}}}
