@@ -1,0 +1,48 @@
+[Unit]
+Description=Resolve BuilderNet endpoints and update the host egress allowlist
+Documentation=https://github.com/flashbots/egress-resolver
+# firewall-config creates the DYN_BNET_* chains and the uid-scoped DoT rule
+# this service depends on; the container must not start before the first run
+# has populated the chains and the hosts file.
+After=searcher-firewall.service network-online.target
+Requires=searcher-firewall.service
+Wants=network-online.target
+Before=searcher-container.service
+ConditionPathExists=/etc/bob/egress-resolver.toml
+
+[Service]
+Type=oneshot
+# Step 1 (unprivileged): DNS-over-TLS to the pinned resolvers. The host
+# firewall only lets this uid open TCP/853 to those resolvers.
+User=egress-resolver
+Group=egress-resolver
+ExecStart=/usr/bin/egress-resolver resolve
+# Step 2 (root, CAP_NET_ADMIN only): rewrite the two dynamic chains, the
+# container hosts file and conntrack state from the answers. "!" keeps every
+# sandboxing option below in force and only lifts User=/Group=.
+ExecStart=!/usr/bin/egress-resolver apply
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+RuntimeMaxSec=90
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+ReadWritePaths=/run/egress-resolver /run/flashbox-endpoints /run/xtables.lock /etc/searcher-network.lock
+
+[Install]
+WantedBy=minimal.target

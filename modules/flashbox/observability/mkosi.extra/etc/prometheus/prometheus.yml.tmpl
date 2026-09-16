@@ -18,7 +18,7 @@ scrape_configs:
     metric_relabel_configs:
       # Only keep aggregated metrics for remote write
       - source_labels: [__name__]
-        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat)_.*'
+        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat|textfile)_.*|egress_resolver_.*'
         action: keep
 
   # Process exporter for container monitoring

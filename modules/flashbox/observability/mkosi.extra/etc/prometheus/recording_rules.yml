@@ -43,3 +43,18 @@ groups:
           (sum(rate(node_network_receive_bytes_total{device!~"lo"}[5m]))
           + sum(rate(node_network_transmit_bytes_total{device!~"lo"}[5m])))
           > bool 0
+
+      # egress-resolver (runtime BuilderNet endpoint resolution, textfile
+      # collector). Fresh = the textfile was rewritten within the last 5 min.
+      - record: flashbox:egress_resolver_is_fresh
+        expr: >
+          (time() - node_textfile_mtime_seconds{file="egress-resolver.prom"}) < bool 300
+
+      - record: flashbox:egress_resolver_required_endpoints_resolved
+        expr: egress_resolver_required_satisfied
+
+      - record: flashbox:egress_resolver_apply_ok
+        expr: egress_resolver_apply_ok
+
+      - record: flashbox:egress_resolver_production_addresses
+        expr: egress_resolver_production_addresses

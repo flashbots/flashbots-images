@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic BuilderNet endpoint refresh
+
+[Timer]
+# The first run is pulled in by searcher-container.service at boot; afterwards
+# refresh one minute after each completed run.
+OnBootSec=60s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=egress-resolver.service
+
+[Install]
+WantedBy=minimal.target

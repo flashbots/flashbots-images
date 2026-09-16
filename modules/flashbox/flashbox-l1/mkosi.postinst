@@ -6,5 +6,9 @@ set -euxo pipefail
 # https://github.com/systemd/mkosi/issues/3065
 mkosi-chroot groupadd -r eth
 mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
+# egress-resolver: the DNS step runs as this uid (see firewall-config ALWAYS_OUT)
+mkosi-chroot useradd -r -M -d /nonexistent -s /usr/sbin/nologin egress-resolver
 
-mkosi-chroot systemctl add-wants minimal.target lighthouse.service
+mkosi-chroot systemctl add-wants minimal.target \
+    lighthouse.service \
+    egress-resolver.timer

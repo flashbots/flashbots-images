@@ -13,6 +13,7 @@ So the order here is load-bearing: attestation is only reachable AFTER
 the key push, and a failure cascades into the tests below it by design.
 """
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -259,3 +260,85 @@ def test_reth_syncing(containersh):
     assert isinstance(last_response.get("result"), dict), \
         f"Reth did not report active syncing: {last_response}"
     print(f"Reth sync status: {json.dumps(last_response['result'], sort_keys=True)}")
+
+
+@pytest.mark.dependency(depends=["container_ssh"])
+def test_egress_resolver_hosts(containersh):
+    """The container's /etc/hosts is rendered by egress-resolver on the host."""
+    link = containersh("readlink /etc/hosts")
+    assert link.stdout.strip() == "/run/flashbox-endpoints/hosts", link.stdout + link.stderr
+
+    hosts = containersh("cat /etc/hosts")
+    assert hosts.returncode == 0, hosts.stdout + hosts.stderr
+    assert "tx.tee-searcher.flashbots.net" in hosts.stdout, hosts.stdout
+    assert "nodes.buildernet.org" not in hosts.stdout, \
+        "per-node BuilderNet names must not be shipped in the hosts file"
+
+    for name in ("rpc.buildernet.org", "direct-us.buildernet.org",
+                 "direct-eu.buildernet.org", "direct-ap.buildernet.org"):
+        result = containersh(f"getent ahostsv4 {name}")
+        assert result.returncode == 0, f"{name}: {result.stdout}{result.stderr}"
+        addresses = {line.split()[0] for line in result.stdout.splitlines()}
+        assert addresses, f"{name} has no address in /etc/hosts"
+        for address in addresses:
+            assert ipaddress.ip_address(address).is_global, \
+                f"{name} -> {address} is not a global address"
+        # every address the container knows must appear verbatim in the file
+        # the host wrote (nothing appended inside the container)
+        for address in addresses:
+            assert f"{address} {name}" in hosts.stdout, hosts.stdout
+
+
+@pytest.mark.dependency(depends=["container_ssh"])
+def test_egress_resolver_production_cycle(searchersh, containersh):
+    """Production egress reaches the resolved BuilderNet addresses and nothing else.
+
+    The data plane is closed in production, so the probe runs inside the
+    container in the background and is read back after the box has gone
+    through production -> stopped -> (5 min quarantine) -> maintenance.
+    Runs last: it leaves the VM cycling modes for several minutes.
+    """
+    probe = (
+        "nohup sh -c '"
+        "sleep 90; : > /persistent/egress-probe.log; "
+        "for ip in $(getent ahostsv4 rpc.buildernet.org | awk \"{print \\$1}\" | sort -u); do "
+        "  if timeout 5 bash -c \"exec 3<>/dev/tcp/$ip/443\" 2>/dev/null; then echo \"allowed $ip\"; "
+        "  else echo \"BLOCKED $ip\"; fi >> /persistent/egress-probe.log; done; "
+        "if timeout 5 bash -c \"exec 3<>/dev/tcp/1.1.1.1/443\" 2>/dev/null; then echo \"LEAK 1.1.1.1\"; "
+        "else echo \"blocked 1.1.1.1\"; fi >> /persistent/egress-probe.log; "
+        "echo done >> /persistent/egress-probe.log"
+        "' >/dev/null 2>&1 &"
+    )
+    started = containersh(probe)
+    assert started.returncode == 0, started.stdout + started.stderr
+
+    to_production = searchersh("toggle", timeout=120)
+    assert "Successfully switched to production mode" in to_production.stdout, \
+        to_production.stdout + to_production.stderr
+    assert "OK: egress-resolver ran" in to_production.stdout, \
+        "toggle did not report the egress-resolver prerequisite check:\n" + to_production.stdout
+
+    time.sleep(150)  # probe fires at +90s, connects take a few seconds
+
+    to_stopped = searchersh("toggle", timeout=120)
+    assert "Successfully disconnected from production mode" in to_stopped.stdout, \
+        to_stopped.stdout + to_stopped.stderr
+    assert "BuilderNet (" in to_stopped.stdout, \
+        "leaving production did not tear down BuilderNet flows:\n" + to_stopped.stdout
+
+    # 5 minute quarantine before maintenance is reachable again
+    deadline = time.monotonic() + 420
+    while time.monotonic() < deadline:
+        time.sleep(30)
+        back = searchersh("toggle", timeout=120)
+        if "Successfully connected to maintenance mode" in back.stdout:
+            break
+    else:
+        pytest.fail("could not return to maintenance mode: " + back.stdout + back.stderr)
+
+    log = containersh("cat /persistent/egress-probe.log", timeout=120)
+    assert log.returncode == 0, log.stdout + log.stderr
+    assert "done" in log.stdout, "probe did not finish:\n" + log.stdout
+    assert "allowed " in log.stdout, "no BuilderNet address reachable in production:\n" + log.stdout
+    assert "BLOCKED " not in log.stdout, "a resolved BuilderNet address was blocked:\n" + log.stdout
+    assert "LEAK" not in log.stdout, "non-allowlisted 443 reachable in production:\n" + log.stdout
