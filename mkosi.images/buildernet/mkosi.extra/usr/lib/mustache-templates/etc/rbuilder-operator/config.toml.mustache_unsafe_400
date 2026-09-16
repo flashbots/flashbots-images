@@ -26,6 +26,7 @@ max_bob_state_filters = 35
 max_order_execution_duration_warning_us = {{rbuilder.max_order_execution_duration_warning_us}}
 mev_blocker_delayed_refund_pct = {{rbuilder.mev_blocker_delayed_refund_pct}}
 priority_update_events = {{{rbuilder.priority_update_events}}}
+priority_update_freshness_ms = {{rbuilder.priority_update_freshness_ms}}
 priority_update_grpc_server_ip = "127.0.0.1"
 priority_update_grpc_server_port = 8745
 priority_update_simulation_threads = 1

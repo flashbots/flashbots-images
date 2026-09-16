@@ -5,14 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=7a7e43f5f5aa82d045dd682355b7ac602abebb57eb1cfb5af201274941145e77 \
-            RBUILDER_OPERATOR_RETH_TAG=v1.14.0 \
+Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=03512ce82a2a7b860ad1f665e22bae4eaf9090e2ebfc89b78aef8f0d1c736a19 \
+            RBUILDER_OPERATOR_RETH_TAG=v1.15.0 \
             RBUILDER_OPERATOR_RETH_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.14.0-x86_64-unknown-linux-gnu \
+            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.15.0-x86_64-unknown-linux-gnu \
             RBUILDER_REBALANCER_SHA256SUM=38e77b1e5cb56eeaeda7a5dbc8888270cc6900b5646da1291402b60112f8b6ae \
-            RBUILDER_REBALANCER_TAG=v1.14.0 \
+            RBUILDER_REBALANCER_TAG=v1.15.0 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
-            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.14.0-x86_64-unknown-linux-gnu
+            RBUILDER_REBALANCER_ARTIFACT=rbuilder-rebalancer-v1.15.0-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 
 # rbuilder-operator-reth (reth EL with in-process rbuilder-operator)
