@@ -35,6 +35,8 @@ jobs:
   release:
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/_build-and-publish-image.yaml
     with:
       image-id: flashbox-l1
