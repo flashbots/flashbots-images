@@ -298,6 +298,12 @@ def test_egress_resolver_production_cycle(searchersh, containersh):
     through production -> stopped -> (5 min quarantine) -> maintenance.
     Runs last: it leaves the VM cycling modes for several minutes.
     """
+    # Warm the host resolver's cache while DNS is still allowed: in production
+    # even this cached answer must not reach the container (loopback DNS from
+    # the container's network is dropped in PRODUCTION_OUT).
+    warm = containersh("getent ahostsv4 example.org")
+    assert warm.returncode == 0, "DNS must work in maintenance: " + warm.stdout + warm.stderr
+
     probe = (
         "nohup sh -c '"
         "sleep 90; : > /persistent/egress-probe.log; "
@@ -306,6 +312,8 @@ def test_egress_resolver_production_cycle(searchersh, containersh):
         "  else echo \"BLOCKED $ip\"; fi >> /persistent/egress-probe.log; done; "
         "if timeout 5 bash -c \"exec 3<>/dev/tcp/1.1.1.1/443\" 2>/dev/null; then echo \"LEAK 1.1.1.1\"; "
         "else echo \"blocked 1.1.1.1\"; fi >> /persistent/egress-probe.log; "
+        "if timeout 10 getent ahostsv4 example.org >/dev/null 2>&1; then echo \"DNSLEAK example.org\"; "
+        "else echo \"dns-blocked example.org\"; fi >> /persistent/egress-probe.log; "
         "echo done >> /persistent/egress-probe.log"
         "' >/dev/null 2>&1 &"
     )
@@ -341,4 +349,6 @@ def test_egress_resolver_production_cycle(searchersh, containersh):
     assert "done" in log.stdout, "probe did not finish:\n" + log.stdout
     assert "allowed " in log.stdout, "no BuilderNet address reachable in production:\n" + log.stdout
     assert "BLOCKED " not in log.stdout, "a resolved BuilderNet address was blocked:\n" + log.stdout
-    assert "LEAK" not in log.stdout, "non-allowlisted 443 reachable in production:\n" + log.stdout
+    assert "LEAK 1.1.1.1" not in log.stdout, "non-allowlisted 443 reachable in production:\n" + log.stdout
+    assert "DNSLEAK" not in log.stdout, "cached DNS answer reached the container in production:\n" + log.stdout
+    assert "dns-blocked example.org" in log.stdout, log.stdout

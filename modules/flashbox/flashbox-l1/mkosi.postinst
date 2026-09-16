@@ -9,6 +9,11 @@ mkosi-chroot useradd -r -s /bin/false -G eth lighthouse
 # egress-resolver: the DNS step runs as this uid (see firewall-config ALWAYS_OUT)
 mkosi-chroot useradd -r -M -d /nonexistent -s /usr/sbin/nologin egress-resolver
 
+# Fail the build, not the boot, on a bad egress-resolver configuration:
+# firewall-config derives its DoT rule from this file at boot.
+mkosi-chroot /usr/bin/egress-resolver check-config --config /etc/bob/egress-resolver.toml
+
 mkosi-chroot systemctl add-wants minimal.target \
     lighthouse.service \
+    egress-resolver-apply.service \
     egress-resolver.timer

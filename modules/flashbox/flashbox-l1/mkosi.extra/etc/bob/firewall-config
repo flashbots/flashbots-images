@@ -52,10 +52,12 @@ CHAIN_DYN_BNET_MAINTENANCE_OUT="DYN_BNET_MAINTENANCE_OUT"
 iptables -N $CHAIN_DYN_BNET_PRODUCTION_OUT
 iptables -N $CHAIN_DYN_BNET_MAINTENANCE_OUT
 
-# egress-resolver runs its DNS step as this uid and may only reach these
-# resolvers on 853 (must match resolver.servers in /etc/bob/egress-resolver.toml).
+# egress-resolver runs its DNS step as this uid and may only reach the
+# resolvers configured in /etc/bob/egress-resolver.toml on 853. The list is
+# read from that file (single source of truth); the config is validated at
+# image build time (mkosi.postinst) so this cannot fail at boot.
 EGRESS_RESOLVER_USER="egress-resolver"
-EGRESS_RESOLVER_DNS="1.1.1.1,1.0.0.1"
+EGRESS_RESOLVER_DNS="$(/usr/bin/egress-resolver print-servers --config /etc/bob/egress-resolver.toml)"
 
 # The rootless container's network (pasta) runs on the host as this uid.
 SEARCHER_USER="searcher"
