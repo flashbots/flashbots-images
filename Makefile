@@ -2,6 +2,8 @@
 
 SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
+UKI_FILE ?= mkosi.output/buildernet-gcp_latest.efi
+MEASUREMENTS_FILE ?= mkosi.output/portable_measurements.json
 
 # Lima build VM name, mirroring scripts/env_wrapper.sh: tee-builder-<sha256(repo path)[:8]>.
 ifndef LIMA_VM
@@ -21,7 +23,7 @@ help: ## display their help.
 
 ##@ Build
 
-.PHONY: build build-dev build-local smoke boot clean clean-vm stop-vm
+.PHONY: build build-dev build-local smoke measure-portable boot clean clean-vm stop-vm
 
 # --tools-tree=default: without it, a pre-existing mkosi.tools/ is silently
 # adopted as a user-supplied tools tree and never rebuilt, so ToolsTreePackages
@@ -38,6 +40,12 @@ build-local: ## build with local+devtools profiles (root autologin console, for 
 smoke: ## tiny quick image build to validate the toolchain
 	$(WRAPPER) mkosi -C tests/smoke --force --tools-tree=default build
 	@echo "Smoke build OK"
+
+measure-portable: ## export portable measurements for the GCP UKI (override UKI_FILE=...)
+	@mkdir -p "$(dir $(MEASUREMENTS_FILE))"
+	@command -v attest >/dev/null || { echo "attest not found; install Easy-TEE/attest from main" >&2; exit 1; }
+	@attest measure portable --no-azure "$(UKI_FILE)" > "$(MEASUREMENTS_FILE)"
+	@echo "Portable measurements exported to $(MEASUREMENTS_FILE)"
 
 ##@ Run
 
