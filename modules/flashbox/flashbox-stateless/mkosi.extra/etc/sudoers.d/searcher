@@ -1,0 +1,1 @@
+searcher ALL=(root) NOPASSWD: /usr/bin/tdx-init set-passphrase, /usr/bin/systemctl restart flashbox-deploy, /usr/bin/systemctl start sandbox-pool, /usr/bin/systemctl stop sandbox-pool

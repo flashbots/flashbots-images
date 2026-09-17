@@ -1,0 +1,12 @@
+[Unit]
+Description=Host firewall
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=minimal.target

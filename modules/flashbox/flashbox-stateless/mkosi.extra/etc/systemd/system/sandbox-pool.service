@@ -1,0 +1,15 @@
+[Unit]
+Description=Sandbox pool
+After=flashbox-deploy.service firewall.service
+Requires=flashbox-deploy.service firewall.service
+
+[Service]
+User=sandbox
+Environment=XDG_RUNTIME_DIR=/run/flashbox/sandbox
+ExecStartPre=/usr/bin/podman rm -af -t 0
+ExecStart=/usr/bin/sandbox-pool --pool 16 --data-dir /persistent/searcher/data
+ExecStopPost=/usr/bin/podman rm -af -t 0
+MemoryMax=80%
+TasksMax=16384
+Restart=on-failure
+RestartSec=5
