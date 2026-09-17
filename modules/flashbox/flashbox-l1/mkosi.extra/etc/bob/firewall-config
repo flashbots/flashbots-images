@@ -28,22 +28,39 @@ FLASHBOTS_TX_STREAM_2="3.149.14.12"
 
 # BuilderNet endpoints (production only)
 #
-# These IPs serve BOTH the tx stream (persistent wss on path /bob) and bundle
-# submission (bare path) over the same HTTPS endpoint, so they are not split into
-# an always-on bundle rule + production-only tx stream rule the way the
-# Flashbots endpoints are. Because tx stream is an observable side channel,
-# the whole set is gated to production mode and torn down on toggle (see
-# toggle-config PRODUCTION_ENDPOINTS). Consequently BuilderNet bundle submission
-# works only in production mode, unlike the always-on Flashbots bundles.
+# BuilderNet serves BOTH the tx stream (persistent wss on path /bob) and bundle
+# submission (bare path) over the same HTTPS endpoint, so the whole set is gated
+# to production mode, unlike the always-on Flashbots bundle rule. Because the tx
+# stream is an observable side channel, flows are torn down on toggle.
 #
-# Production mode has no DNS, so these are addressed by IP; the hostnames searchers
-# connect to (for TLS) are mapped statically in searcher-container-after-init.
-BUILDERNET_FB_OM_USE1_00="200.225.47.181"  # fb-om-use1-00  (US east)
-BUILDERNET_FB_OM_USE1_01="200.225.47.183"  # fb-om-use1-01  (US east)
-BUILDERNET_FB_OM_EUW1_00="198.203.202.53"  # fb-om-euw1-00  (EU west)
-BUILDERNET_FB_OM_EUW1_01="198.203.202.55"  # fb-om-euw1-01  (EU west)
-BUILDERNET_FB_GCP_ANE1_00="34.104.157.101" # fb-gcp-ane1-00 (AP northeast)
-BUILDERNET_FB_GCP_ANE1_01="35.213.62.127"  # fb-gcp-ane1-01 (AP northeast)
+# Their addresses are NOT hardcoded: BuilderNet's contract with clients is the
+# names rpc.buildernet.org and direct-{us,eu,ap}.buildernet.org, and the
+# addresses behind them change. egress-resolver (a measured component, see
+# /etc/bob/egress-resolver.toml and egress-resolver.service) resolves those
+# names over DNS-over-TLS, requires DNSSEC-validated answers, rejects any
+# non-global address and keeps two chains in sync, each holding one rule per
+# address with a comment naming its source:
+#   DYN_BNET_PRODUCTION_OUT   ACCEPT tcp/443 to the CURRENT addresses (PRODUCTION_OUT)
+#   DYN_BNET_MAINTENANCE_OUT  DROP everything ever resolved since boot (MAINTENANCE_OUT)
+# The chains are created empty here and jumped to from static rules, so
+# `iptables-save` remains the complete description of the policy; only the
+# contents of these two chains vary at runtime. The same addresses are written
+# to the container's /etc/hosts, so the container cannot learn an address the
+# firewall does not allow.
+CHAIN_DYN_BNET_PRODUCTION_OUT="DYN_BNET_PRODUCTION_OUT"
+CHAIN_DYN_BNET_MAINTENANCE_OUT="DYN_BNET_MAINTENANCE_OUT"
+iptables -N $CHAIN_DYN_BNET_PRODUCTION_OUT
+iptables -N $CHAIN_DYN_BNET_MAINTENANCE_OUT
+
+# egress-resolver runs its DNS step as this uid and may only reach the
+# resolvers configured in /etc/bob/egress-resolver.toml on 853. The list is
+# read from that file (single source of truth); the config is validated at
+# image build time (mkosi.postinst) so this cannot fail at boot.
+EGRESS_RESOLVER_USER="egress-resolver"
+EGRESS_RESOLVER_DNS="$(/usr/bin/egress-resolver print-servers --config /etc/bob/egress-resolver.toml)"
+
+# The rootless container's network (pasta) runs on the host as this uid.
+SEARCHER_USER="searcher"
 
 # Prometheus metrics proxy
 PROMETHEUS_PROXY_IP="10.88.0.100"
@@ -68,6 +85,17 @@ accept_dst_port $CHAIN_ALWAYS_IN udp $CL_P2P_PORT "CL P2P (UDP)"
 ###########################################################################
 # (2) ALWAYS_OUT: Outbound rules that are always applied
 ###########################################################################
+
+# egress-resolver: the only DNS path that exists in production mode. Only its
+# uid may open TCP/853 to the pinned resolvers, and nothing else from that uid
+# leaves the host. These two rules MUST stay first in ALWAYS_OUT: the accepts
+# below are not uid-scoped and would otherwise apply to this uid as well.
+iptables -A $CHAIN_ALWAYS_OUT -p tcp -d $EGRESS_RESOLVER_DNS --dport $DNS_OVER_TLS_PORT \
+    -m owner --uid-owner $EGRESS_RESOLVER_USER -m conntrack --ctstate NEW -j ACCEPT \
+    -m comment --comment "egress-resolver DNS-over-TLS"
+iptables -A $CHAIN_ALWAYS_OUT -m owner --uid-owner $EGRESS_RESOLVER_USER \
+    -m conntrack --ctstate NEW -j DROP \
+    -m comment --comment "egress-resolver: no other egress"
 
 # Note: this is CL running on the host, searcher netns has DROP on those
 # See also init-container.sh
@@ -104,8 +132,10 @@ accept_dst_port $CHAIN_MAINTENANCE_IN udp $EL_P2P_PORT "EL P2P (UDP)"
 # Block Flashbots protect tx endpoints during maintenance
 drop_dst_ip $CHAIN_MAINTENANCE_OUT $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 "Flashbots Protect (DROP before accept-all rules)"
 
-# Block BuilderNet endpoints during maintenance. 
-drop_dst_ip $CHAIN_MAINTENANCE_OUT $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_GCP_ANE1_00,$BUILDERNET_FB_GCP_ANE1_01 "BuilderNet (DROP before accept-all rules)"
+# Block BuilderNet endpoints during maintenance: every address egress-resolver
+# has seen since boot (the chain only grows while the box is up).
+iptables -A $CHAIN_MAINTENANCE_OUT -j $CHAIN_DYN_BNET_MAINTENANCE_OUT \
+    -m comment --comment "BuilderNet (runtime-populated DROP list, before accept-all rules)"
 
 accept_dst_port $CHAIN_MAINTENANCE_OUT udp $DNS_PORT "DNS (UDP)"
 accept_dst_port $CHAIN_MAINTENANCE_OUT tcp $DNS_PORT "DNS (TCP)"
@@ -127,7 +157,22 @@ accept_dst_port $CHAIN_MAINTENANCE_OUT udp $EL_P2P_PORT "EL P2P (UDP)"
 # (6) PRODUCTION_OUT: Outbound rules for Production Mode
 ###########################################################################
 
+# The searcher container has no DNS in production. Its queries reach the host
+# only through pasta (uid searcher) forwarding to systemd-resolved's stub on
+# loopback; upstream is already unreachable in this mode, but the stub would
+# still answer from its cache. Drop that path so not even cached names resolve.
+# (Evaluated before OUTPUT's loopback accept; kill_maintenance_connections
+# removes existing udp/tcp 53 conntrack state on toggle.)
+iptables -A $CHAIN_PRODUCTION_OUT -o lo -p udp --dport $DNS_PORT \
+    -m owner --uid-owner $SEARCHER_USER -j DROP \
+    -m comment --comment "searcher DNS to host stub (no DNS in production)"
+iptables -A $CHAIN_PRODUCTION_OUT -o lo -p tcp --dport $DNS_PORT \
+    -m owner --uid-owner $SEARCHER_USER -j DROP \
+    -m comment --comment "searcher DNS to host stub (no DNS in production)"
+
 accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $FLASHBOTS_TX_STREAM_1,$FLASHBOTS_TX_STREAM_2 $HTTPS_PORT "Flashbots Protect tx stream"
 
-# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS endpoint
-accept_dst_ip_port $CHAIN_PRODUCTION_OUT tcp $BUILDERNET_FB_OM_USE1_00,$BUILDERNET_FB_OM_USE1_01,$BUILDERNET_FB_OM_EUW1_00,$BUILDERNET_FB_OM_EUW1_01,$BUILDERNET_FB_GCP_ANE1_00,$BUILDERNET_FB_GCP_ANE1_01 $HTTPS_PORT "BuilderNet tx stream + bundle submission"
+# BuilderNet tx stream (path /bob) + bundle submission (bare path), same HTTPS
+# endpoint: tcp/443 to the addresses egress-resolver currently has for the names.
+iptables -A $CHAIN_PRODUCTION_OUT -j $CHAIN_DYN_BNET_PRODUCTION_OUT \
+    -m comment --comment "BuilderNet tx stream + bundle submission (runtime-populated)"
