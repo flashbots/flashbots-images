@@ -1,0 +1,41 @@
+# Validates the Prometheus recording rules shipped in the observability module
+# and runs their unit tests (modules/flashbox/observability/tests/*.yml) with
+# promtool. The image ships Debian trixie's Prometheus (2.53 LTS), so promtool
+# is pinned to that generation.
+name: observability rules
+
+on:
+  pull_request:
+    paths:
+      - "modules/flashbox/observability/**"
+      - ".github/workflows/observability-rules.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "modules/flashbox/observability/**"
+      - ".github/workflows/observability-rules.yaml"
+
+jobs:
+  promtool:
+    name: promtool check + test rules
+    runs-on: ubuntu-latest
+    env:
+      PROMTOOL_IMAGE: docker.io/prom/prometheus:v2.53.4
+      MODULE: modules/flashbox/observability
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: promtool check rules
+        run: |
+          docker run --rm -v "$PWD/$MODULE:/w:ro" --entrypoint promtool "$PROMTOOL_IMAGE" \
+            check rules /w/mkosi.extra/etc/prometheus/recording_rules.yml
+
+      - name: promtool test rules
+        run: |
+          for t in "$MODULE"/tests/*.yml; do
+            echo "::group::$t"
+            docker run --rm -v "$PWD/$MODULE:/w:ro" --entrypoint promtool "$PROMTOOL_IMAGE" \
+              test rules "/w/tests/$(basename "$t")"
+            echo "::endgroup::"
+          done

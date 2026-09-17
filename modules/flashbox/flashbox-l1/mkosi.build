@@ -29,5 +29,5 @@ make_git_package \
 # populate the DYN_BNET_* firewall chains and the container hosts file)
 build_rust_package \
     "egress-resolver" \
-    "v0.1.3" \
+    "v0.1.4" \
     "https://github.com/flashbots/egress-resolver"

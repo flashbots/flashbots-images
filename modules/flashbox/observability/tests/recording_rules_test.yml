@@ -1,6 +1,7 @@
-# Unit tests for the egress-resolver recording rules. Run with:
+# Unit tests for the egress-resolver recording rules. CI runs them through
+# .github/workflows/observability-rules.yaml; locally:
 #   podman run --rm -v "$PWD/modules/flashbox/observability:/w:ro" --entrypoint promtool \
-#       docker.io/prom/prometheus test rules /w/tests/recording_rules_test.yml
+#       docker.io/prom/prometheus:v2.53.4 test rules /w/tests/recording_rules_test.yml
 #
 # The scraped series carry job/instance labels while vector(0) carries none, so
 # a plain `or vector(0)` would keep both. These tests pin the healthy (one
