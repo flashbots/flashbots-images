@@ -128,7 +128,7 @@ Two behaviours to be aware of. `rpc.buildernet.org` maps to exactly what Builder
 
 To audit the live policy, `iptables-save` on the host lists every rule, including the current contents of the two dynamic chains. Per-node names such as `fb-*.nodes.buildernet.org` are not a client contract and are not resolvable from the container in production.
 
-What the image needs from BuilderNet's DNS: the four names above stay the contract, a new node's address is published in DNS before it starts serving `/bob` (the image picks it up within one resolver interval plus the record's TTL), `buildernet.org` stays DNSSEC-signed and, if a name is ever turned into a CNAME, every zone on the chain is signed too; an unsigned hop means no validated answer, and the image then keeps the last-known-good addresses for that name until reboot.
+What the image needs from BuilderNet's DNS: the four names above stay the contract, a new node's address is published in DNS before it starts serving `/bob` (with resolution healthy, the image picks it up within one resolver interval plus the record's TTL; a failed cycle adds an interval), `buildernet.org` stays DNSSEC-signed and, if a name is ever turned into a CNAME, every zone on the chain is signed too; an unsigned hop means no validated answer, and the image then keeps the last-known-good addresses for that name until reboot.
 
 **<u>ipv6</u>**
 

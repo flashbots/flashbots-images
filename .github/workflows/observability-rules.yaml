@@ -2,6 +2,10 @@
 # and runs their unit tests (modules/flashbox/observability/tests/*.yml) with
 # promtool. The image ships Debian trixie's Prometheus (2.53 LTS), so promtool
 # is pinned to that generation.
+#
+# Path-filtered: a pull request that does not touch the module never runs it,
+# so do not make it a required check without adding an unconditional no-op
+# job, or such PRs stay stuck on "expected".
 name: observability rules
 
 on:
