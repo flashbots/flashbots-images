@@ -78,7 +78,10 @@ check_image_production_prerequisites() {
     fi
     if [ "$(jq -r '.required_fresh // false' "$EGRESS_RESOLVER_STATUS")" != "true" ]; then
         echo "WARNING: BuilderNet addresses are last-known-good (DNS not refreshed this run):"
-        jq -r '.endpoints[] | select(.required and .source != "fresh") | "     - \(.name): \(.error // "no fresh answer")"' "$EGRESS_RESOLVER_STATUS"
+        jq -r --argjson now "$now_uptime" '(.last_fresh_uptime_secs // {}) as $lf
+            | .endpoints[] | select(.required and .source != "fresh")
+            | "     - \(.name): \(.error // "no fresh answer"); last fresh answer: \(if $lf[.name] then "\(($now - $lf[.name]) | floor)s ago" else "never this boot" end)"' \
+            "$EGRESS_RESOLVER_STATUS"
     fi
     # Belt and braces: the kernel must agree with the status file.
     if [ "$($IPTABLES -w 5 -S "$CHAIN_DYN_BNET_PRODUCTION_OUT" | grep -c '^-A')" -eq 0 ]; then
