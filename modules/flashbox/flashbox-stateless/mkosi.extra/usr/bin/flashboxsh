@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+case "${1:-}:${2:-}" in
+    -c:initialize) sudo tdx-init set-passphrase && chmod 2775 /persistent/searcher && mkdir -m 2775 -p /persistent/searcher/data ;;
+    -c:deploy)
+        systemctl -q is-active sandbox-pool && { echo "stop first" >&2; exit 1; }
+        exec sudo systemctl restart flashbox-deploy ;;
+    -c:start)  exec sudo systemctl start sandbox-pool ;;
+    -c:stop)   exec sudo systemctl stop sandbox-pool ;;
+    -c:status) systemctl -q is-active sandbox-pool && echo running || echo stopped ;;
+    *) echo "commands: initialize deploy start stop status. for sftp, use sftp@<ip>" >&2; exit 1 ;;
+esac
