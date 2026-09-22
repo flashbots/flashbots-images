@@ -43,3 +43,50 @@ groups:
           (sum(rate(node_network_receive_bytes_total{device!~"lo"}[5m]))
           + sum(rate(node_network_transmit_bytes_total{device!~"lo"}[5m])))
           > bool 0
+
+      # egress-resolver (runtime BuilderNet endpoint resolution, exported via
+      # the node-exporter textfile collector). node-exporter labels the mtime
+      # series with the full path of the file. A missing or unparseable file
+      # yields 0 rather than an absent series. The fallbacks use `or on()`:
+      # a plain `or vector(0)` keeps both sides whenever the left has labels,
+      # so a healthy VM would report a labelled 1 next to an unlabelled 0.
+      - record: flashbox:egress_resolver_is_running
+        expr: >
+          ((time() - node_textfile_mtime_seconds{file=~".*/egress-resolver\\.prom"}) < bool 300)
+          or on() vector(0)
+
+      # The last run installed the planned policy in the firewall and the hosts
+      # file, every required endpoint has an address, and the connection sweep
+      # succeeded. Any 0 here means the searcher can be blocked from production
+      # or a flow may have survived a policy change.
+      - record: flashbox:egress_resolver_apply_ok
+        expr: egress_resolver_apply_ok or on() vector(0)
+
+      - record: flashbox:egress_resolver_hosts_ok
+        expr: egress_resolver_hosts_ok or on() vector(0)
+
+      - record: flashbox:egress_resolver_conntrack_ok
+        expr: egress_resolver_conntrack_ok or on() vector(0)
+
+      - record: flashbox:egress_resolver_required_endpoints_resolved
+        expr: egress_resolver_required_satisfied or on() vector(0)
+
+      # Distinguishes "updater is running" from "DNS answers are current":
+      # 0 for a prolonged DNS/DoT outage while last-known-good addresses are
+      # still in use.
+      - record: flashbox:egress_resolver_required_endpoints_fresh
+        expr: egress_resolver_required_fresh or on() vector(0)
+
+      - record: flashbox:egress_resolver_production_addresses
+        expr: egress_resolver_production_addresses or on() vector(0)
+
+      # Longest time any endpoint has been running on last-known-good
+      # addresses (0 while all are fresh). Lets an alert tell a 90 s DoT blip
+      # from a day-long outage. Absent until the first fresh answer of the boot.
+      - record: flashbox:egress_resolver_max_fresh_age_seconds
+        expr: max without (name) (egress_resolver_endpoint_fresh_age_seconds)
+
+      # An authenticated NXDOMAIN/NODATA removes a region in one tick; correct,
+      # but somebody should know.
+      - record: flashbox:egress_resolver_endpoint_has_addresses
+        expr: egress_resolver_endpoint_addresses > bool 0

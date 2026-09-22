@@ -65,7 +65,7 @@ Firewall Rules
 ------------------------
 <img alt="tee-searcher-networking" src="https://github.com/user-attachments/assets/8dd72ece-44de-4907-9d2d-1dd32b7c1468" />
 
-**IMPORTANT: Searchers, you will not have DNS access during production mode!**
+**IMPORTANT: Searchers, you will not have DNS access during production mode!** The container's `/etc/hosts` maps the Flashbots Protect and BuilderNet hostnames to the addresses the firewall currently allows (see [BuilderNet endpoint resolution](#buildernet-endpoint-resolution)); dial those names, not IPs.
 
 **<u>Host Network Namespace iptables</u>**
 
@@ -79,7 +79,8 @@ Firewall Rules
 | 30303 | Input + Output            | Execution Client P2P            | Podman               | TCP + UDP | DISABLED        | ENABLED          |
 | 9000  | Input + Output            | Consensus Client P2P            | Podman               | TCP + UDP | ENABLED         | ENABLED          |
 | 443   | Output **IP WHITELISTED** | Flashbots Protect Tx Stream     | Podman               | TCP       | ENABLED         | DISABLED         |
-| 443   | Output **IP WHITELISTED** | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP   | ENABLED         | DISABLED         |
+| 443   | Output **IP WHITELISTED** (resolved at runtime from `rpc.buildernet.org` / `direct-*.buildernet.org`, see below) | BuilderNet State Diff Stream + Bundle RPC | BuilderNet RPC | TCP | ENABLED | DISABLED |
+| 853   | Output **IP WHITELISTED**, uid `egress-resolver` only | DNS-over-TLS to 1.1.1.1 / 1.0.0.1 | Host (egress-resolver) | TCP | ENABLED | ENABLED |
 | 443   | Output **IP WHITELISTED** | Flashbots Bundle RPC            | Flashbots Bundle RPC | TCP       | ENABLED         | ENABLED          |
 | 53    | Output                    | DNS                             | DNS                  | TCP + UDP | DISABLED        | ENABLED          |
 | 80    | Output                    | HTTP                            | HTTP                 | TCP       | DISABLED        | ENABLED          |
@@ -111,6 +112,23 @@ iptables -A OUTPUT -d 10.88.0.100 -j DROP
 ```
 
 The `toggle` command refuses to switch into production mode unless every one of these rules is present in the container's network namespace.
+
+**<u>BuilderNet endpoint resolution</u>**
+
+BuilderNet's contract with clients is a set of names, `rpc.buildernet.org` and `direct-{us,eu,ap}.buildernet.org`, and the addresses behind them change as nodes move. Instead of baking those addresses into the image (which broke searchers when BuilderNet migrated nodes), the image ships [`egress-resolver`](https://github.com/flashbots/egress-resolver), a small measured component that every minute:
+
+1. resolves exactly the names listed in [`/etc/bob/egress-resolver.toml`](mkosi.extra/etc/bob/egress-resolver.toml) over DNS-over-TLS to Cloudflare (`1.1.1.1`, `1.0.0.1`), accepting only DNSSEC-validated answers with global unicast IPv4 addresses;
+2. atomically rewrites two iptables chains that are jumped to from the static rules above: `DYN_BNET_PRODUCTION_OUT` (`ACCEPT tcp/443` to the current addresses, used in production) and `DYN_BNET_MAINTENANCE_OUT` (`DROP` for every address seen since boot, used in maintenance); each rule's comment names the hostname it came from;
+3. writes the same addresses to the container's `/etc/hosts` (a read-only bind mount from `/run/flashbox-endpoints/hosts`), so the container can only ever learn addresses the firewall allows;
+4. deletes conntrack entries for flows that are no longer permitted in the current mode.
+
+If DNS is unavailable, the previous addresses stay in place (they are read back from the rule comments, so nothing is persisted); if a name disappears from DNS its addresses are removed from the production chain but stay dropped in maintenance for the rest of the boot. `toggle` refuses to enter production unless the resolver has completed a run in the last five minutes, that run installed its policy in both the firewall and the hosts file, and `rpc.buildernet.org` has at least one address; it warns, but does not refuse, when those addresses are last-known-good rather than freshly resolved, and says how long ago the last fresh answer was. The maintenance guarantee is correspondingly precise: maintenance mode blocks the BuilderNet addresses observed during this boot. An address that has not been resolved yet (before the first successful run, or a newly published node until the next run) is reachable over the general HTTPS rule until the resolver sees it; closing that window needs BuilderNet-side client authentication, not more polling. The container starts only after the first apply run has finished, which takes up to about 35 s when the resolvers are unreachable at boot. The two steps are separate systemd units: [`egress-resolver.service`](mkosi.extra/etc/systemd/system/egress-resolver.service) runs the DNS step as an unprivileged user that the firewall allows to reach only the two resolvers on port 853, and [`egress-resolver-apply.service`](mkosi.extra/etc/systemd/system/egress-resolver-apply.service) edits the firewall with `CAP_NET_ADMIN` and a sandbox that permits no IP sockets at all.
+
+Two behaviours to be aware of. `rpc.buildernet.org` maps to exactly what BuilderNet's DNS returns for it (today the two US nodes); the old image mapped every node to that name, so a bot that relied on dial-level failover across regions through `rpc.` should use `direct-<region>.buildernet.org` for regional pinning or handle failover itself. The firewall unit runs once at boot and nothing in the image restarts it; the resolver units are `PartOf=` it so that the dynamic chains are always initialised together with the static rules. A re-initialisation also restarts the observed-address history: the maintenance chain is rebuilt from the next answers, so a node retired from DNS earlier in the boot is no longer blocked. All writers of the dynamic chains (`init-firewall.sh`, `toggle`, `egress-resolver`) hold the same lock, so a re-initialisation cannot interleave with an update.
+
+To audit the live policy, `iptables-save` on the host lists every rule, including the current contents of the two dynamic chains. Per-node names such as `fb-*.nodes.buildernet.org` are not a client contract and are not resolvable from the container in production.
+
+What the image needs from BuilderNet's DNS: the four names above stay the contract, a new node's address is published in DNS before it starts serving `/bob` (with resolution healthy, the image picks it up within one resolver interval plus the record's TTL; a failed cycle adds an interval), `buildernet.org` stays DNSSEC-signed and, if a name is ever turned into a CNAME, every zone on the chain is signed too; an unsigned hop means no validated answer, and the image then keeps the last-known-good addresses for that name until reboot.
 
 **<u>ipv6</u>**
 
@@ -211,6 +229,8 @@ On the first startup, after the searcher's SSH key is received and stored, the s
 **<u>Input Channel Authentication</u>**
 
 The searcher's SSH public key is also the credential for the TCP input channel on port 27018. [`input-only-proxy`](https://github.com/flashbots/input-only-proxy) reads the key from `/etc/searcher_key` and accepts only TLS client certificates carrying that exact Ed25519 key, so auditing this component is part of confirming that nobody else can push data into the container. The image builds it from source at the version pinned in [`mkosi.build`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.build); the service definition is in [`input-only-proxy.service`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/common/mkosi.extra/etc/systemd/system/input-only-proxy.service). See [Input Channels](#input-channels) for how the channel is used.
+
+The production egress allowlist for BuilderNet is maintained at runtime by [`egress-resolver`](https://github.com/flashbots/egress-resolver), built from source at the version pinned in [`flashbox-l1/mkosi.build`](https://github.com/flashbots/flashbots-images/blob/main/modules/flashbox/flashbox-l1/mkosi.build). Auditing it means checking that it resolves only the names in [`egress-resolver.toml`](mkosi.extra/etc/bob/egress-resolver.toml), only over authenticated DNS-over-TLS, and that it can only write the two `DYN_BNET_*` chains referenced from [`firewall-config`](mkosi.extra/etc/bob/firewall-config); the unit definitions are [`egress-resolver.service`](mkosi.extra/etc/systemd/system/egress-resolver.service) (DNS, unprivileged) and [`egress-resolver-apply.service`](mkosi.extra/etc/systemd/system/egress-resolver-apply.service) (firewall, `CAP_NET_ADMIN`, no IP sockets). Note that `apply` trusts the addresses `resolve` hands it beyond checking that they are global unicast, so the DNS step is part of what authorises egress. See [BuilderNet endpoint resolution](#buildernet-endpoint-resolution).
 
 ### 2. audit and run the local measurement software
 
@@ -341,6 +361,8 @@ https://backruns.tee-searcher.flashbots.net
 ### Searching on BuilderNet's Bottom of Block
 
 BuilderNet serves both the state diff stream and bundle submission over the same HTTPS endpoint (`rpc.buildernet.org`). Because they share one endpoint, both are reachable only in **production mode** — unlike the Flashbots bundle RPC, which is always on.
+
+Connect by hostname (`rpc.buildernet.org`, or `direct-us`/`direct-eu`/`direct-ap.buildernet.org` to pin a region). The image resolves these names for you and keeps the firewall in sync when BuilderNet changes addresses (see [BuilderNet endpoint resolution](#buildernet-endpoint-resolution)); hardcoded IPs or per-node names will stop working when nodes move.
 
 **<u>Subscribing to BuilderNet's State Diff Stream</u>**
 

@@ -1,0 +1,42 @@
+[Unit]
+Description=Resolve BuilderNet endpoints over DNS-over-TLS
+Documentation=https://github.com/flashbots/egress-resolver
+# firewall-config creates the uid-scoped DoT rule this step depends on. PartOf=
+# re-runs the resolver whenever the firewall is re-initialised (which recreates
+# the dynamic chains empty).
+After=searcher-firewall.service network-online.target
+Requires=searcher-firewall.service
+Wants=network-online.target
+PartOf=searcher-firewall.service
+ConditionPathExists=/etc/bob/egress-resolver.toml
+
+[Service]
+Type=oneshot
+# Unprivileged: the host firewall lets this uid open only TCP/853 to the
+# configured resolvers. The run is bounded by resolver.deadline_secs (30s);
+# TimeoutStartSec is the backstop (RuntimeMaxSec does not apply to oneshots).
+User=egress-resolver
+Group=egress-resolver
+ExecStart=/usr/bin/egress-resolver resolve
+TimeoutStartSec=60
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+ReadWritePaths=/run/egress-resolver/resolve

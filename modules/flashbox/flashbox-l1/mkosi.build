@@ -2,6 +2,7 @@
 set -euxo pipefail
 
 source scripts/make_git_package.sh
+source scripts/build_rust_package.sh
 
 # Compile lighthouse
 LIGHTHOUSE_BUILD_CMD="
@@ -23,3 +24,10 @@ make_git_package \
     "https://github.com/sigp/lighthouse.git" \
     "$LIGHTHOUSE_BUILD_CMD" \
     "target/x86_64-unknown-linux-gnu/release/lighthouse:/usr/bin/lighthouse"
+
+# Build egress-resolver (runtime resolution of the BuilderNet endpoints that
+# populate the DYN_BNET_* firewall chains and the container hosts file)
+build_rust_package \
+    "egress-resolver" \
+    "v0.1.6" \
+    "https://github.com/flashbots/egress-resolver"
