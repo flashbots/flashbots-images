@@ -2,7 +2,7 @@
 #
 # version-bump.sh — bump BuilderNet downloader-unit versions + sha256sums.
 #
-# Updates the *_TAG, *_ARTIFACT and *_SHA256SUM fields of the systemd
+# Updates the *_TAG, *_REPO, *_ARTIFACT and *_SHA256SUM fields of the systemd
 # "*-downloader.service" units from the matching GitHub release assets.
 # Checksums come from the release's published `sha256sums.txt` (falling
 # back to hashing the downloaded artifact), discovered via the `gh` CLI.
@@ -11,10 +11,10 @@
 #
 # Usage:
 #   scripts/version-bump.sh --rbuilder-operator v1.7.15 --rbuilder-rebalancer v1.7.15
-#   scripts/version-bump.sh --flowproxy 2.4.3            # leading 'v' optional
+#   scripts/version-bump.sh --flowproxy 1.19.0           # leading 'v' optional
 #   scripts/version-bump.sh --pamm-stream v0.0.2
 #   scripts/version-bump.sh --rbuilder-operator latest   # resolve newest release
-#   scripts/version-bump.sh --flowproxy v2.4.3 --dry-run # preview the diff only
+#   scripts/version-bump.sh --flowproxy v1.19.0 --dry-run # preview the diff only
 #
 # One flag per service; combine as many as you like in a single invocation.
 
@@ -33,7 +33,7 @@ SERVICES=(flowproxy pamm-stream rbuilder-operator rbuilder-rebalancer)
 # the rendered artifact name is both the release asset we fetch and the key we
 # look up in sha256sums.txt, so it must match the release exactly.
 declare -A SVC_REPO=(
-  [flowproxy]="flowproxy-private"
+  [flowproxy]="rbuilder-prism"
   [pamm-stream]="pamm-stream"
   [rbuilder-operator]="rbuilder-prism"
   [rbuilder-rebalancer]="rbuilder-prism"
@@ -52,7 +52,7 @@ declare -A SVC_PREFIX=(
   [rbuilder-rebalancer]="RBUILDER_REBALANCER"
 )
 declare -A SVC_ARTIFACT=(
-  [flowproxy]="flowproxy"
+  [flowproxy]="flowproxy-%TAG%-x86_64-unknown-linux-gnu"
   [pamm-stream]="pamm-stream-%TAG%-linux-x86_64"
   [rbuilder-operator]="rbuilder-operator-reth-%TAG%-x86_64-unknown-linux-gnu"
   [rbuilder-rebalancer]="rbuilder-rebalancer-%TAG%-x86_64-unknown-linux-gnu"
@@ -168,6 +168,7 @@ for svc in "${SERVICES[@]}"; do
   old_tag=$(read_field "$file" "${prefix}_TAG")
   ensure_work "$file"; work="$REPLY"
   set_field "$work" "${prefix}_TAG"       "$tag"
+  set_field "$work" "${prefix}_REPO"      "$repo"
   set_field "$work" "${prefix}_ARTIFACT"  "$artifact"
   set_field "$work" "${prefix}_SHA256SUM" "$sha"
 
