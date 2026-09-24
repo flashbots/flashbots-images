@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 # Keep the exact source commit in every image.
-commit=$(git -C "$SRCDIR" rev-parse --verify 'HEAD^{commit}')
+# GIT_COMMIT is set by env_wrapper.sh; direct mkosi runs fall back to git.
+commit=${GIT_COMMIT:-$(git -C "$SRCDIR" rev-parse --verify 'HEAD^{commit}')}
+[[ "$commit" =~ ^[0-9a-f]{40}$ ]]
 [[ "$IMAGE_ID" =~ ^[a-zA-Z0-9._-]+$ ]]
 
 install -d -m 0755 "$BUILDROOT/usr/lib/flashbots" "$BUILDROOT/usr/lib/flashbots/metrics"
