@@ -1,7 +1,7 @@
 [Unit]
 Description=SSH Public Key Server
-After=ssh.service
-Wants=ssh.service
+After=sshd-keygen.service
+Wants=sshd-keygen.service
 
 [Service]
 Type=simple
