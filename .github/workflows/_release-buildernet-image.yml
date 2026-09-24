@@ -23,6 +23,10 @@ on:
         description: "R2 cache object name (e.g. 'cache' or 'cache-playground')"
         type: string
         required: true
+      portable-measurements:
+        description: "Generate portable measurements for the published GCP UKI"
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -130,6 +134,21 @@ jobs:
             ARGS+=(--profile="${{ inputs.mkosi-profile }}")
           fi
           mkosi "${ARGS[@]}"
+
+      - name: Install portable measurement tool
+        if: inputs.portable-measurements
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate portable measurements
+        if: inputs.portable-measurements
+        env:
+          ATTEST_REV: e7f59c78f9eabd5d1ac7c9e96da46027878d038c
+        run: |
+          cargo install --locked --git https://github.com/Easy-TEE/attest \
+            --rev "${ATTEST_REV}" --package attest-cli --no-default-features
+          make measure-portable \
+            UKI_FILE="mkosi.output/buildernet-gcp_${IMAGE_VERSION}.efi" \
+            MEASUREMENTS_FILE="mkosi.output/buildernet-${IMAGE_VERSION}-portable-measurements.json"
 
       - name: Prepare cache
         run: |

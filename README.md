@@ -74,47 +74,47 @@ To verify that our official images are built from the corresponding git revision
 4. Calculate the SHA256 hashsum of the *.efi image in the `mkosi.output` directory. It should match the hashsum from the *.sha256 file from https://downloads.buildernet.org
 
 # Measurements
-Measurement are a way to verify that the image you built offline matches the one running as a VM.
 
-To measure a Azure image:
-1. Clone github.com/flashbots/measured-boot/ repo and build the `measured-boot` script
+Portable measurements let you verify that a BuilderNet GCP VM is running the OS image
+you audited and built locally, without depending on GCP-specific TDX measurement values.
+
+Build the images, install the `attest` CLI from
+[`Easy-TEE/attest`](https://github.com/Easy-TEE/attest) `main` (pinned below to its current
+head for reproducibility), and measure the GCP UKI:
+
+```bash
+make build
+cargo install --locked --git https://github.com/Easy-TEE/attest \
+  --rev e7f59c78f9eabd5d1ac7c9e96da46027878d038c \
+  --package attest-cli --no-default-features
+make measure-portable
 ```
-go build
+
+This writes `mkosi.output/portable_measurements.json`. To measure another UKI or choose a
+different output path, set `UKI_FILE` or `MEASUREMENTS_FILE`:
+
+```bash
+make measure-portable \
+  UKI_FILE=mkosi.output/buildernet-gcp_2.9.1-deadbeef.efi \
+  MEASUREMENTS_FILE=mkosi.output/portable_measurements.json
 ```
-2. Measure the image offline
-```
-./measured-boot image.efi /dev/null --direct-uki
-```
-3. Clone https://github.com/flashbots/attested-tls-proxy.git repo and run the `attested-get` tool
-```
-git clone https://github.com/flashbots/attested-tls-proxy.git
+
+For a release build, compare this file with the
+`buildernet-<version>-portable-measurements.json` file published alongside the image.
+
+To attest a running VM against those image hashes, build `attested-get` from
+[`flashbots/attested-tls-proxy`](https://github.com/flashbots/attested-tls-proxy):
+
+```bash
+git clone https://github.com/flashbots/attested-tls-proxy
 cd attested-tls-proxy
-curl -fSsL https://measurements.buildernet.org > /tmp/measurements-buildernet.json
-
 cargo run -- attested-get \
-  --measurements-file /tmp/measurements-buildernet.json \
-  https://_BUILDERNET_INSTANCE_:7936
+  --measurements-file ../flashbots-images/mkosi.output/portable_measurements.json \
+  https://<buildernet-instance>:7936
 ```
-1. Compare PCRs 4 and 11 of the offline image and the deployed one, they should match.
 
-To measure a GCP image:
-1. Clone github.com/flashbots/dstack-mr-gcp repo and build the `dstack-mr` tool
-```
-go build
-```
-2. Measure the image offline
-```
-./dstack-mr -uki buildernet-gcp.efi
-```
-3. Clone github.com/flashbots/cvm-reverse-proxy repo and build the `attested-get` tool
-```
-go build cmd/attested-get/main.go
-```
-4. Measure the deployed image
-```
-./attested-get --addr=https://<instance IP>:7936
-```
-5. Compare PCRs 0-4 of the offline image and the deployed one, they should match.
+Successful verification means the VM's attestation matches the hashes derived from your
+locally built image.
 
 # Development
 - Use standard directory names of `mkosi` so that it can automatically pick it up.
