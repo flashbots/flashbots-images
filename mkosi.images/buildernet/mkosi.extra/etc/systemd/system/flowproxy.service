@@ -1,12 +1,13 @@
 [Unit]
 Description=FlowProxy - order flow proxy for BuilderNet
-Wants=network-online.target
-After=network.target network-online.target flowproxy-downloader.service
+Wants=network-online.target rbuilder-operator.service
+After=network.target network-online.target flowproxy-downloader.service rbuilder-operator.service
 Requires=flowproxy-downloader.service
 
 [Service]
 Type=exec
 DynamicUser=yes
+SupplementaryGroups=rbuilder-orderflow
 StateDirectory=persistent/flowproxy
 EnvironmentFile=%E/flowproxy/flowproxy.env
 LoadCredential=api-keys.toml:%E/flowproxy/api-keys.toml

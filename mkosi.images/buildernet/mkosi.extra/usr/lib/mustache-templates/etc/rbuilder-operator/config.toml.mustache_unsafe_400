@@ -22,6 +22,7 @@ jit_revmc_enable = true
 jit_revmc_num_workers = {{rbuilder.jit_revmc_num_workers}}
 jsonrpc_server_ip = "127.0.0.1"
 jsonrpc_server_port = 8645
+orderflow_socket_path = "/run/rbuilder-operator/orderflow.sock"
 key_registration_url = "http://127.0.0.1:7937"
 live_builders = {{{rbuilder.live_builders}}}
 max_bob_state_filters = 35

@@ -15,11 +15,16 @@ User=rbuilder-operator
 StateDirectory=persistent/rbuilder-operator persistent/reth
 StateDirectoryMode=0775
 RuntimeDirectory=rbuilder-operator
+RuntimeDirectoryMode=0711
 EnvironmentFile=%E/rbuilder-operator/reth.env
 LoadCredential=config.toml:%E/rbuilder-operator/config.toml
 ExecStartPre=/bin/bash -c '[[ -f /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json ]] || \
              echo "[]" > /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json'
 ExecStart=/usr/bin/rbuilder-operator-reth node $RETH_ARGS --rbuilder.config %d/config.toml
+ExecStartPost=+/bin/bash -c 'while [[ ! -S %t/rbuilder-operator/orderflow.sock ]]; do /usr/bin/sleep 0.1; done; \
+              /usr/bin/chgrp rbuilder-orderflow %t/rbuilder-operator/orderflow.sock && \
+              /usr/bin/chmod 0660 %t/rbuilder-operator/orderflow.sock'
+TimeoutStartSec=5min
 Restart=on-failure
 RestartSec=5s
 RestartSteps=5
