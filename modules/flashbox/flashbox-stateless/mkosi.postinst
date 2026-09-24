@@ -8,9 +8,11 @@ echo /usr/bin/searchersh >> "$BUILDROOT/etc/shells"
 chmod 440 "$BUILDROOT/etc/sudoers.d/searcher"
 
 mkosi-chroot systemctl mask ssh.socket
+mkosi-chroot systemctl unmask systemd-user-sessions.service
 mkosi-chroot systemctl add-wants minimal.target \
     wait-for-key.service \
     ssh.service \
+    systemd-user-sessions.service \
     persistent-mount.service \
     ssh-pubkey-server.service \
     attested-tls-proxy-pubkey.service \

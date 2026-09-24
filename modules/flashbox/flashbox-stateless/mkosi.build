@@ -30,8 +30,9 @@ make_git_package \
     'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
-VERSION="v2.0.4"
-EXPECTED_SHA256=0c50b2e00de14972d415bf4aa358e3917480f1e86e1981a70a4055115c13a21e
-curl -sSfL https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/attested-tls-proxy_1.${VERSION}_amd64.deb \
-  -o $PACKAGEDIR/attested-tls-proxy.deb
-echo "${EXPECTED_SHA256}" $PACKAGEDIR/attested-tls-proxy.deb | sha256sum --check
+make_git_package \
+    "attested-tls-proxy" \
+    "0f3b35a" \
+    "https://github.com/flashbots/attested-tls-proxy" \
+    'cargo build --release --locked --bin attested-tls-proxy' \
+    "target/release/attested-tls-proxy:/usr/bin/attested-tls-proxy"
