@@ -71,6 +71,15 @@
     };
     mkosi = system: let
       pkgsForSystem = import nixpkgs {inherit system;};
+      # Restrict Debian's Nixpkgs-pinned archive keyring to the build sandbox.
+      # It authenticates apt metadata without becoming guest state or ambient
+      # trust for unrelated repositories.
+      debian-keyring-tree = pkgsForSystem.runCommand "mkosi-debian-keyring-tree" {} ''
+        mkdir -p "$out/usr/share/keyrings"
+        cp \
+          ${pkgsForSystem.debian-archive-keyring}/share/keyrings/debian-archive-keyring.pgp \
+          "$out/usr/share/keyrings/debian-archive-keyring.gpg"
+      '';
       mkosiTools = with pkgsForSystem; [
         apt
         dpkg
@@ -148,7 +157,9 @@
           --setuid=0 --setgid=0 \
           -- \
           env PATH="${mkosiToolsEnv}/bin" \
-          ${mkosi-unwrapped}/bin/mkosi "$@"
+          ${mkosi-unwrapped}/bin/mkosi \
+            --sandbox-tree=${debian-keyring-tree} \
+            "$@"
       '';
   in {
     devShells = builtins.listToAttrs (map (system: {
