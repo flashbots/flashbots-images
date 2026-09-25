@@ -5,12 +5,25 @@ set -eu -o pipefail
 export SOURCE_DATE_EPOCH=0 # not propagated from the main config, needed for mkfs.vfat
 export SYSTEMD_REPART_MKFS_OPTIONS_VFAT="--invariant"
 
+# Normalize the archive header and omit gzip's timestamp and filename so an
+# unchanged raw disk produces a byte-identical GCP import archive. These options
+# affect only disk.raw's archive metadata, not its contents or guest permissions.
 package_raw_as_tar() {
-    cd ${OUTPUTDIR}
-    ln -sf ${IMAGE_ID}_${IMAGE_VERSION}.raw disk.raw
-    tar --mtime="@${SOURCE_DATE_EPOCH}" --dereference --format=oldgnu -Sczf ${IMAGE_ID}_${IMAGE_VERSION}.tar.gz disk.raw
-    unlink disk.raw
+    (
+        cd "${OUTPUTDIR}"
+        ln -sf "${IMAGE_ID}_${IMAGE_VERSION}.raw" disk.raw
+        tar --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 --group=0 --numeric-owner \
+            --dereference --format=oldgnu -Scf - disk.raw \
+            | gzip -n > "${IMAGE_ID}_${IMAGE_VERSION}.tar.gz"
+        unlink disk.raw
+    )
 }
+
+# Let the focused packaging test load package_raw_as_tar without building a disk.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    return 0
+fi
 
 # In verity-root mode, use existing mkosi disk image
 if [ "$(jq -r .Format "$MKOSI_CONFIG")" = "disk" ]; then
