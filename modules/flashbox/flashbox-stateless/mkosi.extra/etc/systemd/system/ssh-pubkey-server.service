@@ -1,0 +1,13 @@
+[Unit]
+Description=SSH Public Key Server
+After=sshd-keygen.service
+Wants=sshd-keygen.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh-pubkey-server --listen-addr=127.0.0.1:5001 --ssh-pubkey-file=/etc/ssh/ssh_host_ed25519_key.pub
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=minimal.target
