@@ -447,14 +447,26 @@ For production deployments, it's critical to pin your builds to specific Debian 
 
 ### Pinning in Configuration
 
-**In your module configuration**:
+Images that are updated together should include one shared snapshot configuration
+instead of repeating the timestamp in each image. The production images in this
+repository use:
+
+**`shared/debian-snapshot.conf`**:
 ```ini
 [Distribution]
-Mirror=https://snapshot.debian.org/archive/debian/20250526T142542Z/
-
-[Build]
-ToolsTreeMirror=https://snapshot.debian.org/archive/debian/20250526T142542Z/
+Snapshot=20260430T025253Z
 ```
+
+**In each pinned image configuration**:
+```ini
+[Include]
+Include=shared/mkosi.conf
+Include=shared/debian-snapshot.conf
+```
+
+Update the timestamp in the shared file to advance all pinned images together.
+Images that intentionally track the current Debian repositories should not include
+the shared snapshot configuration.
 
 ⚠ Update snapshots regularly to get security patches
 

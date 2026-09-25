@@ -26,7 +26,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module
+.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module test-snapshot-config
 
 # Default target
 all: build
@@ -37,6 +37,9 @@ setup: ## Install dependencies (Linux only)
 
 preflight:
 	@$(WRAPPER) echo "Ready to build"
+
+test-snapshot-config: ## Verify production image snapshot pinning
+	@python3 tests/test_debian_snapshot_config.py
 
 # Build module
 build: setup ## Build the specified module
