@@ -26,7 +26,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module
+.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module test-gcp-packaging
 
 # Default target
 all: build
@@ -63,6 +63,9 @@ measure-portable-gcp: measure-portable ## Export a portable GCP-only attestation
 measure-gcp: ## Export TDX measurements for GCP
 	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
 	echo "GCP Measurements exported to build/gcp_measurements.json"
+
+test-gcp-packaging: ## Verify deterministic GCP archive creation
+	@scripts/test_gcp_postoutput_reproducible.sh
 
 # Clean build artifacts
 clean: ## Remove cache and build artifacts
