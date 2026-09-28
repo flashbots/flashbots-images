@@ -81,7 +81,15 @@
         erofs-utils
         mtools
         gptfdisk
-        binutils
+        # objcopy edits the x86-64 UKI (mkosi.postoutput.d), which an
+        # aarch64 binutils cannot read. x86_64 keeps plain binutils so
+        # its image hashes stay as they are; once all-targets is shown
+        # to build the same hashes there, drop the conditional.
+        (
+          if stdenv.hostPlatform.isx86_64
+          then binutils
+          else binutils-unwrapped-all-targets
+        )
         util-linux
         zstd
         which
