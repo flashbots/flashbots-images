@@ -42,8 +42,8 @@ make_git_package \
 
 
 # Install attested-tls-proxy
-VERSION="v2.0.4"
-EXPECTED_SHA256=0c50b2e00de14972d415bf4aa358e3917480f1e86e1981a70a4055115c13a21e
+VERSION="vtest-concurrency-00"
+EXPECTED_SHA256=6a714a94b2077d9a63312bfb27e34ba2ac1263ec9223e9aa6ff0e643059d5147
 curl -sSfL https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/attested-tls-proxy_1.${VERSION}_amd64.deb \
   -o $PACKAGEDIR/attested-tls-proxy.deb
 echo "${EXPECTED_SHA256}" $PACKAGEDIR/attested-tls-proxy.deb | sha256sum --check
