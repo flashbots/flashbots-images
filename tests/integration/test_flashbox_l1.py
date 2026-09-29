@@ -173,8 +173,9 @@ def test_container_ssh_ready(vm_ip):
 
 @pytest.mark.dependency(name="container_ssh", depends=["container_ssh_ready"])
 def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
-    # The container creates its OpenSSH host key after disk initialization.
-    # Fetch /pubkey through attested TLS again before trusting that new key.
+    # The container's OpenSSH host key is generated on the guest OS when the
+    # container starts, after disk initialization. Fetch /pubkey through
+    # attested TLS again before trusting that new key.
     host_keys = fetch_attested_host_keys(vm_ip, tmp_path)
     with known_hosts_file.open("a") as known_hosts:
         known_hosts.writelines(
@@ -189,6 +190,47 @@ def test_ssh_in(vm_ip, tmp_path, known_hosts_file, containersh):
             flush=True,
         )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.dependency(depends=["container_ssh"])
+def test_hostkey_dir_readonly(vm_ip, tmp_path, known_hosts_file, containersh):
+    """A searcher must not be able to influence what /pubkey serves.
+
+    ssh-pubkey-server (root on the guest OS) re-reads
+    /etc/searcher/ssh_hostkey/host_key.pub on every request, and the attested
+    :8745 endpoint is open in production mode. The key is therefore generated
+    on the guest OS and the directory is bind-mounted read-only: with a
+    writable mount, container root could publish arbitrary data through
+    /pubkey (an egress bypass) or symlink the file at any host path.
+    """
+    hostkey_dir = "/etc/searcher/ssh_hostkey"
+
+    result = containersh("/usr/sbin/sshd -T 2>/dev/null | grep -i '^hostkey '")
+    assert result.stdout.split() == ["hostkey", f"{hostkey_dir}/host_key"], \
+        f"container sshd is not using the guest-OS key: {result.stdout!r}"
+
+    for attempt in (
+        f"touch {hostkey_dir}/x",
+        f"sh -c 'echo junk > {hostkey_dir}/host_key.pub'",
+        f"rm -f {hostkey_dir}/host_key.pub",
+        f"ln -sf /etc/hostname {hostkey_dir}/host_key.pub",
+        f"mount -o remount,rw {hostkey_dir}",
+    ):
+        result = containersh(attempt)
+        assert result.returncode != 0, \
+            f"container root could modify the served host key dir with: {attempt}"
+
+    # What /pubkey serves is unchanged by the attempts and still matches the
+    # key sshd presents (containersh uses StrictHostKeyChecking=yes).
+    served = set(fetch_attested_host_keys(vm_ip, tmp_path))
+    trusted = {
+        line.split(maxsplit=1)[1].strip()
+        for line in known_hosts_file.read_text().splitlines()
+        if line.startswith(f"[{vm_ip}]:{DATA_SSH_PORT} ")
+    }
+    assert served == trusted, \
+        f"attested /pubkey changed after write attempts: {served} != {trusted}"
+    assert containersh("true").returncode == 0
 
 
 @pytest.mark.dependency(depends=["container_ssh"])

@@ -5,7 +5,6 @@ Requires=dropbear.service searcher-firewall.service persistent-mount.service
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/bin/chown -R searcher:searcher /etc/searcher/ssh_hostkey 
 ExecStart=/usr/bin/init-container.sh
 RemainAfterExit=yes
 StandardOutput=journal

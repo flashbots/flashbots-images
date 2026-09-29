@@ -15,6 +15,10 @@ groups:
   - name: flashbox_health
     interval: 30s
     rules:
+      # Static source identity, with the VM's host label added by remote_write.
+      - record: flashbox:image_info
+        expr: flashbots_image_info
+
       # 1 if at least one process is running in the searcher-container group,
       # absent if process-exporter isn't reporting it.
       - record: flashbox:container_alive

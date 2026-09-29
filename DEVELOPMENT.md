@@ -32,12 +32,10 @@ flashboxes/
 ├── modules/
 │   ├── flashbox/
 │   │   ├── common/                  # TEE Searcher common image
-│   │   ├── flashbox-l1/             # L1 TEE Searcher sandbox image
-│   │   └── flashbox-l2/             # L2 TEE Searcher sandbox image
+│   │   └── flashbox-l1/             # L1 TEE Searcher sandbox image
 │   └── tdx-dummy/                   # TDX test environment
 ├── images/                          # Top-level image configs
 │   ├── flashbox-l1.conf
-│   ├── flashbox-l2.conf
 │   └── tdx-dummy.conf
 ├── buildernet/                      # BuilderNet
 ├── scripts/                         # Build helper scripts
