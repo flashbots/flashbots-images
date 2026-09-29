@@ -16,7 +16,7 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9100']
     metric_relabel_configs:
-      # Only keep aggregated metrics for remote write
+      # Only keep aggregated and static metrics for remote write
       - source_labels: [__name__]
         regex: 'node_(cpu|memory|disk|filesystem|network|vmstat|textfile)_.*|egress_resolver_.*'
         action: keep
