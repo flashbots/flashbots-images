@@ -1,0 +1,73 @@
+#!/bin/bash
+# Blocks until the BuilderNet maintenance blocklist is complete for this boot,
+# then exits 0. Runs as ExecStartPre= of searcher-container.service, so the
+# container never starts against an empty or partial DYN_BNET_MAINTENANCE_OUT
+# (for example when DNS-over-TLS is unreachable at boot). No timeout of its own:
+# a oneshot unit has no start timeout by default, and production would be
+# refused by toggle in that state anyway.
+#
+# Ready means the last egress-resolver apply run, in this boot:
+#   - installed its policy (apply_ok) and published the hosts file (hosts_ok);
+#   - has no endpoint in state "missing", i.e. every configured name has had an
+#     authenticated answer (addresses, or an authenticated NXDOMAIN/NODATA);
+#   - is what the kernel enforces: every address the status lists for the
+#     maintenance chain is in the chain. This catches a status file left over
+#     from before a firewall re-initialisation that the apply step did not
+#     get to rewrite.
+set -uo pipefail
+
+STATUS="${EGRESS_RESOLVER_STATUS:-/run/egress-resolver/status.json}"
+CHAIN="${EGRESS_RESOLVER_MAINTENANCE_CHAIN:-DYN_BNET_MAINTENANCE_OUT}"
+IPTABLES="${IPTABLES:-/usr/sbin/iptables}"
+INTERVAL="${EGRESS_RESOLVER_WAIT_INTERVAL:-5}"
+
+# Prints nothing and returns 0 when ready; otherwise prints the reason.
+not_ready_reason() {
+    if [ ! -s "$STATUS" ]; then
+        echo "no egress-resolver status yet"
+        return 1
+    fi
+    local boot_id verdict
+    boot_id=$(cat /proc/sys/kernel/random/boot_id)
+    verdict=$(jq -r --arg boot "$boot_id" '
+        if .boot_id != $boot then "status is from a previous boot"
+        elif (.apply_ok and .hosts_ok) | not then "last apply run did not install its policy"
+        elif (.endpoints | length) == 0 then "status lists no endpoints"
+        elif ([.endpoints[] | select(.source == "missing")] | length) > 0 then
+            "no authenticated answer yet for: " + ([.endpoints[] | select(.source == "missing") | .name] | join(", "))
+        else "ok" end' "$STATUS" 2>/dev/null) || verdict="status is unreadable"
+    if [ "$verdict" != "ok" ]; then
+        echo "$verdict"
+        return 1
+    fi
+    local rules ip
+    if ! rules=$("$IPTABLES" -w 5 -S "$CHAIN" 2>/dev/null); then
+        echo "cannot read $CHAIN"
+        return 1
+    fi
+    for ip in $(jq -r '.maintenance[]?' "$STATUS"); do
+        if ! grep -qF -- "-d $ip/32 " <<<"$rules"; then
+            echo "$CHAIN does not hold $ip although the status lists it"
+            return 1
+        fi
+    done
+    return 0
+}
+
+# A stop of the container unit while it waits (for example a firewall restart,
+# which stops and restarts the container) is not a failure of the unit.
+trap 'echo "egress-resolver-wait-ready: stopped while waiting"; exit 0' TERM
+
+last_reason=""
+last_log=0
+while reason=$(not_ready_reason); [ -n "$reason" ]; do
+    now=$(date +%s)
+    # Log when the reason changes and once a minute otherwise.
+    if [ "$reason" != "$last_reason" ] || [ $((now - last_log)) -ge 60 ]; then
+        echo "egress-resolver-wait-ready: waiting before starting the container: $reason"
+        last_reason="$reason"
+        last_log=$now
+    fi
+    sleep "$INTERVAL"
+done
+echo "egress-resolver-wait-ready: every BuilderNet endpoint resolved and enforced; starting the container"
