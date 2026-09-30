@@ -12,7 +12,7 @@ chmod 755 "$DESTDIR/usr/bin/searchersh"
 # Compile cryptsetup
 make_git_package \
     "cryptsetup" \
-    "v2.8.1" \
+    "v2.8.8" \
     "https://gitlab.com/cryptsetup/cryptsetup" \
     './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
     ".libs/cryptsetup:/usr/sbin/cryptsetup" \
