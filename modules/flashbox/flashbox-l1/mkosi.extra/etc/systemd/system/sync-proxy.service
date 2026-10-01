@@ -11,7 +11,7 @@ Type=exec
 User=sync-proxy
 Group=sync-proxy
 # Listens on the internal-only sync-proxy port (see firewall-config) and forwards
-# to the searcher container's EL on the published Engine API port. Mirror mode:
+# to the searcher container's EL on the loopback-only Engine API port. Mirror mode:
 # ACK immediately with an empty 200 (the nginx mirror on the sync node discards
 # responses anyway) and forward asynchronously. Metrics stay on localhost for
 # the local Prometheus (recording_rules.yml turns them into flashbox:* booleans).

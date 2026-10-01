@@ -568,6 +568,8 @@ sync-proxy \
 ```
 
 sync-proxy passes the CL's `Authorization` header through untouched; the searcher's EL validates it against the shared secret in `/secrets/jwt.hex`, which `engine-jwt.service` fetches from Vault at boot (`ENGINE_API_JWT_SECRET`). The local Prometheus turns the forward counters into the remote-written boolean `flashbox:searcher_receiving_engine_calls` (1 iff the EL accepted a forwarded `engine_newPayload`/`forkchoiceUpdated` in the last 5 minutes).
+
+The container's Engine API port is published on the host's loopback only (`-p 127.0.0.1:8551:8551`), and the host firewall has no inbound rule for it, so sync-proxy is the only way in. A direct connection would get the EL's responses back, while in mirror mode sync-proxy never returns them.
 ### **input channels**
 
 Two inbound-only channels let searchers stream data into the container while in production mode, when the SSH data plane is closed.

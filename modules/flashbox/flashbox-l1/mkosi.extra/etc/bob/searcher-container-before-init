@@ -4,8 +4,10 @@
 ENGINE_API_PORT=8551
 EL_P2P_PORT=30303
 
+# Engine API is published on loopback only: sync-proxy is its only client, and
+# a direct path from the network would bypass sync-proxy dropping the responses.
 BOB_SEARCHER_EXTRA_PODMAN_FLAGS="\
-    -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
+    -p 127.0.0.1:${ENGINE_API_PORT}:${ENGINE_API_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT}/udp \
     -v /persistent/sync_proxy_logs:/var/log/sync-proxy:ro \
