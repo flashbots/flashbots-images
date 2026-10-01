@@ -7,11 +7,12 @@ umask 022
 commit=${GIT_COMMIT:-$(git -C "$SRCDIR" rev-parse --verify 'HEAD^{commit}')}
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
 [[ "$IMAGE_ID" =~ ^[a-zA-Z0-9._-]+$ ]]
+[[ "$IMAGE_VERSION" =~ ^[a-zA-Z0-9._-]+$ ]]
 
 install -d -m 0755 "$BUILDROOT/usr/lib/flashbots" "$BUILDROOT/usr/lib/flashbots/metrics"
 printf '%s\n' "$commit" > "$BUILDROOT/usr/lib/flashbots/git-commit"
 {
-    echo '# HELP flashbots_image_info Always 1; image identifies the built image and git_commit identifies its source commit.'
+    echo '# HELP flashbots_image_info Always 1; image and version identify the built image and git_commit identifies its source commit.'
     echo '# TYPE flashbots_image_info gauge'
-    printf 'flashbots_image_info{image="%s",git_commit="%s"} 1\n' "$IMAGE_ID" "$commit"
+    printf 'flashbots_image_info{image="%s",version="%s",git_commit="%s"} 1\n' "$IMAGE_ID" "$IMAGE_VERSION" "$commit"
 } > "$BUILDROOT/usr/lib/flashbots/metrics/image.prom"
