@@ -86,10 +86,11 @@ Firewall Rules
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
 | 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
 | 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
+| 4460  | Output                    | NTS key exchange                | Host                 | TCP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
 
-In production mode, all outgoing connections are IP whitelisted to builders except port 123, which is necessary to maintain time synchronization. Inbound, the host accepts engine calls on port 8552 (sync-proxy) only from internal VPC addresses.
+In production mode, all outgoing connections are IP whitelisted to builders except ports 123 and 4460 (NTS), which are necessary to maintain time synchronization. Inbound, the host accepts engine calls on port 8552 (sync-proxy) only from internal VPC addresses.
 
 But, we don’t want the searcher container to be able to reach host-only services or send state diff information out through the open ports on the host, so we block these at the searcher network namespace with iptables (the podman subnet is itself an internal address, hence the 8552 drop).
 
@@ -97,6 +98,7 @@ But, we don’t want the searcher container to be able to reach host-only servic
 iptables -A OUTPUT -p tcp --dport 8552 -j DROP
 iptables -A OUTPUT -p udp --dport 123 -j DROP
 iptables -A OUTPUT -p tcp --dport 123 -j DROP
+iptables -A OUTPUT -p tcp --dport 4460 -j DROP
 
 # Input channels are one-way: the container may not reply on them
 iptables -A OUTPUT -p udp --sport 27017 -j DROP
