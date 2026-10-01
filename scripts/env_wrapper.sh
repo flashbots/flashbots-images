@@ -93,6 +93,12 @@ if is_mkosi_cmd && [ -n "${MKOSI_EXTRA_ARGS:-}" ]; then
   cmd+=($MKOSI_EXTRA_ARGS)
 fi
 
+if is_mkosi_cmd; then
+  # Resolve the commit here, as git worktrees can't be resolved inside mkosi sandboxes
+  git_commit=$(git -C "$REPO_DIR" rev-parse --verify 'HEAD^{commit}')
+  cmd+=("--environment=GIT_COMMIT=$git_commit")
+fi
+
 # Clean old build artifacts
 if is_mkosi_cmd; then
   rm -f "$REPO_DIR/build/"* 2>/dev/null || true

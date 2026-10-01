@@ -86,10 +86,11 @@ Firewall Rules
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
 | 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
 | 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
+| 4460  | Output                    | NTS key exchange                | Host                 | TCP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
 
-In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and port 123, which is necessary to maintain time synchronization.
+In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and ports 123 and 4460 (NTS), which are necessary to maintain time synchronization.
 
 But, we don’t want the searcher container to be able to send state diff information out through the open ports on the host, so we block this at the searcher network namespace with iptables.
 
@@ -99,6 +100,7 @@ iptables -A OUTPUT -p tcp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 123 -j DROP
 iptables -A OUTPUT -p tcp --dport 123 -j DROP
+iptables -A OUTPUT -p tcp --dport 4460 -j DROP
 
 # Input channels are one-way: the container may not reply on them
 iptables -A OUTPUT -p udp --sport 27017 -j DROP
@@ -643,7 +645,7 @@ Developer Notes
 6. Write new text in `bob.log` to the log socket (**name:** searcher-log-writer.service) (**after:** searcher-log-reader.service)
 7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
 8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
-9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is served by `/pubkey` lazily once the container writes it.
+9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is generated on the guest OS by `searcher-container.service` (the container only gets a read-only mount of it, so it cannot influence what `/pubkey` serves) and is served by `/pubkey` lazily once it exists.
 10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
 
 ### Testing
