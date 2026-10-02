@@ -87,10 +87,11 @@ Firewall Rules
 | 443   | Output                    | HTTPS                           | HTTPS                | TCP       | DISABLED        | ENABLED          |
 | 8745  | Input                     | attested-tls-proxy              | Host                 | TCP       | ENABLED         | ENABLED          |
 | 123   | Output                    | NTP                             | Host                 | UDP       | ENABLED         | ENABLED          |
+| 4460  | Output                    | NTS key exchange                | Host                 | TCP       | ENABLED         | ENABLED          |
 
 **<u>Searcher Network Namespace iptables</u>**
 
-In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and port 123, which is necessary to maintain time synchronization.
+In production mode, all outgoing connections are IP whitelisted to builders except port 9000, which is necessary for the CL client p2p to stay in sync with the network, and ports 123 and 4460 (NTS), which are necessary to maintain time synchronization.
 
 But, we don’t want the searcher container to be able to send state diff information out through the open ports on the host, so we block this at the searcher network namespace with iptables.
 
@@ -100,6 +101,7 @@ iptables -A OUTPUT -p tcp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 9000 -j DROP
 iptables -A OUTPUT -p udp --dport 123 -j DROP
 iptables -A OUTPUT -p tcp --dport 123 -j DROP
+iptables -A OUTPUT -p tcp --dport 4460 -j DROP
 
 # Input channels are one-way: the container may not reply on them
 iptables -A OUTPUT -p udp --sport 27017 -j DROP
