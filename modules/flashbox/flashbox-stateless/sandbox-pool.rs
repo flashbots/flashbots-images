@@ -1,60 +1,80 @@
 use std::io::{self, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::os::fd::AsRawFd;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use std::{fs, mem, thread};
 
+const DIR: &str = "/run/flashbox/sandboxes";
+const IMAGE: &str = "/run/flashbox/image";
+
+fn connect_socket(path: &Path) -> io::Result<UnixStream> {
+    const O_PATH: i32 = 0o10000000;
+    const O_NOFOLLOW: i32 = 0o400000;
+    // Don't allow container to replace socket parent
+    let socket = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(O_PATH | O_NOFOLLOW)
+        .open(path)?;
+    // Pin socket file to prevent attacks by symlinking
+    UnixStream::connect(format!("/proc/self/fd/{}", socket.as_raw_fd()))
+}
+
 struct Cfg {
-    image: String,
     listen: String,
     pool: usize,
-    sock_dir: PathBuf, // max length 108 chars
-    data_dir: Option<PathBuf>,
     ready_timeout: Duration,
     request_timeout: Duration,
     queue_timeout: Duration,
-    run_args: Vec<String>,
 }
 
 fn cfg() -> Cfg {
     let mut c = Cfg {
-        image: "localhost/flashbox:latest".into(),
         listen: "127.0.0.1:8081".into(),
         pool: 8,
-        sock_dir: "/run/flashbox/sandboxes".into(),
-        data_dir: None,
         ready_timeout: Duration::from_secs(60),
         request_timeout: Duration::from_secs(30),
         queue_timeout: Duration::from_secs(5),
-        run_args: vec![],
     };
     let secs = |v: &str| Duration::from_secs(v.parse().expect("seconds"));
     let mut args = std::env::args().skip(1);
     while let Some(k) = args.next() {
         let v = args.next().expect("flag value");
         match k.as_str() {
-            "--image" => c.image = v,
             "--listen" => c.listen = v,
             "--pool" => c.pool = v.parse().expect("--pool"),
-            "--sock-dir" => c.sock_dir = v.into(),
-            "--data-dir" => c.data_dir = Some(v.into()),
             "--ready-timeout" => c.ready_timeout = secs(&v),
             "--request-timeout" => c.request_timeout = secs(&v),
             "--queue-timeout" => c.queue_timeout = secs(&v),
-            "--run-args" => c.run_args = v.split_whitespace().map(String::from).collect(),
             _ => panic!("unknown flag {k}"),
         }
     }
     c
 }
 
-fn podman() -> Command {
-    let mut c = Command::new("podman");
-    c.stdout(Stdio::null());
+fn delegate_cgroup() -> io::Result<String> {
+    let cgroup = fs::read_to_string("/proc/self/cgroup")?
+        .lines()
+        .find_map(|l| l.strip_prefix("0::"))
+        .ok_or_else(|| io::Error::other("cgroup v2 required"))?
+        .to_owned();
+    // Move to child cgroup
+    let pool = PathBuf::from(format!("/sys/fs/cgroup{cgroup}/pool"));
+    fs::create_dir_all(&pool)?;
+    fs::write(pool.join("cgroup.procs"), "0")?;
+    Ok(cgroup)
+}
+
+fn crun() -> Command {
+    let mut c = Command::new("crun");
+    c.arg("--root")
+        .arg(format!("{DIR}/.crun"))
+        .stdin(Stdio::null());
     c
 }
 
@@ -76,36 +96,51 @@ struct Sandbox {
 }
 
 impl Sandbox {
-    fn spawn(cfg: &Cfg, seq: u64) -> io::Result<Sandbox> {
+    fn spawn(cgroup: &str, seq: u64) -> io::Result<Sandbox> {
         let name = format!("flashbox-{seq}");
-        let dir = cfg.sock_dir.join(&name);
-        fs::create_dir_all(&dir)?;
+        let dir = PathBuf::from(DIR).join(&name);
+        fs::create_dir_all(dir.join("flashbox"))?;
+        fs::create_dir(dir.join("rootfs"))?;
+        fs::set_permissions(dir.join("flashbox"), fs::Permissions::from_mode(0o1777))?;
+        run(Command::new("jq")
+            .args(["--arg", "cgroup", &format!("{cgroup}/{name}")])
+            .arg(".linux.cgroupsPath = $cgroup")
+            .arg(format!("{IMAGE}/config.json"))
+            .stdout(fs::File::create(dir.join("config.json"))?))?;
+        run(Command::new("mount")
+            .args(["-t", "overlay", "overlay", "-o"])
+            .arg(format!("lowerdir={IMAGE}/rootfs:{IMAGE}/empty"))
+            .arg(dir.join("rootfs")))?;
+        run(crun()
+            .args(["run", "-d", "--bundle"])
+            .arg(&dir)
+            .arg(&name)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null()))?;
         LIVE.fetch_add(1, SeqCst);
-        let sb = Sandbox {
+        Ok(Sandbox {
             name,
             dir,
             born: Instant::now(),
-        };
-        let mut c = podman();
-        c.args("run -d --rm --replace --network none --init --cap-drop all --security-opt no-new-privileges --read-only --tmpfs /tmp".split(' '))
-            .args(["--name", &sb.name, "-v", &format!("{}:/flashbox", sb.dir.display())]);
-        if let Some(d) = &cfg.data_dir {
-            c.args(["-v", &format!("{}:/data:ro,nosuid,nodev", d.display())]);
-        }
-        c.args(&cfg.run_args).arg(&cfg.image);
-        run(&mut c)?;
-        Ok(sb)
+        })
     }
 
-    fn sock(&self) -> PathBuf {
-        self.dir.join("sock")
+    fn connect(&self) -> io::Result<UnixStream> {
+        connect_socket(&self.dir.join("flashbox/sock"))
     }
 }
 
 impl Drop for Sandbox {
     fn drop(&mut self) {
-        let _ = run(podman().args(["rm", "-f", "--ignore", "-t", "0", &self.name]));
-        let _ = fs::remove_dir_all(&self.dir);
+        let cleanup = || -> io::Result<()> {
+            run(crun().args(["delete", "-f", &self.name]))?;
+            run(Command::new("umount").arg(self.dir.join("rootfs")))?;
+            fs::remove_dir_all(&self.dir)
+        };
+        if let Err(e) = cleanup() {
+            eprintln!("{}: cleanup failed: {e}", self.name);
+            std::process::exit(1);
+        }
         LIVE.fetch_sub(1, SeqCst);
     }
 }
@@ -134,13 +169,11 @@ impl Pool {
         }
     }
 
-    fn keep_full(&self, cfg: &Cfg) {
+    fn keep_full(&self, cfg: &Cfg, cgroup: &str) {
         let mut warming = Vec::new();
         let mut seq = 0;
         loop {
-            for sb in warming.extract_if(.., |sb: &mut Sandbox| {
-                UnixStream::connect(sb.sock()).is_ok()
-            }) {
+            for sb in warming.extract_if(.., |sb: &mut Sandbox| sb.connect().is_ok()) {
                 self.put(sb);
             }
             warming.retain(|sb| {
@@ -152,11 +185,11 @@ impl Pool {
             });
             while LIVE.load(SeqCst) < cfg.pool {
                 seq += 1;
-                match Sandbox::spawn(cfg, seq) {
+                match Sandbox::spawn(cgroup, seq) {
                     Ok(sb) => warming.push(sb),
                     Err(e) => {
-                        eprintln!("{e}");
-                        break;
+                        eprintln!("sandbox setup failed: {e}");
+                        std::process::exit(1);
                     }
                 }
             }
@@ -287,7 +320,7 @@ fn copy_response(up: &mut UnixStream, client: &mut TcpStream, sent: &mut usize) 
 }
 
 fn relay(cfg: &Cfg, mut client: TcpStream, sb: &Sandbox) -> io::Result<()> {
-    let mut up = UnixStream::connect(sb.sock())?;
+    let mut up = sb.connect()?;
     client.set_read_timeout(Some(cfg.request_timeout))?;
     up.set_read_timeout(Some(cfg.request_timeout))?;
     let (mut c2, mut u2) = (client.try_clone()?, up.try_clone()?);
@@ -325,19 +358,15 @@ fn handle(cfg: &Cfg, pool: &Pool, mut client: TcpStream) {
 
 fn main() {
     let cfg = Arc::new(cfg());
-    let _ = run(podman().args(["rm", "-af", "-t", "0"]));
-    run(podman().args(["image", "exists", &cfg.image])).expect("image not found");
-    fs::create_dir_all(&cfg.sock_dir).expect("sock dir");
+    let cgroup = delegate_cgroup().expect("delegate cgroup");
+    fs::metadata(format!("{IMAGE}/config.json")).expect("no image deployed");
     let pool = Arc::new(Pool::default());
     thread::spawn({
         let (cfg, pool) = (cfg.clone(), pool.clone());
-        move || pool.keep_full(&cfg)
+        move || pool.keep_full(&cfg, &cgroup)
     });
     let listener = TcpListener::bind(&cfg.listen).expect("bind");
-    eprintln!(
-        "listening on {} pool={} image={}",
-        cfg.listen, cfg.pool, cfg.image
-    );
+    eprintln!("listening on {} pool={}", cfg.listen, cfg.pool);
     for client in listener.incoming().flatten() {
         let (cfg, pool) = (cfg.clone(), pool.clone());
         thread::spawn(move || handle(&cfg, &pool, client));

@@ -1,5 +1,5 @@
 [Unit]
-Description=Load /persistent/searcher/flashbox.tar as localhost/flashbox:latest
+Description=Unpack /persistent/searcher/flashbox.tar into /run/flashbox/image
 After=persistent-mount.service
 Requires=persistent-mount.service
 
@@ -7,7 +7,5 @@ Requires=persistent-mount.service
 Type=oneshot
 RemainAfterExit=yes
 User=sandbox
-WorkingDirectory=/
 Environment=XDG_RUNTIME_DIR=/run/flashbox/sandbox
-ExecStart=/bin/sh -c 'podman tag "$(podman --log-level error load -q -i /persistent/searcher/flashbox.tar | sed -n "s/^Loaded image: //p")" localhost/flashbox:latest'
-ExecStartPost=/usr/bin/podman image prune -f
+ExecStart=/usr/bin/flashbox-deploy
