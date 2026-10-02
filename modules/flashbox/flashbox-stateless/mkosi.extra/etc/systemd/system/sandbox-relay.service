@@ -1,0 +1,16 @@
+[Unit]
+Description=Sandbox relay
+After=flashbox-deploy.service firewall.service
+Requires=flashbox-deploy.service firewall.service
+
+[Service]
+User=sandbox
+RuntimeDirectory=flashbox/sandboxes
+RuntimeDirectoryMode=0700
+Delegate=yes
+ExecStart=/usr/bin/unshare --map-auto --map-root-user --mount /usr/bin/sandbox-relay --max-active 1
+KillMode=mixed
+MemoryMax=80%
+TasksMax=16384
+Restart=on-failure
+RestartSec=5

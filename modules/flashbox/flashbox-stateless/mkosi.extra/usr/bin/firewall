@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+ORDERFLOW_SOURCES="200.225.47.181 200.225.47.183 198.203.202.53 198.203.202.55 34.104.157.101 35.213.62.127"
+[ -e /etc/devmode ] && ORDERFLOW_SOURCES=0.0.0.0/0
+
+iptables -F; iptables -X
+iptables -P INPUT DROP; iptables -P FORWARD DROP; iptables -P OUTPUT DROP
+
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p tcp -m multiport --dports 22,8080,8745 -j ACCEPT # ssh/tdx-init/ssh pubkey
+for ip in $ORDERFLOW_SOURCES; do
+    iptables -A INPUT -p tcp -s "$ip" --dport 8443 -j ACCEPT  # incoming orderflow
+done
+
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m owner --uid-owner sandbox -j DROP
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT # chrony
+iptables -A OUTPUT -p tcp --dport 4460 -j ACCEPT # chrony nts
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp -m multiport --dports 53,853 -j ACCEPT

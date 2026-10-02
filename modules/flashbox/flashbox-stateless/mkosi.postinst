@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+mkosi-chroot useradd -m -u 1000 -s /usr/bin/searchersh searcher
+mkosi-chroot useradd -m -u 1001 -s /usr/sbin/nologin sandbox
+mkosi-chroot useradd -M -u 1002 -G searcher -d /persistent -s /usr/sbin/nologin sftp
+echo /usr/bin/searchersh >> "$BUILDROOT/etc/shells"
+chmod 440 "$BUILDROOT/etc/sudoers.d/searcher"
+
+mkosi-chroot systemctl mask ssh.socket
+mkosi-chroot systemctl unmask systemd-user-sessions.service
+mkosi-chroot systemctl add-wants minimal.target \
+    wait-for-key.service \
+    ssh.service \
+    systemd-user-sessions.service \
+    persistent-mount.service \
+    ssh-pubkey-server.service \
+    attested-tls-proxy-pubkey.service \
+    attested-tls-proxy-push.service \
+    firewall.service
+
+mkosi-chroot passwd -l root
+rm -rf "$BUILDROOT/etc/motd" "$BUILDROOT/etc/update-motd.d" # don't print motd on ssh login
+chmod 700 "$BUILDROOT/bin/su"

@@ -1,0 +1,17 @@
+[Unit]
+Description=Attested TLS for orderflow provider
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=attested-tls-proxy server \
+            --listen-addr=0.0.0.0:8443 \
+            --server-attestation-type=auto \
+            --allowed-remote-attestation-type none \
+            127.0.0.1:8081
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=minimal.target
