@@ -4,9 +4,11 @@ set -euxo pipefail
 source scripts/make_git_package.sh
 
 mkdir -p "$DESTDIR/usr/bin"
-mkosi-chroot rustc --edition 2021 -O -C strip=debuginfo -C link-arg=-Wl,--build-id=none \
-    --remap-path-prefix "$SRCDIR=/src" \
-    -o "$DESTDIR/usr/bin/sandbox-pool" "$SRCDIR/modules/flashbox/flashbox-stateless/sandbox-pool.rs"
+mkosi-chroot env RUSTFLAGS="-C link-arg=-Wl,--build-id=none --remap-path-prefix $SRCDIR=/src" \
+    cargo build --release --locked \
+    --manifest-path "$SRCDIR/modules/flashbox/flashbox-stateless/src/sandbox-relay/Cargo.toml" \
+    --target-dir /build/sandbox-relay
+install -m 755 "$BUILDROOT/build/sandbox-relay/release/sandbox-relay" "$DESTDIR/usr/bin/sandbox-relay"
 
 make_git_package \
     "cryptsetup" \
