@@ -1,14 +1,16 @@
 #!/bin/bash
-# Vault GCP auth + fetch of the Prometheus remote_write secret.
-# Sourced by flashbox-observability-setup.
+# Vault GCP auth + fetch of the shared per-fleet secret blob.
+# Sourced by flashbox-observability-setup and fetch-engine-jwt.
 #
-# vault_fetch logs in with the GCE instance-identity JWT, reads the shared
-# secret, and exports the four METRICS_FLASHBOTS_* vars. Each value is
-# format-checked before export; any failure returns non-zero and the caller
-# writes no config.
+# vault_read_secret logs in with the GCE instance-identity JWT and prints the
+# shared secret blob (the .data.data JSON object) on stdout.
+#
+# vault_fetch builds on it and exports the four METRICS_FLASHBOTS_* vars. Each
+# value is format-checked before export; any failure returns non-zero and the
+# caller writes no config.
 
-vault_fetch() {
-    local addr mount role kv suffix jwt token data
+vault_read_secret() {
+    local addr mount role kv suffix jwt token
 
     # curl --retry: this runs early in boot, so the metadata server and Vault
     # may not be reachable on the first try. Without retries a transient miss
@@ -36,8 +38,13 @@ vault_fetch() {
         "${addr}/v1/${mount}/login" | jq -re .auth.client_token) || return 1
 
     # 3. Read the shared secret blob.
-    data=$(curl -sf --retry 5 --retry-connrefused --header "X-Vault-Token: ${token}" \
-        "${addr}/v1/${kv}/node/${suffix}" | jq -ce .data.data) || return 1
+    curl -sf --retry 5 --retry-connrefused --header "X-Vault-Token: ${token}" \
+        "${addr}/v1/${kv}/node/${suffix}" | jq -ce .data.data
+}
+
+vault_fetch() {
+    local data
+    data=$(vault_read_secret) || return 1
 
     # 4. Extract each variable and validate it against its expected format.
     METRICS_FLASHBOTS_WORKSPACE=$(echo "$data" | jq -re .METRICS_FLASHBOTS_WORKSPACE) || return 1

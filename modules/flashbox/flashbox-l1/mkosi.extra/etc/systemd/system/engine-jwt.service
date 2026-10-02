@@ -1,0 +1,14 @@
+[Unit]
+Description=Fetch the Engine API JWT secret shared with the sync cluster
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/fetch-engine-jwt
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target

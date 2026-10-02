@@ -1,0 +1,14 @@
+[Unit]
+Description=Prepare sync-proxy log directory on /persistent
+After=persistent-mount.service
+Requires=persistent-mount.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sync-proxy-init
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target
