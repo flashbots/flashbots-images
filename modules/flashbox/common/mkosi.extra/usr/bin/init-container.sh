@@ -107,6 +107,9 @@ ns_iptables -A OUTPUT -p udp --dport 9000 -j DROP
 ns_iptables -A OUTPUT -p udp --dport 123 -j DROP
 ns_iptables -A OUTPUT -p tcp --dport 123 -j DROP
 
+# Block NTS key exchange port
+ns_iptables -A OUTPUT -p tcp --dport 4460 -j DROP
+
 # Block container from sending responses on input channels
 ns_iptables -A OUTPUT -p udp --sport $SEARCHER_INPUT_UDP_PORT -j DROP
 ns_iptables -A OUTPUT -p tcp --sport $SEARCHER_INPUT_UDP_PORT -j DROP

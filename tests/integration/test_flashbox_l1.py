@@ -234,6 +234,29 @@ def test_hostkey_dir_readonly(vm_ip, tmp_path, known_hosts_file, containersh):
 
 
 @pytest.mark.dependency(depends=["container_ssh"])
+def test_container_cannot_use_time_sync_egress(containersh):
+    """The container must not reach the NTS key exchange port (tcp/4460).
+
+    The host accepts tcp/4460 to any IP in ALWAYS_OUT so chronyd can do NTS.
+    The container's traffic leaves through pasta as a host process and would
+    match that rule, which is an egress channel to any host in production
+    mode too, so the container netns drops the port. ALWAYS_OUT applies in
+    every mode, so testing in maintenance mode is enough. The first
+    connection is a control showing the container can connect at all; the
+    second must be dropped. 162.159.200.123 is time.cloudflare.com, an NTS
+    server chronyd itself uses.
+    """
+    probe = "timeout 8 bash -c 'exec 3<>/dev/tcp/{}' && echo CONNECTED || echo BLOCKED"
+
+    control = containersh(probe.format("1.1.1.1/443"))
+    assert control.stdout.strip() == "CONNECTED", control.stdout + control.stderr
+
+    nts = containersh(probe.format("162.159.200.123/4460"))
+    assert nts.stdout.strip() == "BLOCKED", \
+        "container reached tcp/4460, which its netns should drop"
+
+
+@pytest.mark.dependency(depends=["container_ssh"])
 def test_lighthouse_syncing(containersh):
     deadline = time.monotonic() + 180
     snapshot = None
