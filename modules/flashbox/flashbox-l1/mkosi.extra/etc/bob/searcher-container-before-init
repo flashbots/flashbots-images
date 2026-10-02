@@ -4,7 +4,14 @@
 ENGINE_API_PORT=8551
 EL_P2P_PORT=30303
 
+# /etc/hosts inside the container is a symlink into /run/flashbox-endpoints
+# (see searcher-container-after-init), a directory egress-resolver keeps in
+# sync with the host firewall allowlist. --no-hosts stops podman from managing
+# the file; the hostname entry comes from the resolver's static_host list.
 BOB_SEARCHER_EXTRA_PODMAN_FLAGS="\
+    --no-hosts \
+    --hostname searcher-container \
+    -v /run/flashbox-endpoints:/run/flashbox-endpoints:ro \
     -p ${ENGINE_API_PORT}:${ENGINE_API_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT} \
     -p ${EL_P2P_PORT}:${EL_P2P_PORT}/udp \
