@@ -5,6 +5,7 @@ env.json
 **/mkosi.cache/*
 **/mkosi.builddir/*
 **/mkosi.tools/
+**/mkosi.pkgcache/
 mkosi.tools.manifest
 *.qcow2
 *.raw

@@ -32,6 +32,7 @@ priority_update_events = {{{rbuilder.priority_update_events}}}
 priority_update_freshness_ms = {{rbuilder.priority_update_freshness_ms}}
 priority_update_grpc_server_ip = "127.0.0.1"
 priority_update_grpc_server_port = 8745
+priority_update_read_fill_events = {{{rbuilder.priority_update_read_fill_events}}}
 priority_update_simulation_threads = 1
 priority_update_takers_speed_bump_ms = 50
 require_non_empty_blocklist = {{rbuilder.require_non_empty_blocklist}}
