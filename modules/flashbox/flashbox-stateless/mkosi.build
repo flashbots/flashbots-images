@@ -10,6 +10,10 @@ mkosi-chroot env RUSTFLAGS="-C link-arg=-Wl,--build-id=none --remap-path-prefix 
     --target-dir /build/sandbox-relay
 install -m 755 "$BUILDROOT/build/sandbox-relay/release/sandbox-relay" "$DESTDIR/usr/bin/sandbox-relay"
 
+mkosi-chroot env GOTOOLCHAIN=local GOFLAGS=-buildvcs=false \
+    go build -C "$SRCDIR/modules/flashbox/flashbox-stateless/src/flashbox-data" \
+    -trimpath -ldflags "-s -w -buildid=" -o "$DESTDIR/usr/bin/flashbox-data"
+
 make_git_package \
     "cryptsetup" \
     "v2.8.1" \
@@ -20,7 +24,7 @@ make_git_package \
 
 make_git_package \
     "tdx-init" \
-    "v0.3.2" \
+    "3712bd3aab7b4dd50e5e476336a74c73b62ded2d" \
     "https://github.com/flashbots/tdx-init" \
     'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/tdx-init' \
     "build/tdx-init:/usr/bin/tdx-init"

@@ -13,6 +13,7 @@ for ip in $ORDERFLOW_SOURCES; do
     iptables -A INPUT -p tcp -s "$ip" --dport 8443 -j ACCEPT  # incoming orderflow
 done
 
+iptables -A OUTPUT -o lo -p tcp --dport 6379 -m owner ! --uid-owner searcher -j DROP
 iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m owner --uid-owner sandbox -j DROP

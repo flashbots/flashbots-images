@@ -3,7 +3,7 @@ set -euxo pipefail
 
 mkosi-chroot useradd -m -u 1000 -s /usr/bin/searchersh searcher
 mkosi-chroot useradd -m -u 1001 -s /usr/sbin/nologin sandbox
-mkosi-chroot useradd -M -u 1002 -G searcher -d /persistent -s /usr/sbin/nologin sftp
+mkosi-chroot useradd -M -u 1002 -G searcher -s /usr/sbin/nologin data
 echo /usr/bin/searchersh >> "$BUILDROOT/etc/shells"
 chmod 440 "$BUILDROOT/etc/sudoers.d/searcher"
 
