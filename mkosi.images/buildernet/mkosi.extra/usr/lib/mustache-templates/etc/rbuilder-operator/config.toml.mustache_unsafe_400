@@ -45,6 +45,7 @@ root_hash_threads = {{rbuilder.root_hash_threads}}
 root_hash_use_sparse_trie = true
 route_tx_gas_limit = {{rbuilder.route_tx_gas_limit}}
 router_url = "http://127.0.0.1:50051"
+simulation_failed_tob_to_any_position = {{rbuilder.simulation_failed_tob_to_any_position}}
 simulation_spoof_balance_reads = {{rbuilder.simulation_spoof_balance_reads}}
 simulation_threads = {{rbuilder.simulation_threads}}
 simulation_use_random_coinbase = {{rbuilder.simulation_use_random_coinbase}}
