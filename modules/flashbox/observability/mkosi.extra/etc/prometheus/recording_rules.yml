@@ -15,6 +15,12 @@ groups:
   - name: flashbox_health
     interval: 30s
     rules:
+      # Re-recorded so it passes the flashbox:* remote_write filter
+      - record: flashbox:image_measurement
+        expr: flashbox_image_measurement
+      - record: flashbox:image_measurement_error
+        expr: flashbox_image_measurement_error
+
       # 1 if at least one process is running in the searcher-container group,
       # absent if process-exporter isn't reporting it.
       - record: flashbox:container_alive
