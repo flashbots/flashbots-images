@@ -1,0 +1,18 @@
+[Unit]
+Description=Fetch jit-router
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=JIT_ROUTER_SHA256SUM=3232e7d89b326130dfab6c834dd1a03b376756f8131ca9698eb9902f9b467eac \
+            JIT_ROUTER_TAG=v0.32.0 \
+            JIT_ROUTER_REPO=router \
+            JIT_ROUTER_ARTIFACT=jit-router
+EnvironmentFile=%E/gh_token.env
+ExecStart=/bin/bash -c '[[ -f /usr/bin/jit-router ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$JIT_ROUTER_REPO" --tag "$JIT_ROUTER_TAG" \
+  --artifact-name "$JIT_ROUTER_ARTIFACT" --output-file /usr/bin/jit-router'
+ExecStart=/bin/bash -c 'echo "$JIT_ROUTER_SHA256SUM" /usr/bin/jit-router | sha256sum --check'
+ExecStart=/bin/chmod +x /usr/bin/jit-router
+RemainAfterExit=yes

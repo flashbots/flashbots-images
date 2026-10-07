@@ -1,0 +1,22 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=jit-router - JIT-routing sidecar (RouterService gRPC over the live SOR market)
+Documentation=https://github.com/flashbots/router/tree/develop/crates/jit-router
+Wants=network-online.target rbuilder-operator.service pamm-stream.service
+After=network.target network-online.target rbuilder-operator.service pamm-stream.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+EnvironmentFile=%E/jit-router/jit-router.env
+ExecStart=/usr/bin/jit-router
+TimeoutStartSec=5min
+Restart=on-failure
+RestartSec=5s
+RestartSteps=5
+RestartMaxDelaySec=1min
+RuntimeDirectory=jit-router
+RuntimeDirectoryMode=0711
+
+[Install]
+WantedBy=multi-user.target

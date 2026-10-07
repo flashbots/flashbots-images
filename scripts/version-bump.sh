@@ -7,12 +7,13 @@
 # Checksums come from the release's published `sha256sums.txt` (falling
 # back to hashing the downloaded artifact), discovered via the `gh` CLI.
 #
-# Supported services: flowproxy, pamm-stream, rbuilder-operator, rbuilder-rebalancer
+# Supported services: flowproxy, pamm-stream, rbuilder-operator, rbuilder-rebalancer, jit-router
 #
 # Usage:
 #   scripts/version-bump.sh --rbuilder-operator v1.7.15 --rbuilder-rebalancer v1.7.15
 #   scripts/version-bump.sh --flowproxy 1.19.0           # leading 'v' optional
 #   scripts/version-bump.sh --pamm-stream v0.0.2
+#   scripts/version-bump.sh --jit-router v0.32.0
 #   scripts/version-bump.sh --rbuilder-operator latest   # resolve newest release
 #   scripts/version-bump.sh --flowproxy v1.19.0 --dry-run # preview the diff only
 #
@@ -27,7 +28,7 @@ SVC_DIR="$REPO_ROOT/mkosi.images/buildernet/mkosi.extra/etc/systemd/system"
 OWNER="flashbots"
 DRY_RUN=false
 
-SERVICES=(flowproxy pamm-stream rbuilder-operator rbuilder-rebalancer)
+SERVICES=(flowproxy pamm-stream rbuilder-operator rbuilder-rebalancer jit-router)
 
 # Per-service metadata. Artifact templates use %TAG% as the version placeholder;
 # the rendered artifact name is both the release asset we fetch and the key we
@@ -37,12 +38,14 @@ declare -A SVC_REPO=(
   [pamm-stream]="pamm-stream"
   [rbuilder-operator]="rbuilder-prism"
   [rbuilder-rebalancer]="rbuilder-prism"
+  [jit-router]="router"
 )
 declare -A SVC_FILE=(
   [flowproxy]="flowproxy-downloader.service"
   [pamm-stream]="pamm-stream-downloader.service"
   [rbuilder-operator]="rbuilder-operator-rebalancer-downloader.service"
   [rbuilder-rebalancer]="rbuilder-operator-rebalancer-downloader.service"
+  [jit-router]="jit-router-downloader.service"
 )
 declare -A SVC_PREFIX=(
   [flowproxy]="FLOWPROXY"
@@ -50,12 +53,15 @@ declare -A SVC_PREFIX=(
   # in-process binary since v1.8.1 (reth EL + rbuilder-operator in one process)
   [rbuilder-operator]="RBUILDER_OPERATOR_RETH"
   [rbuilder-rebalancer]="RBUILDER_REBALANCER"
+  [jit-router]="JIT_ROUTER"
 )
 declare -A SVC_ARTIFACT=(
   [flowproxy]="flowproxy-%TAG%-x86_64-unknown-linux-gnu"
   [pamm-stream]="pamm-stream-%TAG%-linux-x86_64"
   [rbuilder-operator]="rbuilder-operator-reth-%TAG%-x86_64-unknown-linux-gnu"
   [rbuilder-rebalancer]="rbuilder-rebalancer-%TAG%-x86_64-unknown-linux-gnu"
+  # release asset name is unversioned ("jit-router"), unlike the other services
+  [jit-router]="jit-router"
 )
 
 die() { echo "error: $*" >&2; exit 1; }
@@ -115,7 +121,7 @@ declare -A REQ=()
 [[ $# -gt 0 ]] || { usage; exit 1; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --flowproxy|--pamm-stream|--rbuilder-operator|--rbuilder-rebalancer)
+    --flowproxy|--pamm-stream|--rbuilder-operator|--rbuilder-rebalancer|--jit-router)
       svc="${1#--}"
       [[ $# -ge 2 ]] || die "missing version for $1"
       REQ[$svc]="$2"
