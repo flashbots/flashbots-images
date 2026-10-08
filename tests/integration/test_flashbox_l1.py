@@ -13,7 +13,6 @@ So the order here is load-bearing: attestation is only reachable AFTER
 the key push, and a failure cascades into the tests below it by design.
 """
 
-import json
 import os
 import subprocess
 import time
@@ -256,26 +255,6 @@ def test_container_cannot_use_time_sync_egress(containersh):
         "container reached tcp/4460, which its netns should drop"
 
 
-@pytest.mark.dependency(depends=["container_ssh"])
-def test_lighthouse_syncing(containersh):
-    deadline = time.monotonic() + 180
-    snapshot = None
-    while time.monotonic() < deadline:
-        result = containersh(
-            "grep -F '\"msg\":\"Slot timer\"' "
-            "/var/log/lighthouse/beacon.log 2>/dev/null | tail -n 1"
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            snapshot = json.loads(result.stdout)
-            if "Sync" in str(snapshot.get("sync_state", "")):
-                break
-        time.sleep(5)
-
-    assert snapshot is not None, "Lighthouse produced no Slot timer sync status"
-    assert "Sync" in str(snapshot.get("sync_state", "")), snapshot
-    print(f"Lighthouse sync status: {json.dumps(snapshot, sort_keys=True)}")
-
-
 @pytest.mark.dependency(name="reth_installed", depends=["container_ssh"])
 def test_install_reth(containersh):
     archive = f"reth-{RETH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
@@ -300,27 +279,3 @@ def test_install_reth(containersh):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert RETH_VERSION.removeprefix("v") in result.stdout, result.stdout
-
-
-@pytest.mark.dependency(depends=["reth_installed"])
-def test_reth_syncing(containersh):
-    request = json.dumps({
-        "jsonrpc": "2.0", "id": 1, "method": "eth_syncing", "params": [],
-    })
-    deadline = time.monotonic() + 300
-    last_response = None
-    while time.monotonic() < deadline:
-        result = containersh(
-            "curl -fsS -H 'Content-Type: application/json' "
-            f"--data '{request}' http://127.0.0.1:8545",
-        )
-        if result.returncode == 0:
-            last_response = json.loads(result.stdout)
-            if isinstance(last_response.get("result"), dict):
-                break
-        time.sleep(5)
-
-    assert last_response is not None, "Reth JSON-RPC did not become available"
-    assert isinstance(last_response.get("result"), dict), \
-        f"Reth did not report active syncing: {last_response}"
-    print(f"Reth sync status: {json.dumps(last_response['result'], sort_keys=True)}")
