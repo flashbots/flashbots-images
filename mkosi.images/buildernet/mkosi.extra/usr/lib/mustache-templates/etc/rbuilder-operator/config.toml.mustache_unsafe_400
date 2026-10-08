@@ -82,4 +82,4 @@ in_block_value_threshold_wei = 150000000000000000
 
 {{{rbuilder.bidding_gateways}}}
 
-{{{rbuilder.relays}}}
+{{{rbuilder.registration_relays}}}
