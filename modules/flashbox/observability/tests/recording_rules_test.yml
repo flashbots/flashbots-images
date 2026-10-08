@@ -1,0 +1,147 @@
+# Unit tests for the egress-resolver recording rules. CI runs them through
+# .github/workflows/observability-rules.yaml; locally:
+#   podman run --rm -v "$PWD/modules/flashbox/observability:/w:ro" --entrypoint promtool \
+#       docker.io/prom/prometheus:v2.53.4 test rules /w/tests/recording_rules_test.yml
+#
+# The scraped series carry job/instance labels while vector(0) carries none, so
+# a plain `or vector(0)` would keep both. These tests pin the healthy (one
+# labelled 1, no extra 0), unhealthy (labelled 0) and missing (one unlabelled 0)
+# shapes for every fallback rule.
+rule_files:
+  - ../mkosi.extra/etc/prometheus/recording_rules.yml
+
+evaluation_interval: 30s
+
+tests:
+  # Healthy VM: exactly one series per rule, carrying the scrape labels.
+  - interval: 30s
+    input_series:
+      - series: 'egress_resolver_apply_ok{job="node", instance="localhost:9100"}'
+        values: '1x10'
+      - series: 'egress_resolver_hosts_ok{job="node", instance="localhost:9100"}'
+        values: '1x10'
+      - series: 'egress_resolver_conntrack_ok{job="node", instance="localhost:9100"}'
+        values: '1x10'
+      - series: 'egress_resolver_required_satisfied{job="node", instance="localhost:9100"}'
+        values: '1x10'
+      - series: 'egress_resolver_required_fresh{job="node", instance="localhost:9100"}'
+        values: '1x10'
+      - series: 'egress_resolver_production_addresses{job="node", instance="localhost:9100"}'
+        values: '7x10'
+      # written at t=100s; evaluated at t=120s → 20 s old → running
+      - series: 'node_textfile_mtime_seconds{job="node", instance="localhost:9100", file="/run/egress-resolver/metrics/egress-resolver.prom"}'
+        values: '100x10'
+      - series: 'egress_resolver_endpoint_fresh_age_seconds{job="node", instance="localhost:9100", name="rpc.buildernet.org"}'
+        values: '0x10'
+      - series: 'egress_resolver_endpoint_fresh_age_seconds{job="node", instance="localhost:9100", name="direct-eu.buildernet.org"}'
+        values: '90x10'
+      - series: 'egress_resolver_endpoint_addresses{job="node", instance="localhost:9100", name="rpc.buildernet.org"}'
+        values: '2x10'
+      - series: 'egress_resolver_endpoint_addresses{job="node", instance="localhost:9100", name="direct-ap.buildernet.org"}'
+        values: '0x10'
+    promql_expr_test:
+      - expr: flashbox:egress_resolver_apply_ok
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_apply_ok{job="node", instance="localhost:9100"}'
+            value: 1
+      - expr: flashbox:egress_resolver_hosts_ok
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_hosts_ok{job="node", instance="localhost:9100"}'
+            value: 1
+      - expr: flashbox:egress_resolver_conntrack_ok
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_conntrack_ok{job="node", instance="localhost:9100"}'
+            value: 1
+      - expr: flashbox:egress_resolver_required_endpoints_resolved
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_required_endpoints_resolved{job="node", instance="localhost:9100"}'
+            value: 1
+      - expr: flashbox:egress_resolver_required_endpoints_fresh
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_required_endpoints_fresh{job="node", instance="localhost:9100"}'
+            value: 1
+      - expr: flashbox:egress_resolver_production_addresses
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_production_addresses{job="node", instance="localhost:9100"}'
+            value: 7
+      - expr: flashbox:egress_resolver_is_running
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_is_running{job="node", instance="localhost:9100", file="/run/egress-resolver/metrics/egress-resolver.prom"}'
+            value: 1
+      - expr: flashbox:egress_resolver_max_fresh_age_seconds
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_max_fresh_age_seconds{job="node", instance="localhost:9100"}'
+            value: 90
+      - expr: flashbox:egress_resolver_endpoint_has_addresses
+        eval_time: 120s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_endpoint_has_addresses{job="node", instance="localhost:9100", name="rpc.buildernet.org"}'
+            value: 1
+          - labels: 'flashbox:egress_resolver_endpoint_has_addresses{job="node", instance="localhost:9100", name="direct-ap.buildernet.org"}'
+            value: 0
+      # An alert of the form `flashbox:egress_resolver_apply_ok == 0` must not
+      # fire on a healthy VM.
+      - expr: count(flashbox:egress_resolver_apply_ok == 0) or on() vector(0)
+        eval_time: 120s
+        exp_samples:
+          - labels: '{}'
+            value: 0
+
+  # Unhealthy VM: the labelled 0 comes through, still exactly one series.
+  - interval: 30s
+    input_series:
+      - series: 'egress_resolver_apply_ok{job="node", instance="localhost:9100"}'
+        values: '0x10'
+      - series: 'egress_resolver_required_fresh{job="node", instance="localhost:9100"}'
+        values: '0x10'
+      # last written at t=0; evaluated at t=330s → stale
+      - series: 'node_textfile_mtime_seconds{job="node", instance="localhost:9100", file="/run/egress-resolver/metrics/egress-resolver.prom"}'
+        values: '0x12'
+    promql_expr_test:
+      - expr: flashbox:egress_resolver_apply_ok
+        eval_time: 330s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_apply_ok{job="node", instance="localhost:9100"}'
+            value: 0
+      - expr: flashbox:egress_resolver_required_endpoints_fresh
+        eval_time: 330s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_required_endpoints_fresh{job="node", instance="localhost:9100"}'
+            value: 0
+      - expr: flashbox:egress_resolver_is_running
+        eval_time: 330s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_is_running{job="node", instance="localhost:9100", file="/run/egress-resolver/metrics/egress-resolver.prom"}'
+            value: 0
+
+  # Nothing scraped at all (textfile missing or unparseable): one unlabelled 0
+  # per fallback rule, so an alert still has something to select.
+  - interval: 30s
+    input_series: []
+    promql_expr_test:
+      - expr: flashbox:egress_resolver_apply_ok
+        eval_time: 60s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_apply_ok'
+            value: 0
+      - expr: flashbox:egress_resolver_required_endpoints_resolved
+        eval_time: 60s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_required_endpoints_resolved'
+            value: 0
+      - expr: flashbox:egress_resolver_is_running
+        eval_time: 60s
+        exp_samples:
+          - labels: 'flashbox:egress_resolver_is_running'
+            value: 0
+      - expr: flashbox:egress_resolver_max_fresh_age_seconds
+        eval_time: 60s
+        exp_samples: []

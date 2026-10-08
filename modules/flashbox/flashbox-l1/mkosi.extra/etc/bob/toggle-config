@@ -8,16 +8,11 @@ IMAGE_TYPE="bob-l1"
 # Production endpoints (format: "IP:Description")
 # Established flows to these IPs are killed via conntrack when leaving production
 # mode, so the tx-stream side channel does not survive into maintenance mode.
+# BuilderNet addresses are resolved at runtime (see egress-resolver below) and
+# handled by kill_image_production_connections.
 PRODUCTION_ENDPOINTS=(
     "3.136.107.142:Flashbots protect tx"
     "3.149.14.12:Flashbots protect tx"
-    # BuilderNet (tx stream + bundle submission share these IPs)
-    "200.225.47.181:BuilderNet fb-om-use1-00"
-    "200.225.47.183:BuilderNet fb-om-use1-01"
-    "198.203.202.53:BuilderNet fb-om-euw1-00"
-    "198.203.202.55:BuilderNet fb-om-euw1-01"
-    "34.104.157.101:BuilderNet fb-gcp-ane1-00"
-    "35.213.62.127:BuilderNet fb-gcp-ane1-01"
 )
 
 # Maintenance ports (format: "protocol:port:description")
@@ -31,3 +26,80 @@ MAINTENANCE_ENDPOINTS=(
     "tcp:30303:EL P2P"
     "udp:30303:EL P2P"
 )
+
+# egress-resolver keeps the BuilderNet allowlist in these chains (see
+# firewall-config and /etc/bob/egress-resolver.toml) and reports its state here.
+EGRESS_RESOLVER_STATUS="/run/egress-resolver/status.json"
+EGRESS_RESOLVER_TIMER="egress-resolver.timer"
+EGRESS_RESOLVER_MAX_AGE=300   # seconds since the last completed run
+CHAIN_DYN_BNET_PRODUCTION_OUT="DYN_BNET_PRODUCTION_OUT"
+CHAIN_DYN_BNET_MAINTENANCE_OUT="DYN_BNET_MAINTENANCE_OUT"
+
+# Refuse to enter production unless the resolver is alive, its last run
+# installed the policy it reports (firewall chains and hosts file), and every
+# required BuilderNet name has an address. Last-known-good addresses are
+# accepted on purpose: a stale allowlist cannot gain addresses, and refusing
+# would only lock searchers out during a resolver outage. Timestamps are
+# compared in uptime seconds (monotonic), not wall-clock time.
+check_image_production_prerequisites() {
+    if ! systemctl is-active --quiet "$EGRESS_RESOLVER_TIMER"; then
+        echo "ERROR: $EGRESS_RESOLVER_TIMER is not active"
+        return 1
+    fi
+    if [ ! -s "$EGRESS_RESOLVER_STATUS" ]; then
+        echo "ERROR: egress-resolver has not produced $EGRESS_RESOLVER_STATUS yet"
+        return 1
+    fi
+    local boot_id status_boot_id now_uptime status_uptime age required_satisfied
+    boot_id=$(cat /proc/sys/kernel/random/boot_id)
+    status_boot_id=$(jq -r '.boot_id // empty' "$EGRESS_RESOLVER_STATUS")
+    if [ "$status_boot_id" != "$boot_id" ]; then
+        echo "ERROR: egress-resolver status is from a previous boot"
+        return 1
+    fi
+    now_uptime=$(cut -d' ' -f1 /proc/uptime)
+    status_uptime=$(jq -r '.generated_uptime_secs // 0' "$EGRESS_RESOLVER_STATUS")
+    age=$(awk -v now="$now_uptime" -v then="$status_uptime" 'BEGIN { printf "%d", now - then }')
+    if [ "$age" -gt "$EGRESS_RESOLVER_MAX_AGE" ]; then
+        echo "ERROR: egress-resolver has not completed a run for ${age}s (limit ${EGRESS_RESOLVER_MAX_AGE}s)"
+        return 1
+    fi
+    if [ "$(jq -r '.apply_ok // false' "$EGRESS_RESOLVER_STATUS")" != "true" ] \
+       || [ "$(jq -r '.hosts_ok // false' "$EGRESS_RESOLVER_STATUS")" != "true" ]; then
+        echo "ERROR: egress-resolver's last run did not install its policy:"
+        jq -r '.errors[]? | "     - \(.)"' "$EGRESS_RESOLVER_STATUS"
+        return 1
+    fi
+    required_satisfied=$(jq -r '.required_satisfied // false' "$EGRESS_RESOLVER_STATUS")
+    if [ "$required_satisfied" != "true" ]; then
+        echo "ERROR: required BuilderNet endpoint(s) have no address:"
+        jq -r '.endpoints[] | select(.required and (.addrs | length == 0)) | "     - \(.name): \(.error // "unresolved")"' "$EGRESS_RESOLVER_STATUS"
+        return 1
+    fi
+    if [ "$(jq -r '.required_fresh // false' "$EGRESS_RESOLVER_STATUS")" != "true" ]; then
+        echo "WARNING: BuilderNet addresses are last-known-good (DNS not refreshed this run):"
+        jq -r --argjson now "$now_uptime" '(.last_fresh_uptime_secs // {}) as $lf
+            | .endpoints[] | select(.required and .source != "fresh")
+            | "     - \(.name): \(.error // "no fresh answer"); last fresh answer: \(if $lf[.name] then "\(($now - $lf[.name]) | floor)s ago" else "never this boot" end)"' \
+            "$EGRESS_RESOLVER_STATUS"
+    fi
+    # Belt and braces: the kernel must agree with the status file.
+    if [ "$($IPTABLES -w 5 -S "$CHAIN_DYN_BNET_PRODUCTION_OUT" | grep -c '^-A')" -eq 0 ]; then
+        echo "ERROR: $CHAIN_DYN_BNET_PRODUCTION_OUT is empty"
+        return 1
+    fi
+    echo "OK: egress-resolver ran ${age}s ago, $(jq -r '.production | length' "$EGRESS_RESOLVER_STATUS") BuilderNet address(es) allowed"
+    return 0
+}
+
+# Kill flows to every BuilderNet address seen since boot when leaving
+# production: the maintenance chain is a superset of the production chain, so
+# this also covers an address that was retired while a flow to it survived an
+# incomplete earlier sweep. Static endpoints are covered by PRODUCTION_ENDPOINTS.
+kill_image_production_connections() {
+    local ip
+    for ip in $($IPTABLES -w 5 -S "$CHAIN_DYN_BNET_MAINTENANCE_OUT" 2>/dev/null | sed -n 's/^-A [^ ]* -d \([0-9.]*\)\/32 .*/\1/p'); do
+        echo "     - BuilderNet ($ip)"
+        $CONNTRACK -D -d "$ip" 2>/dev/null || true
+    done
+}

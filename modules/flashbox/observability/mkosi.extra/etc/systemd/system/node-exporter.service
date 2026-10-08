@@ -18,6 +18,8 @@ ExecStart=/usr/bin/prometheus-node-exporter \
   --collector.netdev \
   --collector.loadavg \
   --collector.vmstat \
+  --collector.textfile \
+  --collector.textfile.directory=/run/egress-resolver/metrics \
   --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker)($|/)
 Restart=on-failure
 RestartSec=5s

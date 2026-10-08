@@ -29,6 +29,18 @@ set -eu -o pipefail
 echo "Initializing firewall..."
 
 ###########################################################################
+# (0) Serialise with the other writers of the firewall
+###########################################################################
+# toggle and egress-resolver take this same lock before they touch the
+# runtime-populated chains, so the flush below can never interleave with one
+# of their updates. Held until this script exits. Note that a re-run of this
+# script after boot still resets those chains (nothing in the image does
+# that); the lock only rules out a torn state.
+LOCK_FILE="/etc/searcher-network.lock"
+exec 9>>"$LOCK_FILE"
+flock -x 9
+
+###########################################################################
 # (1) Flush any existing rules/chains
 ###########################################################################
 iptables -F

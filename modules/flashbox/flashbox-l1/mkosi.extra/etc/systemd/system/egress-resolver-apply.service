@@ -1,0 +1,41 @@
+[Unit]
+Description=Apply resolved BuilderNet endpoints to the host firewall and container hosts file
+Documentation=https://github.com/flashbots/egress-resolver
+# Runs after the resolve step, but also when it failed: apply then keeps the
+# last-known-good addresses and still performs the connection sweep.
+After=egress-resolver.service searcher-firewall.service
+Wants=egress-resolver.service
+Requires=searcher-firewall.service
+PartOf=searcher-firewall.service
+ConditionPathExists=/etc/bob/egress-resolver.toml
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/egress-resolver apply
+TimeoutStartSec=60
+# Root for iptables/conntrack, but only CAP_NET_ADMIN, and no IP sockets at
+# all: AF_NETLINK is what iptables-nft and conntrack use.
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_NETLINK AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+ReadWritePaths=/run/egress-resolver /run/flashbox-endpoints /run/xtables.lock /etc/searcher-network.lock
+
+[Install]
+WantedBy=minimal.target

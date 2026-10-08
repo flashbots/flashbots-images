@@ -1,0 +1,62 @@
+# egress-resolver configuration (part of the measured image).
+#
+# The names listed here are the only ones resolved at runtime. Their validated
+# addresses populate the DYN_BNET_* chains referenced from firewall-config and
+# the searcher container's /etc/hosts. See
+# https://github.com/flashbots/egress-resolver and firewall-config.
+
+[resolver]
+# Recursive resolvers, tried in order. Must match EGRESS_RESOLVER_DNS in
+# firewall-config, which is the only egress the egress-resolver uid may use.
+servers = ["1.1.1.1", "1.0.0.1"]
+server_name = "cloudflare-dns.com"
+port = 853
+timeout_secs = 5
+attempts = 3
+# Accept only DNSSEC-validated answers (AD bit set by the resolver).
+require_authenticated = true
+
+[firewall]
+# Created empty by firewall-config; the resolver owns their contents.
+production_chain = "DYN_BNET_PRODUCTION_OUT"
+maintenance_chain = "DYN_BNET_MAINTENANCE_OUT"
+port = 443
+max_addresses = 64
+
+# BuilderNet public names. Per-node names (fb-*.nodes.buildernet.org) are not a
+# client contract and are intentionally not resolvable in production.
+[[endpoint]]
+name = "rpc.buildernet.org"
+required = true
+
+[[endpoint]]
+name = "direct-us.buildernet.org"
+
+[[endpoint]]
+name = "direct-eu.buildernet.org"
+
+[[endpoint]]
+name = "direct-ap.buildernet.org"
+
+# Static hosts entries for the container. The Flashbots Protect endpoints keep
+# static firewall rules (firewall-config); these lines only give the container
+# the names for TLS.
+[[static_host]]
+ip = "127.0.1.1"
+names = ["searcher-container"]
+
+[[static_host]]
+ip = "3.149.14.12"
+names = ["tx.tee-searcher.flashbots.net"]
+
+[[static_host]]
+ip = "3.136.107.142"
+names = ["tx.tee-searcher.flashbots.net"]
+
+[[static_host]]
+ip = "18.221.59.61"
+names = ["backruns.tee-searcher.flashbots.net"]
+
+[[static_host]]
+ip = "3.15.88.156"
+names = ["backruns.tee-searcher.flashbots.net"]
