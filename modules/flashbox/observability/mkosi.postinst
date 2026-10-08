@@ -7,6 +7,7 @@ mkosi-chroot chown -R prometheus:prometheus /var/lib/prometheus
 # Enable observability services
 mkosi-chroot systemctl add-wants minimal.target \
     flashbox-observability-setup.service \
+    flashbox-image-measurement.service \
     prometheus.service \
     node-exporter.service \
     process-exporter.service

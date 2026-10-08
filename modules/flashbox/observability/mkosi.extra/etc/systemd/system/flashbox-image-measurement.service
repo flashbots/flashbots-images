@@ -1,0 +1,16 @@
+[Unit]
+Description=Flashbox image measurement metric
+Before=node-exporter.service
+
+# Only TDX guests have a CCEL
+ConditionPathExists=/sys/firmware/acpi/tables/data/CCEL
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flashbox-image-measurement
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=minimal.target

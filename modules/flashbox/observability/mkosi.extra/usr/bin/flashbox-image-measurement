@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+# Expose the UKI Authenticode hash that firmware measured into RTMR1. It matches
+# dcap.uki_authenticode in the release's portable_measurements.json.
+# Read from the TDX event log (CCEL) rather than baked in at build time, so the
+# image stays reproducible.
+use strict;
+use warnings;
+
+my $ccel = $ENV{CCEL} // '/sys/firmware/acpi/tables/data/CCEL';
+my $out = $ENV{OUT} // '/run/flashbox/metrics/image-measurement.prom';
+
+my $EV_EFI_BOOT_SERVICES_APPLICATION = 0x80000003;
+my $MR_RTMR1 = 2;    # CCEL MR index: 1 = RTMR0, 2 = RTMR1, 3 = RTMR2
+my $TPM_ALG_SHA384 = 0x000c;
+
+# Atomically replace the textfile with the given metric lines
+sub write_metrics {
+    umask 022;
+    (my $dir = $out) =~ s{/[^/]+$}{};
+    my $path = '';
+    for (grep { length } split m{/}, $dir) {
+        $path .= "/$_";
+        mkdir $path, 0755;
+    }
+    -d $dir or die "$dir: cannot create\n";
+    open(my $tmp, '>', "$out.tmp") or die "$out.tmp: $!\n";
+    print $tmp "$_\n" for @_;
+    close $tmp or die "$out.tmp: $!\n";
+    rename "$out.tmp", $out or die "$out: $!\n";
+}
+
+# Publish the failure reason (a fixed set of values) so it is visible in
+# Prometheus, then exit nonzero so the unit shows as failed
+sub fail {
+    my ($reason, $message) = @_;
+    write_metrics(
+        '# HELP flashbox_image_measurement_error Always 1; reason is why uki_authenticode could not be read from the CCEL.',
+        '# TYPE flashbox_image_measurement_error gauge',
+        "flashbox_image_measurement_error{reason=\"$reason\"} 1",
+    );
+    print STDERR "$message\n";
+    exit 1;
+}
+
+open(my $fh, '<:raw', $ccel) or fail('read_failed', "$ccel: $!");
+my $log = do { local $/; <$fh> };
+close $fh;
+
+# Legacy SpecID event: mr index, type, SHA-1 digest, size, data. Its data lists
+# every digest algorithm in the log with its size, so unknown banks can be skipped.
+fail('bad_header', "$ccel: too short for an event log") if length $log < 32;
+my $spec_size = unpack('V', substr($log, 28, 4));
+my $spec = substr($log, 32, $spec_size) // '';
+fail('bad_header', "$ccel: no SpecID event") unless length $spec >= 28 && substr($spec, 0, 16) eq "Spec ID Event03\0";
+my $algs = unpack('V', substr($spec, 24, 4));
+fail('bad_header', "$ccel: SpecID event truncated") if !$algs || 28 + 4 * $algs > length $spec;
+my %digest_size = map { unpack('v2', substr($spec, 28 + 4 * $_, 4)) } 0 .. $algs - 1;
+my $p = 32 + $spec_size;
+
+my $uki;
+while ($p + 12 <= length $log) {
+    my ($mr, $type, $count) = unpack('V3', substr($log, $p, 12));
+    # Unused space after the last event is filled with 0xff
+    last if $mr == 0xffffffff;
+    $p += 12;
+
+    my $sha384;
+    for (1 .. $count) {
+        my $alg = unpack('v', substr($log, $p, 2));
+        my $size = $digest_size{$alg} // fail('unknown_hash_alg', "unknown hash algorithm " . ($alg // 'undef'));
+        $sha384 = unpack('H*', substr($log, $p + 2, $size)) if $alg == $TPM_ALG_SHA384;
+        $p += 2 + $size;
+    }
+    $p += 4 + unpack('V', substr($log, $p, 4));
+
+    # The first EFI application in RTMR1 is the UKI, the second is the kernel it loads
+    if ($mr == $MR_RTMR1 && $type == $EV_EFI_BOOT_SERVICES_APPLICATION) {
+        $uki = $sha384;
+        last;
+    }
+}
+
+fail('not_found', "UKI authenticode not found in $ccel") unless defined $uki && $uki =~ /^[0-9a-f]{96}$/;
+
+write_metrics(
+    '# HELP flashbox_image_measurement Always 1; uki_authenticode matches dcap.uki_authenticode in portable_measurements.json.',
+    '# TYPE flashbox_image_measurement gauge',
+    "flashbox_image_measurement{uki_authenticode=\"$uki\"} 1",
+);
