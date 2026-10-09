@@ -16,7 +16,6 @@ mkosi-chroot systemctl add-wants minimal.target \
     persistent-mount.service \
     ssh-pubkey-server.service \
     attested-tls-proxy-pubkey.service \
-    attested-tls-proxy-push.service \
     firewall.service
 
 mkosi-chroot passwd -l root
