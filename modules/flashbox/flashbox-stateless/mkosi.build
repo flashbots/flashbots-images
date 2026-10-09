@@ -9,6 +9,9 @@ mkosi-chroot env RUSTFLAGS="-C link-arg=-Wl,--build-id=none --remap-path-prefix 
     --manifest-path "$SRCDIR/modules/flashbox/flashbox-stateless/src/sandbox-relay/Cargo.toml" \
     --target-dir /build/sandbox-relay
 install -m 755 "$BUILDROOT/build/sandbox-relay/release/sandbox-relay" "$DESTDIR/usr/bin/sandbox-relay"
+mkosi-chroot rustc --edition=2021 -O -C strip=debuginfo -C link-arg=-Wl,--build-id=none \
+    --remap-path-prefix "$SRCDIR=/src" \
+    "$SRCDIR/modules/flashbox/flashbox-stateless/src/searchersh.rs" -o "$DESTDIR/usr/bin/searchersh"
 
 mkosi-chroot env GOTOOLCHAIN=local GOFLAGS=-buildvcs=false \
     go build -C "$SRCDIR/modules/flashbox/flashbox-stateless/src/flashbox-data" \

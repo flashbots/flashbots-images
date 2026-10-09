@@ -12,13 +12,12 @@ use std::future::{poll_fn, Future};
 use std::io::{self, Write};
 use std::net::{TcpListener, TcpStream};
 use std::os::fd::AsRawFd;
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::{chown, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 use std::{fs, thread};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
@@ -26,6 +25,7 @@ use tokio::time::Sleep;
 
 const DIR: &str = "/run/flashbox/sandboxes";
 const IMAGE: &str = "/run/flashbox/image";
+const LOGS: &str = "/run/flashbox/logs";
 
 // Pin socket file to prevent attacks by symlinking
 async fn connect_socket(path: &Path) -> io::Result<tokio::net::UnixStream> {
@@ -101,8 +101,6 @@ async fn start(c: &mut Command) -> io::Result<()> {
     }
 }
 
-static SEQ: AtomicUsize = AtomicUsize::new(0);
-
 struct Sandbox {
     name: String,
     dir: PathBuf,
@@ -112,7 +110,9 @@ struct Sandbox {
 
 impl Sandbox {
     async fn spawn(cgroup: &str) -> io::Result<Sandbox> {
-        let name = format!("flashbox-{}", SEQ.fetch_add(1, SeqCst) + 1);
+        let name = fs::read_to_string("/proc/sys/kernel/random/uuid")?
+            .trim()
+            .to_owned();
         let dir = PathBuf::from(DIR).join(&name);
         fs::create_dir_all(dir.join("flashbox"))?;
         let mut sb = Sandbox {
@@ -122,6 +122,11 @@ impl Sandbox {
             started: false,
         };
         fs::create_dir(sb.dir.join("rootfs"))?;
+        let log = fs::File::options()
+            .create_new(true)
+            .append(true)
+            .open(sb.dir.join("log"))?;
+        log.set_permissions(fs::Permissions::from_mode(0o666))?;
         fs::set_permissions(sb.dir.join("flashbox"), fs::Permissions::from_mode(0o1777))?;
         let mut c = Command::new("jq");
         c.args(["--arg", "cgroup", &format!("{cgroup}/{}", sb.name)])
@@ -140,8 +145,8 @@ impl Sandbox {
         c.args(["run", "-d", "--bundle"])
             .arg(&sb.dir)
             .arg(&sb.name)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stdout(log.try_clone()?)
+            .stderr(log);
         start(&mut c).await?;
         Ok(sb)
     }
@@ -171,6 +176,16 @@ impl Drop for Sandbox {
             }
             if self.mounted {
                 run(Command::new("umount").arg(self.dir.join("rootfs")))?;
+            }
+            let log = self.dir.join("log");
+            if log.exists() {
+                chown(&log, Some(0), Some(0))?;
+                fs::set_permissions(&log, fs::Permissions::from_mode(0o600))?;
+                fs::File::options()
+                    .write(true)
+                    .open(&log)?
+                    .set_times(fs::FileTimes::new().set_modified(SystemTime::now()))?;
+                fs::rename(log, PathBuf::from(LOGS).join(format!("{}.log", self.name)))?;
             }
             fs::remove_dir_all(&self.dir)
         };
