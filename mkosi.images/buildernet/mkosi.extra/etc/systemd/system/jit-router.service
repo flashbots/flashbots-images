@@ -4,6 +4,7 @@ Description=jit-router - JIT-routing sidecar (RouterService gRPC over the live S
 Documentation=https://github.com/flashbots/router/tree/develop/crates/jit-router
 Wants=network-online.target rbuilder-operator.service pamm-stream.service
 After=network.target network-online.target rbuilder-operator.service pamm-stream.service
+Requires=jit-router-downloader.service
 
 [Service]
 Type=exec

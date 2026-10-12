@@ -18,6 +18,7 @@ RuntimeDirectory=rbuilder-operator
 RuntimeDirectoryMode=0711
 EnvironmentFile=%E/rbuilder-operator/reth.env
 LoadCredential=config.toml:%E/rbuilder-operator/config.toml
+LoadCredential=filter-rules.toml:%E/rbuilder-operator/filter-rules.toml
 ExecStartPre=/bin/bash -c '[[ -f /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json ]] || \
              echo "[]" > /var/lib/persistent/rbuilder-operator/rbuilder.blocklist.json'
 ExecStart=/usr/bin/rbuilder-operator-reth node $RETH_ARGS --rbuilder.config %d/config.toml
