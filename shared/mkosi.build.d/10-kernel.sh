@@ -10,11 +10,14 @@ if [[ -z "${KERNEL_GIT_SHA:-}" ]]; then
     exit 1
 fi
 
-# Must match a linux-config package available in the pinned snapshot mirror.
-if [[ -z "${KERNEL_CONFIG_VERSION:-}" ]]; then
-    echo "ERROR: KERNEL_CONFIG_VERSION is not set. Set it in mkosi.conf via Environment=" >&2
-    exit 1
-fi
+# linux-config is fetched from its own snapshot: backports drops old kernel series quickly.
+for var in KERNEL_CONFIG_VERSION KERNEL_CONFIG_DEB_SNAPSHOT KERNEL_CONFIG_DEB_VERSION KERNEL_CONFIG_DEB_SHA256; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "ERROR: ${var} is not set. Set it in mkosi.conf via Environment=" >&2
+        exit 1
+    fi
+done
+KERNEL_CONFIG_DEB_URL="https://snapshot.debian.org/archive/debian/${KERNEL_CONFIG_DEB_SNAPSHOT}/pool/main/l/linux/linux-config-${KERNEL_CONFIG_VERSION}_${KERNEL_CONFIG_DEB_VERSION}_amd64.deb"
 
 # Read distribution info from mkosi config JSON
 snapshot=$(jq -r '.Snapshot' "$MKOSI_CONFIG")
@@ -43,7 +46,7 @@ KERNEL_FLAVOR=cloud
 LOCALVERSION="-mkosi-${KERNEL_FLAVOR}"
 
 echo "Building kernel ${KERNEL_GIT_SHA}"
-echo "Base Debian config: linux-config-${KERNEL_CONFIG_VERSION}"
+echo "Base Debian config: ${KERNEL_CONFIG_DEB_URL}"
 echo "LOCALVERSION: $LOCALVERSION"
 echo "Config fragments (${#config_paths[@]}):"
 for f in "${config_paths[@]}"; do echo "  $f"; done
@@ -54,6 +57,7 @@ for f in "${patch_paths[@]}"; do echo "  $f"; done
 cache_hash=$(
     { echo "KERNEL_GIT_SHA=${KERNEL_GIT_SHA}"; \
       echo "KERNEL_CONFIG_VERSION=${KERNEL_CONFIG_VERSION}"; \
+      echo "KERNEL_CONFIG_DEB_SHA256=${KERNEL_CONFIG_DEB_SHA256}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
       cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
@@ -103,10 +107,16 @@ else
         echo "ERROR: merge_config.sh not found in kernel source" >&2
         exit 1
     fi
-    cloud_config_xz="${BUILDROOT}/usr/src/linux-config-${KERNEL_CONFIG_VERSION}/config.amd64_none_${KERNEL_FLAVOR}-amd64.xz"
+    chroot_config_deb_dir="${chroot_kernel_build_dir}/linux-config"
+    config_deb_dir="${BUILDROOT}${chroot_config_deb_dir}"
+    mkdir -p "${config_deb_dir}"
+    curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 \
+        -o "${config_deb_dir}/linux-config.deb" "${KERNEL_CONFIG_DEB_URL}"
+    echo "${KERNEL_CONFIG_DEB_SHA256} ${config_deb_dir}/linux-config.deb" | sha256sum --check
+    mkosi-chroot dpkg-deb -x "${chroot_config_deb_dir}/linux-config.deb" "${chroot_config_deb_dir}/root"
+    cloud_config_xz="${config_deb_dir}/root/usr/src/linux-config-${KERNEL_CONFIG_VERSION}/config.amd64_none_${KERNEL_FLAVOR}-amd64.xz"
     if [[ ! -f "${cloud_config_xz}" ]]; then
         echo "ERROR: Debian ${KERNEL_FLAVOR} config not found: ${cloud_config_xz}" >&2
-        echo "       Make sure BuildPackages= lists linux-config-${KERNEL_CONFIG_VERSION}" >&2
         exit 1
     fi
 
