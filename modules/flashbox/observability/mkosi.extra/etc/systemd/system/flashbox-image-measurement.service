@@ -7,10 +7,11 @@ ConditionPathExists=/sys/firmware/acpi/tables/data/CCEL
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/flashbox-image-measurement
 RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
+RuntimeDirectory=flashbox/metrics
+RuntimeDirectoryPreserve=yes
+ExecStart=/usr/bin/flashbox-image-measurement
+StandardOutput=truncate:/run/flashbox/metrics/image-measurement.prom
 
 [Install]
 WantedBy=minimal.target

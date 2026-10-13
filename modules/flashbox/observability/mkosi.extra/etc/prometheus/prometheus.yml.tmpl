@@ -18,7 +18,7 @@ scrape_configs:
     metric_relabel_configs:
       # Only keep aggregated and static metrics for remote write
       - source_labels: [__name__]
-        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat)_.*|flashbox_image_measurement(_error)?'
+        regex: 'node_(cpu|memory|disk|filesystem|network|vmstat)_.*|flashbox_image_measurement'
         action: keep
 
   # Process exporter for container monitoring

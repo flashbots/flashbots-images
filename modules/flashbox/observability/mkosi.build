@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+mkdir -p "$DESTDIR/usr/bin"
+mkosi-chroot rustc --edition 2021 -O -C strip=debuginfo -C link-arg=-Wl,--build-id=none --remap-path-prefix "$SRCDIR=/src" \
+    -o "$DESTDIR/usr/bin/flashbox-image-measurement" "$SRCDIR/modules/flashbox/observability/flashbox-image-measurement.rs"
