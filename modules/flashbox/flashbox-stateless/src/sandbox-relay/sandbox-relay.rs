@@ -128,14 +128,13 @@ impl Sandbox {
             .open(sb.dir.join("log"))?;
         log.set_permissions(fs::Permissions::from_mode(0o666))?;
         fs::set_permissions(sb.dir.join("flashbox"), fs::Permissions::from_mode(0o1777))?;
-        let mut c = Command::new("jq");
-        c.args(["--arg", "cgroup", &format!("{cgroup}/{}", sb.name)])
-            .arg(".linux.cgroupsPath = $cgroup")
-            .arg(format!("{IMAGE}/config.json"))
-            .stdout(fs::File::create(sb.dir.join("config.json"))?);
-        start(&mut c).await?;
+        let config = fs::read_to_string(format!("{IMAGE}/config.json"))?;
+        fs::write(
+            sb.dir.join("config.json"),
+            config.replace("@CGROUP@", &format!("{cgroup}/{}", sb.name)),
+        )?;
         sb.mounted = true;
-        c = Command::new("mount");
+        let mut c = Command::new("mount");
         c.args(["-t", "overlay", "overlay", "-o"])
             .arg(format!("lowerdir={IMAGE}/rootfs:{IMAGE}/empty"))
             .arg(sb.dir.join("rootfs"));
@@ -291,7 +290,7 @@ async fn relay(
             .map_err(io::Error::other)?;
         tokio::spawn(async move {
             let _ = conn.await;
-            drop(sb);
+            tokio::task::spawn_blocking(move || drop(sb));
         });
         let parts = std::mem::take(req.uri_mut()).into_parts();
         *req.uri_mut() = parts.path_and_query.map_or_else(Uri::default, Uri::from);

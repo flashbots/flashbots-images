@@ -1,6 +1,7 @@
 .root.path = "rootfs"
 | .hostname = "flashbox"
-| del(.linux.cgroupsPath, .annotations)
+| .linux.cgroupsPath = "@CGROUP@"
+| del(.annotations)
 | .mounts |= [
     {destination: "/flashbox", type: "bind", source: "flashbox", options: ["rbind", "nosuid", "nodev"]},
     {destination: "/flashbox/log", type: "bind", source: "log", options: ["bind", "nosuid", "nodev", "noexec"]},
