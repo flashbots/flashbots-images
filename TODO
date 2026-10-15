@@ -1,7 +1,6 @@
 - compile mustache from source
 - Maybe https://learn.microsoft.com/en-us/azure/virtual-machines/nvme-linux#321-manual-download-of-udev-file
 - Change After=render-config.service to Requisite=render-config.service
-- sysctl -w net.core.default_qdisc=fq, sysctl -w net.ipv4.tcp_congestion_control=bbr
 - operator-api 100% CPU usage!?!?!?
 - cargo cache
 - try c3-standard-8, fix disk guid,fat serial, PARTITION_GUID
