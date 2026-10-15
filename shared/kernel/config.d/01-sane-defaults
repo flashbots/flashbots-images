@@ -82,6 +82,13 @@ CONFIG_DEBUG_INFO_NONE=y
 
 # CPU, memory and virtualization
 CONFIG_INTEL_IOMMU_DEFAULT_ON=y
+# KVM cannot load in a TDX or SEV-SNP guest: neither gets hardware
+# virtualization from the host. It only loads when the image boots directly
+# on the hardware or in a VM with nested virtualization, though nothing in
+# the images runs VMs today.
+CONFIG_KVM=y
+CONFIG_KVM_INTEL=y
+CONFIG_KVM_AMD=y
 CONFIG_KVM_SW_PROTECTED_VM=y
 # CONFIG_KSM is not set
 # CONFIG_USERFAULTFD is not set

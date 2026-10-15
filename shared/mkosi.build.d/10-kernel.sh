@@ -60,6 +60,8 @@ cache_hash=$(
     { echo "KERNEL_GIT_SHA=${KERNEL_GIT_SHA}"; \
       echo "KERNEL_CONFIG_VERSION=${KERNEL_CONFIG_VERSION}"; \
       echo "KERNEL_CONFIG_DEB_SHA256=${KERNEL_CONFIG_DEB_SHA256}"; \
+      echo "KERNEL_DROP_UNREQUESTED_MODULES=${KERNEL_DROP_UNREQUESTED_MODULES:-}"; \
+      [[ -z "${KERNEL_DROP_UNREQUESTED_MODULES:-}" ]] || cat -- "${config_requests}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
       cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
@@ -145,6 +147,17 @@ else
     done
 
     merge_args=("${chroot_kconfig_dir}/base.config")
+    report_args=()
+    # With CONFIG_MODULES=n every Debian module would be built in; an image
+    # that sets KERNEL_DROP_UNREQUESTED_MODULES keeps only the ones its
+    # fragments ask for.
+    if [[ -n "${KERNEL_DROP_UNREQUESTED_MODULES:-}" ]]; then
+        bash "${config_requests}" drop-unrequested-modules \
+            "${kconfig_dir}/base.config" "${kconfig_dir}/fragments/"* \
+            > "${kconfig_dir}/drop-unrequested-modules.config"
+        merge_args+=("${chroot_kconfig_dir}/drop-unrequested-modules.config")
+        report_args+=(--dropped "${kconfig_dir}/drop-unrequested-modules.config")
+    fi
     for f in "${kconfig_dir}/fragments/"*; do
         merge_args+=("${chroot_kconfig_dir}/fragments/$(basename "$f")")
     done
@@ -181,7 +194,7 @@ else
     # is there too.
     mkdir -p "${cache_dir}"
     cp "${kernel_src_dir}/.config" "${cache_dir}/config"
-    bash "${config_requests}" builtin-modules-report \
+    bash "${config_requests}" builtin-modules-report "${report_args[@]}" \
         "${kconfig_dir}/base.config" "${kernel_src_dir}/.config" "${kconfig_dir}/fragments/"* \
         | tee "${cache_dir}/builtin-modules-report.txt"
 

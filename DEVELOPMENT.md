@@ -232,7 +232,19 @@ dependency, or remove the line.
 `shared/kernel/config.d/00-no-modules` turns off loadable modules, and Kconfig
 then builds every option Debian ships as a module (`=m`) into the kernel.
 `config-requests.sh builtin-modules-report` lists the ones no fragment asked
-for in the build log.
+for in the build log. An image that sets
+`KERNEL_DROP_UNREQUESTED_MODULES=1` keeps only the Debian modules its
+fragments request, plus any a requested option `select`s:
+
+```ini
+[Build]
+Environment=KERNEL_DROP_UNREQUESTED_MODULES=1
+```
+
+The other modules are turned off before the fragments are merged, so a
+requested option that depends on one of them fails the check. Request the
+dependency too: `03-bbr-net-fq` requests `CONFIG_NET_SCH_FQ=y` because
+`CONFIG_DEFAULT_FQ` depends on it.
 
 ## Adding Source Repositories
 
