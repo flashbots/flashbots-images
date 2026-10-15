@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Samuel Laferriere <9342524+samlaf@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 11:15:00 -0400
+Subject: [PATCH] drivers/acpi: let the BadAML sandbox read UEFI runtime data
+
+Azure's AML reads the hardware configuration its UEFI firmware leaves in
+a SystemMemory region named BIOS (0xBFF86000 in the BadAML paper's
+survey). That region is EfiRuntimeServicesData: guest memory, so private,
+and the sandbox denies every read of it, returning 0.
+
+The BadAML paper's sandbox allows exactly this, as its Rule 2: reads of
+EfiRuntimeServicesData, found through the EFI memory map, with writes
+still denied (Takekoshi et al., CCS 2025, section 6.2,
+https://doi.org/10.1145/3719027.3765123). The Contrast port this builds
+on dropped the rule because Contrast runs on bare metal
+(https://katexochen.aro.bz/posts/badaml/).
+
+Restore it. A malicious host can use it to read firmware data in that
+region, as the paper notes, but not to write it, so it opens no path to
+code execution.
+
+Signed-off-by: Samuel Laferriere <samlaf92@gmail.com>
+---
+ drivers/acpi/acpica/sandbox.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/acpi/acpica/sandbox.h b/drivers/acpi/acpica/sandbox.h
+--- a/drivers/acpi/acpica/sandbox.h
++++ b/drivers/acpi/acpica/sandbox.h
+@@ -111,6 +111,14 @@
+ 		return true;
+ 	}
+ 
++	/*
++	 * Azure's AML reads configuration the firmware leaves in UEFI runtime
++	 * services data, which is private memory. Reads are all it needs.
++	 */
++	if (is_read && IS_ENABLED(CONFIG_EFI) &&
++	    efi_mem_type(phys_addr) == EFI_RUNTIME_SERVICES_DATA)
++		return true;
++
+ 	__sandbox_access_log.access_allowed = false;
+ 	return false;
+ }
+-- 
+2.49.0
+
