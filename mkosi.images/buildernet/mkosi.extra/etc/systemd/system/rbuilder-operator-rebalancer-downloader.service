@@ -5,10 +5,10 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=6fcaddaafa6a56bdfb7c1398aef670d5665b8102213ae4a3c27c986562e19a4e \
-            RBUILDER_OPERATOR_RETH_TAG=v1.43.0 \
+Environment=RBUILDER_OPERATOR_RETH_SHA256SUM=d67a1a4bad20e11dfba92d28079589d8ec889fa0ca6ae69af8ff1f6f2769bb87 \
+            RBUILDER_OPERATOR_RETH_TAG=v1.49.0 \
             RBUILDER_OPERATOR_RETH_REPO=rbuilder-prism \
-            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.43.0-x86_64-unknown-linux-gnu \
+            RBUILDER_OPERATOR_RETH_ARTIFACT=rbuilder-operator-reth-v1.49.0-x86_64-unknown-linux-gnu \
             RBUILDER_REBALANCER_SHA256SUM=9f54772d78326f2ca1041e35330267225fca50f0f68676cea9eb2c8531d7d115 \
             RBUILDER_REBALANCER_TAG=v1.43.0 \
             RBUILDER_REBALANCER_REPO=rbuilder-prism \
