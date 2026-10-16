@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source scripts/package_note.sh
+
 build_rust_package() {
     local package="$1"
     local version="$2"
@@ -39,11 +41,7 @@ build_rust_package() {
     local git_describe=$( git -C "$build_dir" describe --always --long --tags )
     printf "${git_describe#$package/}" > "$BUILDDIR/$package.git"
 
-    mkdir -p "${ARTIFACTDIR:?}/sbom"
-    local repository=${source_url#*://*/}
-    local vcs_url=$(printf 'git+%s@%s' "$source_url" "$(git -C "$build_dir" rev-parse HEAD)" | jq -sRr @uri)
-    printf 'pkg:generic/%s/%s@%s?arch=%s&vcs_url=%s\n' "${repository%/*}" "$package" "$version" "$DISTRIBUTION_ARCHITECTURE" "$vcs_url" \
-        > "$ARTIFACTDIR/sbom/$package.sbom"
+    local commit=$( git -C "$build_dir" rev-parse HEAD )
 
     # If binary is cached, skip compilation
     if [ -n "${extra_features}" ]; then
@@ -60,6 +58,7 @@ build_rust_package() {
             echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
         fi
         cp "$cached_binary" "$dest_path"
+        add_package_note "$dest_path" "$package" "$version" "$source_url" "$commit"
         return
     fi
 
@@ -99,6 +98,7 @@ build_rust_package() {
     mkdir -p "$( dirname $cached_binary )"
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
+    add_package_note "$dest_path" "$package" "$version" "$source_url" "$commit"
 
     echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$( du -sh $cached_binary | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }
