@@ -46,9 +46,15 @@ usage() {
 check() {
     [[ $# -ge 2 ]] || usage
     awk "${parse_config_line}"'
+        # Skip lines that set no option: blank lines and other comments.
         !parse_config_line($0) { next }
-        FNR == NR { resolved[name] = value; next }
+        # A line of RESOLVED_CONFIG: record the value Kconfig settled on.
+        FILENAME == ARGV[1] { resolved[name] = value; next }
+        # A fragment line: record the request and where it was made. A later
+        # fragment overwrites an earlier request for the same option.
         { requested[name] = value; source[name] = FILENAME ":" FNR }
+        # After all files: report each request that resolved to another value.
+        # An option absent from RESOLVED_CONFIG is off.
         END {
             failures = 0
             for (n in requested) {
@@ -65,16 +71,22 @@ check() {
                 exit 1
             }
         }
-    ' "$@"
+    ' "$@" >&2 # everything check prints is a failure, so sent to stderr
 }
 
 builtin_modules_report() {
     [[ $# -ge 3 ]] || usage
     awk "${parse_config_line}"'
+        # Skip lines that set no option: blank lines and other comments.
         !parse_config_line($0) { next }
+        # A line of BASE_CONFIG: keep only the options Debian builds as modules.
         FILENAME == ARGV[1] { if (value == "m") base_modules[name] = 1; next }
+        # A line of RESOLVED_CONFIG: record the value Kconfig settled on.
         FILENAME == ARGV[2] { resolved[name] = value; next }
+        # A fragment line: record the request; a later fragment overwrites it.
         { requested[name] = value }
+        # After all files: sort each Debian module into one bucket, print the
+        # counts, then list the modules built in without a request.
         END {
             total = requested_count = unrequested_count = turned_off_count = 0
             for (n in base_modules) {
