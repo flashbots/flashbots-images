@@ -1,0 +1,11 @@
+[Unit]
+Description=Unpack /persistent/searcher/flashbox.tar into /run/flashbox/image
+After=persistent-mount.service
+Requires=persistent-mount.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=sandbox
+Environment=XDG_RUNTIME_DIR=/run/flashbox/sandbox
+ExecStart=/usr/bin/flashbox-deploy
