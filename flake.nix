@@ -85,7 +85,7 @@
         erofs-utils
         mtools
         gptfdisk
-        binutils
+        binutils-unwrapped-all-targets
         util-linux
         zstd
         which
