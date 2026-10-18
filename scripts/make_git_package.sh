@@ -10,6 +10,7 @@
 #       env_hash computation in make_git_package below.
 
 source scripts/package_note.sh
+source scripts/crate_sources.sh
 
 # Embed source repo and commit into each ELF artifact.
 # Without any ELF artifact, write them as a purl for syft's sbom-cataloger instead.
@@ -79,9 +80,13 @@ make_git_package() {
         } | sha256sum | cut -c1-12
     )
     local cache_dir="$BUILDDIR/${package}-${git_describe#${package}/}-${env_hash}"
+    local cached_crates="$cache_dir/.crates.jsonl"
+    local sbom_crates="${ARTIFACTDIR:?}/sbom/$package.crates.jsonl"
+    mkdir -p "$ARTIFACTDIR/sbom"
 
-    # Use cached artifacts if available
-    if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ]; then
+    # Use cached artifacts if available; Rust caches without .crates.jsonl predate it and are rebuilt
+    if [ -n "$cache_dir" ] && [ -d "$cache_dir" ] && [ "$(ls -A "$cache_dir" 2>/dev/null)" ] &&
+        { [ ! -f "$build_dir/Cargo.lock" ] || [ -f "$cached_crates" ]; }; then
         echo "Using cached artifacts for $package version $version"
         echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | reused from cache  | \`$( du -sh $cache_dir | cut -f1 )\`  |   |" >> "$BUILDDIR/manifest.md"
         for artifact_map in "${@:5}"; do
@@ -96,6 +101,9 @@ make_git_package() {
             fi
         done
         record_git_package_source "$package" "$version" "$source_url" "$commit" "${@:5}"
+        if [ -f "$cached_crates" ]; then
+            cp "$cached_crates" "$sbom_crates"
+        fi
         return 0
     fi
 
@@ -131,6 +139,10 @@ make_git_package() {
     done
 
     record_git_package_source "$package" "$version" "$source_url" "$commit" "${@:5}"
+    if [ -f "$build_dir/Cargo.lock" ]; then
+        record_crate_sources "$package" "$source_url" "$commit" "$cached_crates"
+        cp "$cached_crates" "$sbom_crates"
+    fi
 
     echo "| \`$package\`  | \`$version\` (\`$git_describe\`)  | built  | \`$( du -sh $cache_dir | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }

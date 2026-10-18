@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 source scripts/package_note.sh
+source scripts/crate_sources.sh
 
 build_rust_package() {
     local package="$1"
@@ -50,7 +51,11 @@ build_rust_package() {
         local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}/${package}"
     fi
     local cached_binary="${cached_binary//,/-}"
-    if [ -f "$cached_binary" ] && grep -aFq .dep-v0 "$cached_binary"; then
+    local cached_crates="$( dirname "$cached_binary" )/crates.jsonl"
+    local sbom_crates="${ARTIFACTDIR:?}/sbom/$package.crates.jsonl"
+    mkdir -p "$ARTIFACTDIR/sbom"
+    # Caches without crates.jsonl predate it and are rebuilt
+    if [ -f "$cached_binary" ] && [ -f "$cached_crates" ] && grep -aFq .dep-v0 "$cached_binary"; then
         echo "Using cached binary for $package version $version"
         if [ -n "${extra_features}" ]; then
             echo "| \`$package\`  | \`$version\` (\`$git_describe\`, features: ${extra_features})  | reused from cache | \`$( du -sh $cached_binary | cut -f1 )\`  |   |" ">> $BUILDDIR/manifest.md"
@@ -59,6 +64,7 @@ build_rust_package() {
         fi
         cp "$cached_binary" "$dest_path"
         add_package_note "$dest_path" "$package" "$version" "$source_url" "$commit"
+        cp "$cached_crates" "$sbom_crates"
         return
     fi
 
@@ -99,6 +105,8 @@ build_rust_package() {
     install -m 755 "$build_dir/target/release/$package" "$cached_binary"
     install -m 755 "$cached_binary" "$dest_path"
     add_package_note "$dest_path" "$package" "$version" "$source_url" "$commit"
+    record_crate_sources "$package" "$source_url" "$commit" "$cached_crates"
+    cp "$cached_crates" "$sbom_crates"
 
     echo "| \`$package\`  | \`$version\` (\`$git_describe\`, ${extra_features})  | built  | \`$( du -sh $cached_binary | cut -f1 )\`  | \`$duration\`  |" >> "$BUILDDIR/manifest.md"
 }
