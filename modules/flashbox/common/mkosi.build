@@ -25,7 +25,8 @@ build_rust_package \
     "https://github.com/flashbots/delay-pipe"
 
 # Build tdx-init
-# 7bf3e28 (branch moe/virtio-blk-persistent-disk) = v0.3.2 + bare-metal virtio-blk disk glob; v0.3.3 once tagged
+# 0a605e1 (branch moe/luks-aligned-4k) = v0.3.2 + bare-metal virtio-blk disk glob + aligned LUKS layout
+# (1 MiB-aligned data, 4 KiB crypt sectors); v0.3.3 once tagged
 make_git_package \
     "tdx-init" \
     "0a605e1f98b0aa5d681babd78e220f9fec8f29dc" \
