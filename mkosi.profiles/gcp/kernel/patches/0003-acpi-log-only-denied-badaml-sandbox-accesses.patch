@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Samuel Laferriere <9342524+samlaf@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 11:30:00 -0400
+Subject: [PATCH] drivers/acpi: log only the accesses the BadAML sandbox denies
+
+The sandbox logs every SystemMemory access AML makes, allowed or not.
+Azure's AML makes about 8200 reads on every boot, and on a serial console
+each line costs about 4 ms, which comes to over 40 s of boot.
+
+Log only denied accesses. They are the ones that mean something, and the
+line for each is unchanged.
+
+Signed-off-by: Samuel Laferriere <samlaf92@gmail.com>
+---
+ drivers/acpi/acpica/sandbox.h | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/acpi/acpica/sandbox.h b/drivers/acpi/acpica/sandbox.h
+--- a/drivers/acpi/acpica/sandbox.h
++++ b/drivers/acpi/acpica/sandbox.h
+@@ -135,12 +135,14 @@
+ {
+ 	cond_resched();
+ 
++	if (__sandbox_access_log.access_allowed)
++		return;
++
+ 	ACPI_INFO((
+-		"SANDBOX: ACCESS %s virt=%lx phys=%lx %s",
++		"SANDBOX: ACCESS %s virt=%lx phys=%lx denied",
+ 		__sandbox_access_log.is_read ? "r" : "w",
+ 		(unsigned long)__sandbox_access_log.virt_addr,
+-		(unsigned long)__sandbox_access_log.phys_addr,
+-		__sandbox_access_log.access_allowed ? "allowed" : "denied"
++		(unsigned long)__sandbox_access_log.phys_addr
+ 	));
+ 
+ 	cond_resched();
+-- 
+2.49.0
+

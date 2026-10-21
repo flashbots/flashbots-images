@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Meyer <katexochen0@gmail.com>
+Date: Tue, 17 Feb 2026 10:47:28 +0100
+Subject: [PATCH] drivers/acpi: add BadAML sandbox (Azure support)
+
+Signed-off-by: Paul Meyer <katexochen0@gmail.com>
+---
+ drivers/acpi/acpica/sandbox.h | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/drivers/acpi/acpica/sandbox.h b/drivers/acpi/acpica/sandbox.h
+--- a/drivers/acpi/acpica/sandbox.h
++++ b/drivers/acpi/acpica/sandbox.h
+@@ -87,6 +87,25 @@
+ 	return true;
+ }
+ 
++static bool __sandbox_is_efi_memory(unsigned long phys_addr)
++{
++	efi_memory_desc_t *md;
++
++	for_each_efi_memory_desc(md) {
++		unsigned long start = md->phys_addr;
++		unsigned long end = start + (md->num_pages * EFI_PAGE_SIZE);
++
++		if (md->type != EFI_RUNTIME_SERVICES_DATA) {
++			continue;
++		}
++		if (phys_addr >= start && phys_addr < end) {
++			return true;
++		}
++	}
++
++	return false;
++}
++
+ static bool __sandbox_validate_memory_access(unsigned long virt_addr, unsigned long phys_addr, bool is_read)
+ {
+ 	__sandbox_log_enabled();
+@@ -95,6 +114,12 @@
+ 	__sandbox_access_log.virt_addr = virt_addr;
+ 	phys_addr &= PAGE_MASK;
+ 	virt_addr &= PAGE_MASK;
++
++	if (__sandbox_is_efi_memory(phys_addr)) {
++		if (is_read) {
++			return true;
++		}
++	}
+ 
+ 	cond_resched();
+ 
