@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# Compares the kernel config values fragments request with the resolved
+# .config and the Debian base config.
+#
+# A request is any line a fragment sets: `CONFIG_X=VALUE`, `CONFIG_X=n` or
+# `# CONFIG_X is not set`. Fragments are read in merge order, so a later
+# fragment's request replaces an earlier one, as in merge_config.sh.
+#
+# Usage:
+#   config-requests.sh check RESOLVED_CONFIG FRAGMENT...
+#       Fails when a requested value is not the value in RESOLVED_CONFIG.
+#       Kconfig ignores a request without a word when the option's
+#       `depends on` is not met, or when another option `select`s an option a
+#       fragment turns off.
+#
+#   config-requests.sh drop-unrequested-modules BASE_CONFIG FRAGMENT...
+#       Prints a fragment that turns off every BASE_CONFIG module (`=m`) no
+#       fragment mentions.
+#
+#   config-requests.sh builtin-modules-report [--dropped DROP_FRAGMENT] BASE_CONFIG RESOLVED_CONFIG FRAGMENT...
+#       Counts what became of each BASE_CONFIG module (`=m`) and lists the
+#       ones built into RESOLVED_CONFIG that no fragment requested: with
+#       CONFIG_MODULES=n, Kconfig builds every `=m` option into the kernel
+#       instead of leaving it out, so these are the ones to review.
+#       DROP_FRAGMENT is the output of drop-unrequested-modules, when the
+#       build merged it.
+set -euo pipefail
+
+# Sets name and value for a config line, value "n" for an option turned off;
+# returns 0 for any other line.
+parse_config_line='
+    function parse_config_line(line) {
+        if (match(line, /^CONFIG_[A-Za-z0-9_]+=/)) {
+            name = substr(line, 8, RLENGTH - 8)
+            value = substr(line, RLENGTH + 1)
+            return 1
+        }
+        if (match(line, /^# CONFIG_[A-Za-z0-9_]+ is not set$/)) {
+            name = substr(line, 10, RLENGTH - 20)
+            value = "n"
+            return 1
+        }
+        return 0
+    }
+'
+
+usage() {
+    sed -n 's/^#   //p' "$0" >&2
+    exit 2
+}
+
+check() {
+    [[ $# -ge 2 ]] || usage
+    awk "${parse_config_line}"'
+        !parse_config_line($0) { next }
+        FNR == NR { resolved[name] = value; next }
+        { requested[name] = value; source[name] = FILENAME ":" FNR }
+        END {
+            failures = 0
+            for (n in requested) {
+                got = (n in resolved) ? resolved[n] : "n"
+                if (got != requested[n]) {
+                    printf "%s: CONFIG_%s: requested %s, resolved to %s\n", \
+                        source[n], n, requested[n], got | "sort"
+                    failures++
+                }
+            }
+            close("sort")
+            if (failures > 0) {
+                printf "%d requested kernel config value(s) did not take effect\n", failures
+                exit 1
+            }
+        }
+    ' "$@"
+}
+
+drop_unrequested_modules() {
+    [[ $# -ge 2 ]] || usage
+    awk "${parse_config_line}"'
+        !parse_config_line($0) { next }
+        FNR == NR { if (value == "m") base_modules[name] = 1; next }
+        { mentioned[name] = 1 }
+        END {
+            for (n in base_modules)
+                if (!(n in mentioned))
+                    print "# CONFIG_" n " is not set" | "sort"
+        }
+    ' "$@"
+}
+
+builtin_modules_report() {
+    local drop_fragment=/dev/null
+    if [[ "${1:-}" == --dropped ]]; then
+        [[ $# -ge 2 ]] || usage
+        drop_fragment=$2
+        shift 2
+    fi
+    [[ $# -ge 3 ]] || usage
+    local base_config=$1 resolved_config=$2
+    shift 2
+    awk -v show_dropped="$([[ ${drop_fragment} != /dev/null ]] && echo 1 || echo 0)" \
+        "${parse_config_line}"'
+        !parse_config_line($0) { next }
+        FILENAME == ARGV[1] { if (value == "m") base_modules[name] = 1; next }
+        FILENAME == ARGV[2] { resolved[name] = value; next }
+        FILENAME == ARGV[3] { dropped[name] = 1; next }
+        { requested[name] = value }
+        END {
+            total = requested_count = unrequested_count = 0
+            turned_off_count = dropped_count = 0
+            for (n in base_modules) {
+                total++
+                built = (n in resolved) && resolved[n] != "n"
+                request = (n in requested) ? requested[n] : ""
+                if (built && request != "" && request != "n") {
+                    requested_count++
+                } else if (built) {
+                    unrequested[n] = resolved[n]
+                    unrequested_count++
+                } else if (request == "n") {
+                    turned_off_count++
+                } else if (n in dropped) {
+                    dropped_count++
+                }
+            }
+            printf "Debian modules (=m in the base config): %d\n", total
+            printf "  %-36s %5d\n", "built in, requested by a fragment:", requested_count
+            printf "  %-36s %5d\n", "built in, not requested:", unrequested_count
+            printf "  %-36s %5d\n", "not built, turned off by a fragment:", turned_off_count
+            if (show_dropped)
+                printf "  %-36s %5d\n", "not built, dropped as unrequested:", dropped_count
+            printf "  %-36s %5d\n", "not built, a dependency is off:", \
+                total - requested_count - unrequested_count - turned_off_count - dropped_count
+            if (unrequested_count > 0) {
+                print "Built in without a request:"
+                for (n in unrequested)
+                    print "  CONFIG_" n "=" unrequested[n] | "sort"
+                close("sort")
+            }
+        }
+    ' "${base_config}" "${resolved_config}" "${drop_fragment}" "$@"
+}
+
+[[ $# -ge 1 ]] || usage
+command=$1
+shift
+case "${command}" in
+    check) check "$@" ;;
+    drop-unrequested-modules) drop_unrequested_modules "$@" ;;
+    builtin-modules-report) builtin_modules_report "$@" ;;
+    *) usage ;;
+esac
