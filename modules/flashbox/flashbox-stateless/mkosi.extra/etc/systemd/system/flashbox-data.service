@@ -1,0 +1,16 @@
+[Unit]
+Description=Searcher data server
+After=persistent-mount.service
+Requires=persistent-mount.service
+
+[Service]
+User=data
+Group=searcher
+ExecStart=/usr/bin/flashbox-data /persistent/searcher/data 127.0.0.1:6379
+IPAddressAllow=localhost
+IPAddressDeny=any
+ProtectSystem=strict
+ReadWritePaths=/persistent/searcher/data
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=5
