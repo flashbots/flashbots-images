@@ -43,6 +43,10 @@ make_git_package() {
     printf 'pkg:generic/%s/%s@%s?arch=%s&vcs_url=%s\n' "${repository%/*}" "$package" "$version" "$DISTRIBUTION_ARCHITECTURE" "$vcs_url" \
         > "$ARTIFACTDIR/sbom/$package.sbom"
 
+    if [[ -f "$build_dir/Cargo.lock" ]]; then
+        cp "$build_dir/Cargo.lock" "$ARTIFACTDIR/sbom/$package.cargo-lock.toml"
+    fi
+
     local env_hash=$(
         {
             # We hash the build_cmd into the cache dir to catch 

@@ -45,6 +45,10 @@ build_rust_package() {
     printf 'pkg:generic/%s/%s@%s?arch=%s&vcs_url=%s\n' "${repository%/*}" "$package" "$version" "$DISTRIBUTION_ARCHITECTURE" "$vcs_url" \
         > "$ARTIFACTDIR/sbom/$package.sbom"
 
+    if [[ -f "$build_dir/Cargo.lock" ]]; then
+        cp "$build_dir/Cargo.lock" "$ARTIFACTDIR/sbom/$package.cargo-lock.toml"
+    fi
+
     # If binary is cached, skip compilation
     if [ -n "${extra_features}" ]; then
         local cached_binary="$BUILDDIR/${package}-${git_describe#${package}/}-${extra_features}/${package}"

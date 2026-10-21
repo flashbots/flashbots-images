@@ -92,6 +92,7 @@
         qemu-utils
         parted
         jq
+        dasel
         syft
         reprepro
         systemd
