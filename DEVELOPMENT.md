@@ -195,21 +195,44 @@ Flashboxes supports custom kernel configurations through base configs and snippe
 
 ### Using Kernel Snippets
 
-Create a custom kernel config snippet in your module folder:
+The kernel config starts from Debian's `cloud-amd64` config, pinned in
+`shared/mkosi.conf`. Snippets go on top: each one is a kernel config fragment,
+a file of `.config` lines that override the base. The build merges them with
+the kernel's
+[`scripts/kconfig/merge_config.sh`](https://github.com/torvalds/linux/blob/master/scripts/kconfig/merge_config.sh),
+in alphabetical order of file name across all registered directories; a later
+fragment's value for the same option wins.
 
-**`module/kernel.config`**:
+Put fragments in a directory in your module and register it:
+
+**`module/kernel/config.d/40-my-feature`**:
 ```
-# Enable custom features
 CONFIG_MY_FEATURE=y
+# CONFIG_MY_OTHER_FEATURE is not set
 ```
 
-**Enable in your module**:
+**`module/mkosi.conf`**:
 ```ini
 [Build]
-Environment=KERNEL_CONFIG_SNIPPETS=module/kernel.config,module/another-kernel-snippet.config
+Environment=KERNEL_CONFIG_SNIPPETS_MY_MODULE=module/kernel/config.d
 ```
 
-These snippets will be applied over the base configuration in `shared/kernel/kernel-yocto.config`
+Kconfig does not always apply a fragment line, and it gives no error when it
+skips one: it drops a value whose `depends on` is not met, and a `select`
+from another option overrides turning an option off (see the
+[Kconfig language](https://docs.kernel.org/kbuild/kconfig-language.html)).
+So after resolving the config, the kernel build script
+[`shared/mkosi.build.d/10-kernel.sh`](shared/mkosi.build.d/10-kernel.sh) runs
+the `check` subcommand of
+[`shared/kernel/config-requests.sh`](shared/kernel/config-requests.sh). It
+compares every fragment line with the resolved config and fails the build
+before compiling if one did not take effect, naming the line. Add the missing
+dependency, or remove the line.
+
+`shared/kernel/config.d/00-no-modules` turns off loadable modules, and Kconfig
+then builds every option Debian ships as a module (`=m`) into the kernel.
+`config-requests.sh builtin-modules-report` lists the ones no fragment asked
+for in the build log.
 
 ## Adding Source Repositories
 
