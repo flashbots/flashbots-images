@@ -46,6 +46,10 @@ build: setup ## Build the specified module
 build-dev: setup ## Build module with development tools
 	$(WRAPPER) mkosi --force --image-id $(IMAGE)-dev --profile=devtools --include=images/$(IMAGE).conf
 
+# Build module with devtools and benchmark profiles
+build-bench: setup ## Build module with development and benchmark tools
+	$(WRAPPER) mkosi --force --image-id $(IMAGE)-bench --profile=devtools,benchmark --include=images/$(IMAGE).conf
+
 ##@ Utilities
 
 measure: ## Export TDX measurements for the built EFI file
