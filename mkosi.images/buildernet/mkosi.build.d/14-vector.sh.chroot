@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REF=2b8b875681fbf4ef8da827650f75e936f16a36a4 #v0.54.0
+REF=0d0b35865036f8b5c2f0104d9744fa84985ffff1 #v0.60.0
 CARGO_HOME="$BUILDDIR/.cargo"
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
 BUILDDIR="$BUILDDIR/vector"
@@ -28,7 +28,7 @@ CARGO_PROFILE_RELEASE_OPT_LEVEL='3'
 CARGO_TARGET_DIR="$BUILDDIR/target"
 
 cargo build --release --locked --no-default-features \
-  --features unix,aws-core,sources-file,sources-journald,sources-prometheus-scrape,sinks-prometheus,sinks-clickhouse,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics
+  --features tikv-jemallocator,aws-core,sources-file,sources-journald,sources-prometheus_scrape,sinks-prometheus,sinks-clickhouse,transforms-filter,transforms-throttle,transforms-remap,transforms-metrics
 
 mkdir -p $DESTDIR/usr/bin
 cp $CARGO_TARGET_DIR/release/vector $DESTDIR/usr/bin/vector

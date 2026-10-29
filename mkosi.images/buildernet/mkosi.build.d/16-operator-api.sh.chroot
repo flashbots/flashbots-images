@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REF=a8296e4ccd355f5fac805828ad8e474381a6c5a2 #v0.7.0
+REF=cb13f942cc0a2c529926a17d2a77d3233edff630 #v0.8.0
 BUILDDIR="$BUILDDIR/operator-api"
 PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
 export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"

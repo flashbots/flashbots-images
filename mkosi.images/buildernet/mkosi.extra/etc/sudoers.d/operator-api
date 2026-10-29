@@ -1,7 +1,6 @@
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password reboot
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart rbuilder-operator
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password stop rbuilder-operator
-operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password start fetch-config
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password stop ssh.service
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password start ssh.service
 operator-api ALL= NOPASSWD: NOEXEC: /usr/bin/systemctl --no-pager --no-ask-password restart haproxy
