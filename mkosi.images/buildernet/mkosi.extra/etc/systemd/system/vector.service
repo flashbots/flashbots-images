@@ -11,7 +11,8 @@ StateDirectory=persistent/vector
 LoadCredential=vector.yaml:%E/vector/vector.yaml
 LoadCredential=aws-config:%E/vector/aws-config
 Environment=VECTOR_LOG_FORMAT=json \
-            VECTOR_CONFIG_YAML=%d/vector.yaml
+            VECTOR_CONFIG_YAML=%d/vector.yaml \
+            VECTOR_DANGEROUSLY_ALLOW_ENV_VAR_INTERPOLATION=true
 ExecStartPre=/usr/bin/vector validate
 ExecStart=/usr/bin/vector
 # Reload does not work because of LoadCredential
