@@ -8,6 +8,7 @@ export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"
 
 echo "Installing operator-api..."
 
+rm -rf $BUILDDIR
 mkdir -p $BUILDDIR
 
 curl -sSfL https://api.github.com/repos/flashbots/system-api/tarball/${REF} | \

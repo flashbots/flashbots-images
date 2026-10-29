@@ -10,6 +10,8 @@ export CARGO_HOME="$SRCDIR/mkosi.images/buildernet/mkosi.cache/cargo"
 echo "Installing vector..."
 
 mkdir -p $BUILDDIR
+# clear previous source, keep target/ cache
+find $BUILDDIR -mindepth 1 -maxdepth 1 ! -name target -exec rm -rf {} +
 
 curl -sSfL https://api.github.com/repos/vectordotdev/vector/tarball/${REF} | \
   tar xzf - -C $BUILDDIR --strip-components=1
