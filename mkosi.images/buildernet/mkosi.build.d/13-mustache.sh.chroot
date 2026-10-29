@@ -8,6 +8,7 @@ BUILDDIR="$BUILDDIR/mustache"
 PATH="$(ls -d /usr/lib/go-1.*/bin | head -n1):$PATH"
 export GOCACHE="$SRCDIR/mkosi.images/buildernet/mkosi.cache/go-build"
 
+rm -rf $BUILDDIR
 mkdir -p $BUILDDIR
 
 curl -sSfL https://api.github.com/repos/cbroglie/mustache/tarball/${REF} | \
