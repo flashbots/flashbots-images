@@ -1,4 +1,7 @@
 any_position_max_sims_per_second = {{rbuilder.any_position_max_sims_per_second}}
+{{#rbuilder.any_position_searcher_threads}}
+any_position_searcher_threads = {{rbuilder.any_position_searcher_threads}}
+{{/rbuilder.any_position_searcher_threads}}
 any_position_simulation_threads = {{rbuilder.any_position_simulation_threads}}
 blocklist = "{{rbuilder.blocklist}}"
 blocklist_url_max_age_secs = 300
