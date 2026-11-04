@@ -25,6 +25,12 @@ ignore_cancellable_orders = false
 {{#rbuilder.jit_lane_updates}}
 jit_lane_updates = true
 {{/rbuilder.jit_lane_updates}}
+{{#rbuilder.jit_request_budget_us}}
+jit_request_budget_us = {{rbuilder.jit_request_budget_us}}
+{{/rbuilder.jit_request_budget_us}}
+{{#rbuilder.jit_sidecar_slack_us}}
+jit_sidecar_slack_us = {{rbuilder.jit_sidecar_slack_us}}
+{{/rbuilder.jit_sidecar_slack_us}}
 jit_liquidity_source = "{{rbuilder.jit_liquidity_source}}"
 {{#rbuilder.jit_probe_contract}}
 jit_probe_contract = "{{rbuilder.jit_probe_contract}}"

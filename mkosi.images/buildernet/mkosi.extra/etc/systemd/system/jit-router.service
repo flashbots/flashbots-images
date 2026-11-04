@@ -2,12 +2,13 @@
 StartLimitIntervalSec=0
 Description=jit-router - JIT-routing sidecar (JitRouter gRPC, asked per order by the builder)
 Documentation=https://github.com/flashbots/jit-router/blob/main/README.md
-Wants=network-online.target rbuilder-operator.service pamm-stream.service
+Wants=network-online.target pamm-stream.service
 After=network.target network-online.target rbuilder-operator.service pamm-stream.service jit-router-downloader.service
 Requires=jit-router-downloader.service
 
 [Service]
 Type=exec
+LimitNOFILE=65535
 DynamicUser=yes
 EnvironmentFile=%E/jit-router/jit-router.env
 ExecStart=/usr/bin/jit-router
