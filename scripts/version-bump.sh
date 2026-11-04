@@ -38,7 +38,7 @@ declare -A SVC_REPO=(
   [pamm-stream]="pamm-stream"
   [rbuilder-operator]="rbuilder-prism"
   [rbuilder-rebalancer]="rbuilder-prism"
-  [jit-router]="router"
+  [jit-router]="jit-router"
 )
 declare -A SVC_FILE=(
   [flowproxy]="flowproxy-downloader.service"
