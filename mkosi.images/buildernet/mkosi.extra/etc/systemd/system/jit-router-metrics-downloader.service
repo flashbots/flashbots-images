@@ -1,0 +1,19 @@
+[Unit]
+Description=Fetch jit-router-metrics
+ConditionFileNotEmpty=%E/jit-router/jit-router-metrics.env
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=JIT_ROUTER_METRICS_SHA256SUM=PLACEHOLDER_SET_AFTER_RELEASE \
+            JIT_ROUTER_METRICS_TAG=PLACEHOLDER_SET_AFTER_RELEASE \
+            JIT_ROUTER_METRICS_REPO=jit-router \
+            JIT_ROUTER_METRICS_ARTIFACT=jit-router-metrics
+EnvironmentFile=%E/gh_token.env
+ExecStart=/bin/bash -c '[[ -f /usr/bin/jit-router-metrics ]] || /usr/bin/fetch-gh-release-artifact fetch \
+  --repo "$JIT_ROUTER_METRICS_REPO" --tag "$JIT_ROUTER_METRICS_TAG" \
+  --artifact-name "$JIT_ROUTER_METRICS_ARTIFACT" --output-file /usr/bin/jit-router-metrics'
+ExecStart=/bin/bash -c 'echo "$JIT_ROUTER_METRICS_SHA256SUM" /usr/bin/jit-router-metrics | sha256sum --check'
+ExecStart=/bin/chmod +x /usr/bin/jit-router-metrics
+RemainAfterExit=yes

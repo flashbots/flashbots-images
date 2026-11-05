@@ -7,7 +7,7 @@
 # Checksums come from the release's published `sha256sums.txt` (falling
 # back to hashing the downloaded artifact), discovered via the `gh` CLI.
 #
-# Supported services: flowproxy, pamm-stream, rbuilder-operator, rbuilder-rebalancer, jit-router
+# Supported services: flowproxy, pamm-stream, rbuilder-operator, rbuilder-rebalancer, jit-router, jit-router-metrics
 #
 # Usage:
 #   scripts/version-bump.sh --rbuilder-operator v1.7.15 --rbuilder-rebalancer v1.7.15
@@ -28,7 +28,7 @@ SVC_DIR="$REPO_ROOT/mkosi.images/buildernet/mkosi.extra/etc/systemd/system"
 OWNER="flashbots"
 DRY_RUN=false
 
-SERVICES=(flowproxy pamm-stream rbuilder-operator rbuilder-rebalancer jit-router)
+SERVICES=(flowproxy pamm-stream rbuilder-operator rbuilder-rebalancer jit-router jit-router-metrics)
 
 # Per-service metadata. Artifact templates use %TAG% as the version placeholder;
 # the rendered artifact name is both the release asset we fetch and the key we
@@ -39,6 +39,7 @@ declare -A SVC_REPO=(
   [rbuilder-operator]="rbuilder-prism"
   [rbuilder-rebalancer]="rbuilder-prism"
   [jit-router]="jit-router"
+  [jit-router-metrics]="jit-router"
 )
 declare -A SVC_FILE=(
   [flowproxy]="flowproxy-downloader.service"
@@ -46,6 +47,7 @@ declare -A SVC_FILE=(
   [rbuilder-operator]="rbuilder-operator-rebalancer-downloader.service"
   [rbuilder-rebalancer]="rbuilder-operator-rebalancer-downloader.service"
   [jit-router]="jit-router-downloader.service"
+  [jit-router-metrics]="jit-router-metrics-downloader.service"
 )
 declare -A SVC_PREFIX=(
   [flowproxy]="FLOWPROXY"
@@ -54,6 +56,7 @@ declare -A SVC_PREFIX=(
   [rbuilder-operator]="RBUILDER_OPERATOR_RETH"
   [rbuilder-rebalancer]="RBUILDER_REBALANCER"
   [jit-router]="JIT_ROUTER"
+  [jit-router-metrics]="JIT_ROUTER_METRICS"
 )
 declare -A SVC_ARTIFACT=(
   [flowproxy]="flowproxy-%TAG%-x86_64-unknown-linux-gnu"
@@ -62,6 +65,7 @@ declare -A SVC_ARTIFACT=(
   [rbuilder-rebalancer]="rbuilder-rebalancer-%TAG%-x86_64-unknown-linux-gnu"
   # release asset name is unversioned ("jit-router"), unlike the other services
   [jit-router]="jit-router"
+  [jit-router-metrics]="jit-router-metrics"
 )
 
 die() { echo "error: $*" >&2; exit 1; }
@@ -121,7 +125,7 @@ declare -A REQ=()
 [[ $# -gt 0 ]] || { usage; exit 1; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --flowproxy|--pamm-stream|--rbuilder-operator|--rbuilder-rebalancer|--jit-router)
+    --flowproxy|--pamm-stream|--rbuilder-operator|--rbuilder-rebalancer|--jit-router|--jit-router-metrics)
       svc="${1#--}"
       [[ $# -ge 2 ]] || die "missing version for $1"
       REQ[$svc]="$2"

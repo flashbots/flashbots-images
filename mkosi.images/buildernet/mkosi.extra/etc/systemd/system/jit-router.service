@@ -10,6 +10,8 @@ Requires=jit-router-downloader.service
 Type=exec
 LimitNOFILE=65535
 DynamicUser=yes
+# Shared with jit-router-metrics, which tails and trims the decision journal in the runtime directory.
+User=jit-router
 EnvironmentFile=%E/jit-router/jit-router.env
 ExecStart=/usr/bin/jit-router
 TimeoutStartSec=5min
@@ -19,6 +21,7 @@ RestartSteps=5
 RestartMaxDelaySec=1min
 RuntimeDirectory=jit-router
 RuntimeDirectoryMode=0711
+RuntimeDirectoryPreserve=yes
 
 [Install]
 WantedBy=multi-user.target
