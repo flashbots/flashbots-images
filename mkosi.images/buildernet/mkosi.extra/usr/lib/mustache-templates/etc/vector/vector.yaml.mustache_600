@@ -57,6 +57,12 @@ sources:
     type: prometheus_scrape
     endpoints:
       - http://localhost:8082/metrics
+<%#jit_router_metrics%>
+  metrics_jit_router_metrics:
+    type: prometheus_scrape
+    endpoints:
+      - http://localhost:8084/metrics
+<%/jit_router_metrics%>
 
 transforms:
   metrics_job_node_exporter:
@@ -131,6 +137,14 @@ transforms:
       - metrics_jit_router
     source: |-
       .tags.job = "jit-router"
+<%#jit_router_metrics%>
+  metrics_job_jit_router_metrics:
+    type: remap
+    inputs:
+      - metrics_jit_router_metrics
+    source: |-
+      .tags.job = "jit-router-metrics"
+<%/jit_router_metrics%>
 
   haproxy_logs_filter:
     type: filter

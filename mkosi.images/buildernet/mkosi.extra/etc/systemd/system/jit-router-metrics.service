@@ -1,0 +1,27 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=jit-router-metrics - tails jit-router's decision journal into ClickHouse
+Documentation=https://github.com/flashbots/jit-router/blob/main/crates/jit-router-metrics/src/lib.rs
+# Hosts without this config do not run it.
+ConditionFileNotEmpty=%E/jit-router/jit-router-metrics.env
+Wants=network-online.target jit-router.service
+After=network.target network-online.target jit-router.service jit-router-metrics-downloader.service
+Requires=jit-router-metrics-downloader.service
+
+[Service]
+Type=exec
+DynamicUser=yes
+User=jit-router
+EnvironmentFile=%E/jit-router/jit-router-metrics.env
+ExecStart=/usr/bin/jit-router-metrics
+TimeoutStartSec=5min
+Restart=on-failure
+RestartSec=5s
+RestartSteps=5
+RestartMaxDelaySec=1min
+RuntimeDirectory=jit-router
+RuntimeDirectoryMode=0711
+RuntimeDirectoryPreserve=yes
+
+[Install]
+WantedBy=multi-user.target
