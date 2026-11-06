@@ -152,7 +152,7 @@
           --setuid=0 --setgid=0 \
           -- \
           env PATH="${mkosiToolsEnv}/bin" \
-          ${mkosi-unwrapped}/bin/mkosi "$@"
+          ${mkosi-unwrapped}/bin/mkosi --sandbox-tree=${pkgs.debian-archive-keyring}/share/keyrings:/usr/share/keyrings "$@"
       '';
     in {
       devShell = pkgs.mkShell {
