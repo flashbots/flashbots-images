@@ -55,22 +55,12 @@
       };
 
       # TODO: remove this and replace by apt 3.3.6 from upstream nixpkgs
-      apt =
-        if pkgs.lib.versionAtLeast pkgs.apt.version "3.3.6"
-        then pkgs.apt
-        else
-          pkgs.apt.overrideAttrs (old: {
-            version = "3.3.6";
-            src = pkgs.fetchFromGitLab {
-              domain = "salsa.debian.org";
-              owner = "apt-team";
-              repo = "apt";
-              rev = "3.3.6";
-              hash = "sha256-alH3LIew/Jh3v7ro319Wop5XvLqWeOUeTqhIkhd9rig=";
-            };
-            # Hegel tests git-clone at configure time; Debian's debian/rules disables them too
-            cmakeFlags = old.cmakeFlags ++ [(pkgs.lib.cmakeBool "WITH_HEGEL_TESTS" false)];
-          });
+      apt = pkgs.apt.overrideAttrs (old: {
+        version = "3.3.6";
+        src = old.src.override { rev = "3.3.6"; hash = "sha256-alH3LIew/Jh3v7ro319Wop5XvLqWeOUeTqhIkhd9rig="; };
+        # Disable test step during compilation since nix doesn't permit network access during build
+        cmakeFlags = old.cmakeFlags ++ [ (pkgs.lib.cmakeBool "WITH_HEGEL_TESTS" false) ];
+      });
 
       mkosiTools = with pkgs; [
         apt
