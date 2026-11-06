@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+source scripts/make_git_package.sh
+
+mkdir -p "$DESTDIR/usr/bin"
+mkosi-chroot env RUSTFLAGS="-C link-arg=-Wl,--build-id=none --remap-path-prefix $SRCDIR=/src" \
+    cargo build --release --locked \
+    --manifest-path "$SRCDIR/modules/flashbox/flashbox-stateless/src/sandbox-relay/Cargo.toml" \
+    --target-dir /build/sandbox-relay
+install -m 755 "$BUILDROOT/build/sandbox-relay/release/sandbox-relay" "$DESTDIR/usr/bin/sandbox-relay"
+mkosi-chroot rustc --edition=2021 -O -C strip=debuginfo -C link-arg=-Wl,--build-id=none \
+    --remap-path-prefix "$SRCDIR=/src" \
+    "$SRCDIR/modules/flashbox/flashbox-stateless/src/searchersh.rs" -o "$DESTDIR/usr/bin/searchersh"
+
+mkosi-chroot env GOTOOLCHAIN=local GOFLAGS=-buildvcs=false \
+    go build -C "$SRCDIR/modules/flashbox/flashbox-stateless/src/flashbox-data" \
+    -trimpath -ldflags "-s -w -buildid=" -o "$DESTDIR/usr/bin/flashbox-data"
+
+make_git_package \
+    "cryptsetup" \
+    "v2.8.1" \
+    "https://gitlab.com/cryptsetup/cryptsetup" \
+    './autogen.sh && ./configure --with-crypto_backend=kernel --disable-veritysetup --disable-integritysetup --disable-asciidoc && make -j$(nproc)' \
+    ".libs/cryptsetup:/usr/sbin/cryptsetup" \
+    ".libs/libcryptsetup.so.12.11.0:/usr/lib/x86_64-linux-gnu/libcryptsetup.so.12"
+
+make_git_package \
+    "tdx-init" \
+    "3712bd3aab7b4dd50e5e476336a74c73b62ded2d" \
+    "https://github.com/flashbots/tdx-init" \
+    'go build -trimpath -ldflags "-s -w -buildid=" -o ./build/tdx-init' \
+    "build/tdx-init:/usr/bin/tdx-init"
+
+make_git_package \
+    "ssh-pubkey-server" \
+    "v0.1.0" \
+    "https://github.com/flashbots/ssh-pubkey-server" \
+    'go build -trimpath -ldflags "-s -w -buildid= -X github.com/flashbots/go-template/common.Version=v1.0.0" -o ./build/ssh-pubkey-server cmd/httpserver/main.go' \
+    "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
+
+make_git_package \
+    "attested-tls-proxy" \
+    "0f3b35a" \
+    "https://github.com/flashbots/attested-tls-proxy" \
+    'cargo build --release --locked --bin attested-tls-proxy' \
+    "target/release/attested-tls-proxy:/usr/bin/attested-tls-proxy"

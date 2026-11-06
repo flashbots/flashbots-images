@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+cd /run/flashbox/image
+trap 'rm -f config.json.tmp; [ -z "${c:-}" ] || podman rm -f "$c" >/dev/null' EXIT
+trap 'exit 1' HUP INT TERM
+rm -f config.json
+
+img=$(podman --log-level error load -q -i /persistent/searcher/flashbox.tar | sed -n 's/^Loaded image: //p')
+c=$(podman create --network none --cap-drop all --security-opt no-new-privileges --read-only "$img")
+podman init "$c" >/dev/null
+config=$(podman inspect -f '{{.OCIConfigPath}}' "$c")
+jq -f /etc/flashbox/config.jq "$config" > config.json.tmp
+podman export "$c" | unshare --map-auto --map-root-user bash -c '
+    set -eu
+    rm -rf rootfs
+    mkdir -p rootfs empty
+    tar -xC rootfs --exclude="dev/*"
+    cd rootfs
+    mkdir -p flashbox data tmp run var/tmp proc sys dev
+'
+podman rm -f "$c" >/dev/null
+c=
+podman rmi -f "$img" >/dev/null
+
+mv config.json.tmp config.json
