@@ -51,5 +51,5 @@ echo "${EXPECTED_SHA256}" $PACKAGEDIR/attested-tls-proxy.deb | sha256sum --check
 # Build input-only-proxy
 build_rust_package \
     "input-only-proxy" \
-    "v0.0.3" \
-    "https://github.com/flashbots/input-only-proxy"
+    "v0.0.4-mock" \
+    "https://github.com/shashial/test"
