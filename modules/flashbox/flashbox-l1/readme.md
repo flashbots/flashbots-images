@@ -464,14 +464,14 @@ Use the `eth_sendBobBundle` method to submit bundles:
     { // regular eth_sendBundle fields
       txs,
       blockNumber,
-    },
-    targetUuid, // String, block UUID that this bundle is targeting eg 123e4567-e89b-12d3-a456-426614174000
-    targetPools // Array[String], A list of pool addresses that this bundle is targeting
+      targetPools, // Optional Array[String], pool (contract) addresses this bundle waits on. Alias of targetAddresses
+      targetSlots  // Optional Array[Array[String]], storage slots to watch, one list per entry in targetPools. An empty list watches the whole contract
+    }
   ]
 }
 ```
 
-Note: `targetUuid` and `targetPools` are currently accepted but ignored by BuilderNet. When support for them is added, their placement in the request may differ from what is shown above.
+Note: `targetPools` and `targetSlots` go inside the bundle object. Each pool address is a state filter: BuilderNet simulates the bundle only after a block it builds changes that contract (or, when `targetSlots` is set, one of the listed slots). Without `targetPools`, the bundle is simulated once against the first block available. The number of pools and slots per pool is capped, and a bundle over the cap is rejected with an error naming the limit. The older positional form, `[bundle, targetUuid, targetPools]`, is still accepted, but its trailing `targetUuid` and `targetPools` params are ignored.
 
 Disk Persistence
 ------------------------
