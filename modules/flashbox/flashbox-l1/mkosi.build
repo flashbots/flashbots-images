@@ -9,6 +9,8 @@ LIGHTHOUSE_BUILD_CMD="
     export LC_ALL=C
     export TZ=UTC
     export SOURCE_DATE_EPOCH=\$(git log -1 --pretty=%ct)
+    # jemalloc otherwise takes the VA width from the build CPU
+    export JEMALLOC_SYS_WITH_LG_VADDR=48
     export RUSTFLAGS='-C link-arg=-Wl,--build-id=none -C metadata= --remap-path-prefix \$(pwd)=. -L /usr/lib/x86_64-linux-gnu -l z -l zstd -l snappy'
 
     cargo auditable build --bin lighthouse \
