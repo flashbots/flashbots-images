@@ -10,27 +10,6 @@
     perSystem = system: let
       pkgs = import nixpkgs {inherit system;};
 
-      reprepro = pkgs.stdenv.mkDerivation rec {
-        name = "reprepro-${version}";
-        version = "4.16.0";
-
-        src = pkgs.fetchurl {
-          url =
-            "https://alioth.debian.org/frs/download.php/file/"
-            + "4109/reprepro_${version}.orig.tar.gz";
-          sha256 = "14gmk16k9n04xda4446ydfj8cr5pmzsmm4il8ysf69ivybiwmlpx";
-        };
-
-        nativeBuildInputs = [pkgs.makeWrapper];
-        buildInputs =
-          pkgs.lib.singleton (pkgs.gpgme.override {gnupg = pkgs.gnupg;})
-          ++ (with pkgs; [db libarchive bzip2 xz zlib]);
-
-        postInstall = ''
-          wrapProgram "$out/bin/reprepro" --prefix PATH : "${pkgs.gnupg}/bin"
-        '';
-      };
-
       measured-boot = pkgs.buildGoModule {
         pname = "measured-boot";
         version = "main";
@@ -57,8 +36,8 @@
       attest-src = pkgs.fetchFromGitHub {
         owner = "Easy-TEE";
         repo = "attest";
-        rev = "12f1e29f6ea63ecc2f80f39c2c1f1172720bcf24";
-        hash = "sha256-Ekn8SMhgOzdK3RCGIUVviyge56gX08ZQVFWopsnOneM=";
+        rev = "c17eca07bfd55539805dda2bb1add4cf0b32df12";
+        hash = "sha256-sLJg4vf29HZF5ZHfmwPmbCmOXDHsJnsaz8dhfIfmvLE=";
       };
       attest = pkgs.rustPlatform.buildRustPackage {
         pname = "attest";
@@ -74,6 +53,14 @@
         cargoBuildFlags = ["-p" "attest-cli" "--no-default-features"];
         cargoTestFlags = ["-p" "attest-cli" "--no-default-features"];
       };
+
+      # TODO: remove this and replace by apt 3.3.6 from upstream nixpkgs
+      apt = pkgs.apt.overrideAttrs (old: {
+        version = "3.3.6";
+        src = old.src.override { rev = "3.3.6"; hash = "sha256-alH3LIew/Jh3v7ro319Wop5XvLqWeOUeTqhIkhd9rig="; };
+        # Disable test step during compilation since nix doesn't permit network access during build
+        cmakeFlags = old.cmakeFlags ++ [ (pkgs.lib.cmakeBool "WITH_HEGEL_TESTS" false) ];
+      });
 
       mkosiTools = with pkgs; [
         apt
@@ -113,36 +100,14 @@
         name = "mkosi-tools";
         paths = mkosiTools;
       };
-      mkosi-unwrapped =
-        (pkgs.mkosi.override {
-          extraDeps = mkosiTools;
-        }).overrideAttrs (old: {
-          src = pkgs.fetchFromGitHub {
-            owner = "systemd";
-            repo = "mkosi";
-            rev = "f33cc45db3ddf0ed57594b58c9c161169d46e03c";
-            hash = "sha256-wjgucAQzjMy7GJiB+pbmYs3Fxvmg77gGGKIWlrJrarQ=";
-          };
-          # TODO: remove these patch hunks from upstream nixpkgs next time mkosi has a release
-          # The latest mkosi doesn't need them
-          patches = pkgs.lib.drop 2 old.patches;
-          postPatch = let
-            fd = "${pkgs.patchutils}/bin/filterdiff";
-          in ''
-            { ${fd} -x '*/run.py' --hunks=x2,6 ${builtins.elemAt old.patches 0}
-              ${fd} -i '*/run.py' --hunks=x1-2 ${builtins.elemAt old.patches 0}
-              ${fd} --hunks=x1                 ${builtins.elemAt old.patches 1}
-            } | patch -p1 -F0
-
-            # From original nix package
-            substituteInPlace mkosi/__init__.py --replace-fail \
-              'systemd_tool_version(python_binary(context.config), ukify, sandbox=context.sandbox)' \
-              'systemd_tool_version(ukify, sandbox=context.sandbox)'
-
+      mkosi-unwrapped = pkgs.mkosi.overrideAttrs (old: {
+        postPatch =
+          old.postPatch
+          + ''
             # Don't add /usr/bin and /usr/sbin to the PATH, only use /nix
             sed -i -E '\#^\s+"/usr/(bin|sbin)",$#d' mkosi/run.py
           '';
-        });
+      });
 
       # Create a wrapper script that runs mkosi with unshare.
       # Unshare is needed to create files owned by multiple uids/gids.
