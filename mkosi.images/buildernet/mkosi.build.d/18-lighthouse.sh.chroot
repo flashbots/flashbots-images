@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REF=a376defa30470923556d91bdeb15a802e297f31f #v8.3.2
+REF=57c2abc13078bf949e4d19df6178a644b064c32c #v8.3.3
 PATH="$BUILDDIR/rust-toolchain/bin:$PATH"
 BUILDDIR="$BUILDDIR/lighthouse"
 CARGO_TARGET_DIR="$BUILDDIR/target"
