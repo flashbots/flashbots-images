@@ -99,6 +99,9 @@ ns_iptables -A OUTPUT -d 169.254.169.254 -j DROP
 # Block container from reaching the internal Prometheus Proxy
 ns_iptables -A OUTPUT -d $PROMETHEUS_PROXY_IP -j DROP
 
+# Block container from reaching host services via host.containers.internal
+ns_iptables -A OUTPUT -d 169.254.1.2 -j DROP
+
 # Block consensus layer P2P port (TCP and UDP)
 ns_iptables -A OUTPUT -p tcp --dport 9000 -j DROP
 ns_iptables -A OUTPUT -p udp --dport 9000 -j DROP

@@ -107,8 +107,9 @@ iptables -A OUTPUT -p udp --sport 27017 -j DROP
 iptables -A OUTPUT -p tcp --sport 27017 -j DROP
 iptables -A OUTPUT -p tcp --sport 27018 -j DROP
 
-# GCE metadata server and the host-side Prometheus metrics proxy
+# GCE metadata server, host.containers.internal and the host-side Prometheus metrics proxy
 iptables -A OUTPUT -d 169.254.169.254 -j DROP
+iptables -A OUTPUT -d 169.254.1.2 -j DROP
 iptables -A OUTPUT -d 10.88.0.100 -j DROP
 ```
 
