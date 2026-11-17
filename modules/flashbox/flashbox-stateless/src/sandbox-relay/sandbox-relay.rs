@@ -184,7 +184,7 @@ impl Drop for Sandbox {
                     .write(true)
                     .open(&log)?
                     .set_times(fs::FileTimes::new().set_modified(SystemTime::now()))?;
-                fs::rename(log, PathBuf::from(LOGS).join(format!("{}.log", self.name)))?;
+                fs::copy(&log, PathBuf::from(LOGS).join(format!("{}.log", self.name)))?;
             }
             fs::remove_dir_all(&self.dir)
         };
