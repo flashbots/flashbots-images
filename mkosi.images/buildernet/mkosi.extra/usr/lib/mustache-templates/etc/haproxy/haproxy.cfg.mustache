@@ -10,6 +10,9 @@ global
   tune.h2.initial-window-size 1048576
   # tune.h2.fe.rxbuf 5242880 # only supported in 3.2
   tune.h2.fe.max-concurrent-streams 256
+  # With net.ipv4.tcp_notsent_lowat it bounds the stale app data that
+  # queues for a slow client
+  tune.rcvbuf.server 212992
 
 defaults
   mode http
