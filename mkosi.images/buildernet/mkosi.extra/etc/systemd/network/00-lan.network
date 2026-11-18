@@ -1,6 +1,9 @@
 [Match]
 Name=e*
 Type=ether
+# Physical NICs only. Built-in ip_gre creates an "erspan0" fallback device
+# (Type=ether) that would otherwise match and hold up network-online.target.
+Kind=!*
 
 [Network]
 DHCP=yes

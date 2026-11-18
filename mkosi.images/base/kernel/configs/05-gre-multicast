@@ -1,0 +1,15 @@
+# Enable GRE tunnels and multicast. Overrides 01-sane-defaults.
+CONFIG_NET_IPGRE_DEMUX=y
+CONFIG_NET_IPGRE=y
+CONFIG_IP_ADVANCED_ROUTER=y
+CONFIG_IP_MULTIPLE_TABLES=y
+CONFIG_IP_MULTICAST=y
+
+# Debian defaults that the options above would otherwise turn on; keep them off.
+# CONFIG_NET_IPGRE_BROADCAST is not set
+# CONFIG_NET_FOU_IP_TUNNELS is not set
+# CONFIG_IPV6_GRE is not set
+# CONFIG_OPENVSWITCH_GRE is not set
+# CONFIG_IP_ROUTE_MULTIPATH is not set
+# CONFIG_IP_ROUTE_VERBOSE is not set
+# CONFIG_IP_FIB_TRIE_STATS is not set
