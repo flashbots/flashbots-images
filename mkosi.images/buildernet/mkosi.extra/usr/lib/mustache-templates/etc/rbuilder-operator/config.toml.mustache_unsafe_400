@@ -1,3 +1,6 @@
+{{#cpu_layout.thread_cores}}
+thread_cores_file = "/etc/cpu-layout/thread-cores.toml"
+{{/cpu_layout.thread_cores}}
 any_position_max_sims_per_second = {{rbuilder.any_position_max_sims_per_second}}
 {{#rbuilder.any_position_searcher_threads}}
 any_position_searcher_threads = {{rbuilder.any_position_searcher_threads}}

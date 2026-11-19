@@ -1,0 +1,8 @@
+[Service]
+{{#cpu_layout.cpu_affinity.rbuilder}}
+CPUAffinity={{cpu_layout.cpu_affinity.rbuilder}}
+{{/cpu_layout.cpu_affinity.rbuilder}}
+{{#cpu_layout.numa.rbuilder.NUMAMask}}
+NUMAPolicy={{cpu_layout.numa.rbuilder.NUMAPolicy}}
+NUMAMask={{cpu_layout.numa.rbuilder.NUMAMask}}
+{{/cpu_layout.numa.rbuilder.NUMAMask}}
