@@ -31,6 +31,33 @@ jit_request_budget_us = {{rbuilder.jit_request_budget_us}}
 {{#rbuilder.jit_sidecar_slack_us}}
 jit_sidecar_slack_us = {{rbuilder.jit_sidecar_slack_us}}
 {{/rbuilder.jit_sidecar_slack_us}}
+{{#rbuilder.jit_sidecar_worker_threads}}
+jit_sidecar_worker_threads = {{rbuilder.jit_sidecar_worker_threads}}
+{{/rbuilder.jit_sidecar_worker_threads}}
+{{#rbuilder.jit_reask_interval_ms}}
+jit_reask_interval_ms = {{rbuilder.jit_reask_interval_ms}}
+{{/rbuilder.jit_reask_interval_ms}}
+{{#rbuilder.jit_reask_on_update}}
+jit_reask_on_update = true
+{{/rbuilder.jit_reask_on_update}}
+{{#rbuilder.jit_reask_window_ms}}
+jit_reask_window_ms = {{rbuilder.jit_reask_window_ms}}
+{{/rbuilder.jit_reask_window_ms}}
+{{#rbuilder.jit_reask_max_per_slot}}
+jit_reask_max_per_slot = {{rbuilder.jit_reask_max_per_slot}}
+{{/rbuilder.jit_reask_max_per_slot}}
+{{#rbuilder.jit_reask_commit_margin_ms}}
+jit_reask_commit_margin_ms = {{rbuilder.jit_reask_commit_margin_ms}}
+{{/rbuilder.jit_reask_commit_margin_ms}}
+{{#rbuilder.jit_reask_update_feed_capacity}}
+jit_reask_update_feed_capacity = {{rbuilder.jit_reask_update_feed_capacity}}
+{{/rbuilder.jit_reask_update_feed_capacity}}
+{{#rbuilder.jit_max_forgiven_priority_fee_wei}}
+jit_max_forgiven_priority_fee_wei = {{rbuilder.jit_max_forgiven_priority_fee_wei}}
+{{/rbuilder.jit_max_forgiven_priority_fee_wei}}
+{{#rbuilder.jit_min_routed_share_of_unrouted_gas_price_percent}}
+jit_min_routed_share_of_unrouted_gas_price_percent = {{rbuilder.jit_min_routed_share_of_unrouted_gas_price_percent}}
+{{/rbuilder.jit_min_routed_share_of_unrouted_gas_price_percent}}
 jit_liquidity_source = "{{rbuilder.jit_liquidity_source}}"
 {{#rbuilder.jit_probe_contract}}
 jit_probe_contract = "{{rbuilder.jit_probe_contract}}"
