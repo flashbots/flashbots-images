@@ -53,11 +53,15 @@ for f in "${config_paths[@]}"; do echo "  $f"; done
 echo "Patches (${#patch_paths[@]}):"
 for f in "${patch_paths[@]}"; do echo "  $f"; done
 
+config_requests="$SRCDIR/shared/kernel/config-requests.sh"
+
 # Cache key from commit + config version + localversion + config/patch contents
 cache_hash=$(
     { echo "KERNEL_GIT_SHA=${KERNEL_GIT_SHA}"; \
       echo "KERNEL_CONFIG_VERSION=${KERNEL_CONFIG_VERSION}"; \
       echo "KERNEL_CONFIG_DEB_SHA256=${KERNEL_CONFIG_DEB_SHA256}"; \
+      echo "KERNEL_DROP_UNREQUESTED_MODULES=${KERNEL_DROP_UNREQUESTED_MODULES:-}"; \
+      [[ -z "${KERNEL_DROP_UNREQUESTED_MODULES:-}" ]] || cat -- "${config_requests}"; \
       echo "LOCALVERSION=${LOCALVERSION}"; \
       echo "SNAPSHOT=${snapshot}"; \
       cat -- "${config_paths[@]}" "${patch_paths[@]}"; } \
@@ -143,6 +147,17 @@ else
     done
 
     merge_args=("${chroot_kconfig_dir}/base.config")
+    report_args=()
+    # With CONFIG_MODULES=n every Debian module would be built in; an image
+    # that sets KERNEL_DROP_UNREQUESTED_MODULES keeps only the ones its
+    # fragments ask for.
+    if [[ -n "${KERNEL_DROP_UNREQUESTED_MODULES:-}" ]]; then
+        bash "${config_requests}" drop-unrequested-modules \
+            "${kconfig_dir}/base.config" "${kconfig_dir}/fragments/"* \
+            > "${kconfig_dir}/drop-unrequested-modules.config"
+        merge_args+=("${chroot_kconfig_dir}/drop-unrequested-modules.config")
+        report_args+=(--dropped "${kconfig_dir}/drop-unrequested-modules.config")
+    fi
     for f in "${kconfig_dir}/fragments/"*; do
         merge_args+=("${chroot_kconfig_dir}/fragments/$(basename "$f")")
     done
@@ -171,6 +186,18 @@ else
     if [[ -n "${KERNEL_MODULES:-}" ]]; then
         mkosi-chroot --chdir "${chroot_kernel_src_dir}" make mod2yesconfig
     fi
+
+    # Fail before compiling if Kconfig dropped or overrode a fragment's request.
+    (cd "${kconfig_dir}" && bash "${config_requests}" check "${kernel_src_dir}/.config" fragments/*)
+    # Saved beside the cached kernel before compiling, so they survive a build
+    # stopped during the compile. The cache only counts as a hit once kernel.deb
+    # is there too.
+    mkdir -p "${cache_dir}"
+    cp "${kernel_src_dir}/.config" "${cache_dir}/config"
+    bash "${config_requests}" builtin-modules-report "${report_args[@]}" \
+        "${kconfig_dir}/base.config" "${kernel_src_dir}/.config" "${kconfig_dir}/fragments/"* \
+        | tee "${cache_dir}/builtin-modules-report.txt"
+
     mkosi-chroot --chdir "${chroot_kernel_src_dir}" make -j "$(nproc 2>/dev/null || echo 2)" bindeb-pkg
 
     built_deb=$(find "${kernel_build_dir}" -maxdepth 1 -name "linux-image-*${LOCALVERSION}_*.deb" -type f | head -1)
@@ -193,7 +220,6 @@ else
         built_headers_deb=$(find "${kernel_build_dir}" -maxdepth 1 -name "linux-headers-*${LOCALVERSION}_*.deb" -type f | head -1)
         cp "${built_headers_deb}" "${cached_headers_deb}"
     fi
-    cp "${kernel_src_dir}/.config" "${cache_dir}/config"
     echo "${kernel_version_string}" > "${cache_dir}/kernel.release"
     echo "Cached kernel to: ${cache_dir}"
 
