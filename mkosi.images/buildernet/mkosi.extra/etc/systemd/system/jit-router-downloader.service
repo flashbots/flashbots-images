@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=JIT_ROUTER_SHA256SUM=894e259c677ed4a2eee079d7081cf5a78549b2eb4d3e5757ca28504eddeffac8 \
-            JIT_ROUTER_TAG=v0.11.0 \
+Environment=JIT_ROUTER_SHA256SUM=TODO_SET_FROM_V0_11_1_SHA256SUMS \
+            JIT_ROUTER_TAG=v0.11.1 \
             JIT_ROUTER_REPO=jit-router \
             JIT_ROUTER_ARTIFACT=jit-router
 EnvironmentFile=%E/gh_token.env
