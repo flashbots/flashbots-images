@@ -5,10 +5,10 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-Environment=FLOWPROXY_SHA256SUM=d387b9742477eb48be8f60a212485b15b275cb598e5755270a68427d508426bf \
-            FLOWPROXY_TAG=v1.86.0 \
+Environment=FLOWPROXY_SHA256SUM=83152ce57ec29c2b8b37e19087998cf3a3da060ff4c278a0801c530b7e9e4139 \
+            FLOWPROXY_TAG=v1.87.0 \
             FLOWPROXY_REPO=rbuilder-prism \
-            FLOWPROXY_ARTIFACT=flowproxy-v1.86.0-x86_64-unknown-linux-gnu
+            FLOWPROXY_ARTIFACT=flowproxy-v1.87.0-x86_64-unknown-linux-gnu
 EnvironmentFile=%E/gh_token.env
 ExecStart=/bin/bash -c '[[ -f /usr/bin/flowproxy ]] || /usr/bin/fetch-gh-release-artifact fetch \
   --repo "$FLOWPROXY_REPO" --tag "$FLOWPROXY_TAG" \
