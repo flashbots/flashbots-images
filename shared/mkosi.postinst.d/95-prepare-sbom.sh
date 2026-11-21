@@ -32,6 +32,14 @@ SYFT_CHECK_FOR_APP_UPDATE=false SYFT_FILE_METADATA_SELECTION=none \
   syft -q scan "dir:$BUILDROOT" --override-default-catalogers \
     go-module-binary-cataloger,cargo-auditable-binary-cataloger \
     -o syft-json >"$stage/usr/lib/sbom/binaries.syft.json"
+# Keep only our own package notes (scripts/package_note.sh), Debian binaries carry notes too
+SYFT_CHECK_FOR_APP_UPDATE=false SYFT_FILE_METADATA_SELECTION=none \
+  syft -q scan "dir:$BUILDROOT" --override-default-catalogers elf-binary-package-cataloger \
+    -o syft-json |
+  jq '[.artifacts[] | select(.metadata.sourceRepo | not) | .id] as $foreign
+    | .artifacts |= map(select(.metadata.sourceRepo))
+    | .artifactRelationships |= map(select([.parent, .child] - $foreign | length == 2))' \
+    >"$stage/usr/lib/sbom/package-notes.syft.json"
 
 # Add metadata for packages installed from source
 if [[ -d "${ARTIFACTDIR:?}/sbom" ]]; then
