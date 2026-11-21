@@ -30,13 +30,11 @@ flashboxes/
 │   │   └── patches/                 # Kernel patches
 │   └── debloat*.sh                  # System cleanup scripts
 ├── modules/
-│   ├── flashbox/
-│   │   ├── common/                  # TEE Searcher common image
-│   │   └── flashbox-l1/             # L1 TEE Searcher sandbox image
-│   └── tdx-dummy/                   # TDX test environment
+│   └── flashbox/
+│       ├── common/                  # TEE Searcher common image
+│       └── flashbox-l1/             # L1 TEE Searcher sandbox image
 ├── images/                          # Top-level image configs
-│   ├── flashbox-l1.conf
-│   └── tdx-dummy.conf
+│   └── flashbox-l1.conf
 ├── buildernet/                      # BuilderNet
 ├── scripts/                         # Build helper scripts
 │   └── verification/                # Image verification tools
