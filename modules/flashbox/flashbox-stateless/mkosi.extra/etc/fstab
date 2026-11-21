@@ -1,0 +1,2 @@
+# workaround to speed up crun on tmpfs
+overlay /usr overlay lowerdir=/usr:/var/empty 0 0

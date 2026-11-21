@@ -1,0 +1,8 @@
+github.com/PowerDNS/lmdb-go v1.9.4 h1:dwbuaifElwgRH4otB8ATxQSOe1qmpGlaGh0gjnBwqqU=
+github.com/PowerDNS/lmdb-go v1.9.4/go.mod h1:+ZhGsv95WRaFnDSQx77ZVLRMB0gFUdX/kBUtAIOiLiU=
+github.com/tidwall/btree v1.1.0 h1:5P+9WU8ui5uhmcg3SoPyTwoI0mVyZ1nps7YQzTZFkYM=
+github.com/tidwall/btree v1.1.0/go.mod h1:TzIRzen6yHbibdSfK6t8QimqbUnoxUSrZfeW7Uob0q4=
+github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
+github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
+github.com/tidwall/redcon v1.6.4 h1:e1xUcbfVZukGrWJo7jAXN+saw6UnPYrCZYVGXaoafXw=
+github.com/tidwall/redcon v1.6.4/go.mod h1:rKGKSGkNdBKCjAjC2jDwvCnT+NYCpNqy0aGq4YKJSKQ=
