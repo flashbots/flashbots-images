@@ -158,6 +158,19 @@ else
     export KBUILD_BUILD_USER="mkosi"
     export KBUILD_BUILD_HOST="mkosi-builder"
     export LOCALVERSION  # suffix appended to kernel version, e.g. -mkosi-cloud
+
+    #
+    # - dpkg-buildpackage does `SOURCE_DATE_EPOCH ||= <changelog date> || time`,
+    #   so it takes 0 (mkosi's SourceDateEpoch, and the changelog date from
+    #   KBUILD_BUILD_TIMESTAMP) as not set, and uses its own start time
+    #
+    # - dpkg-deb then puts that time on the .deb's ar members and clamps the
+    #   file mtimes in it to that time, so the .deb is different on each build
+    #
+    # - the kernel itself doesn't use SOURCE_DATE_EPOCH (it was the same with
+    #   each of these times)
+    #
+    export SOURCE_DATE_EPOCH=1
     
     if [[ -z "${KERNEL_MODULES:-}" ]]; then
         export DEB_BUILD_PROFILES='pkg.linux-upstream.nokerneldbg pkg.linux-upstream.nokernelheaders'
