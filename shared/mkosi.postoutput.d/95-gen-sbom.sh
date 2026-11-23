@@ -4,7 +4,9 @@ set -euo pipefail
 root="$OUTPUTDIR/.sbom-root"
 out="$OUTPUTDIR/${IMAGE_ID}_${IMAGE_VERSION}"
 
-# Bind the SBOM to the primary image artifact
+# Bind the SBOM to the primary image artifact.  The profiles' post-output
+# scripts (mkosi.profiles/*/mkosi.postoutput) run after this one: they must not
+# change it, or the hash here won't match the published file
 image="$out.efi"
 [[ -f "$out.raw" ]] && image="$out.raw"
 sha=$(sha256sum "$image" | cut -d' ' -f1)
