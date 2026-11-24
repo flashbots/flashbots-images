@@ -38,6 +38,10 @@ chown -R searcher:searcher "$HOSTKEY_DIR"
 
 # BOB_SEARCHER_EXTRA_PODMAN_FLAGS is unescaped, it's sourced from trusted hardcoded file
 
+SEARCHER_KEY=$(cat /etc/searcher_key)
+case $SEARCHER_KEY in *[!A-Za-z0-9+/]*) echo "Invalid searcher key" >&2; exit 1 ;; esac
+[ ${#SEARCHER_KEY} -eq 68 ] || { echo "Invalid searcher key" >&2; exit 1; }
+
 echo "Starting $NAME..."
 su -s /bin/sh searcher -c "cd ~ && podman run -d \
     --name $NAME --replace \
@@ -58,7 +62,7 @@ su -s /bin/sh searcher -c "cd ~ && podman run -d \
         chown root:root /etc/logrotate.d/searcher.conf && \
         mkdir -p /run/sshd && \
         mkdir -p /root/.ssh && \
-        echo \"ssh-ed25519 $(cat /etc/searcher_key)\" > /root/.ssh/authorized_keys && \
+        echo \"ssh-ed25519 $SEARCHER_KEY\" > /root/.ssh/authorized_keys && \
         chmod 700 /root/.ssh && \
         chmod 600 /root/.ssh/authorized_keys && \
         mkdir -p /etc/ssh/sshd_config.d && \
