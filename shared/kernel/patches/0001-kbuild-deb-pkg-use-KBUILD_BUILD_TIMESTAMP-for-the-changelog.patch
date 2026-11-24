@@ -1,0 +1,29 @@
+Subject: [PATCH] kbuild: deb-pkg: use KBUILD_BUILD_TIMESTAMP for the changelog date
+
+mkdebian writes the current time (`date -R`) into debian/changelog. The
+linux-image .deb ships this file as changelog.Debian.gz, and its md5 goes
+into the package's md5sums file. So the .deb and the installed package
+change on every build, even when KBUILD_BUILD_TIMESTAMP is set. Also, if
+SOURCE_DATE_EPOCH is not set, dpkg-buildpackage takes it from this date.
+
+When KBUILD_BUILD_TIMESTAMP is set, use it for the changelog date. Its value
+is already a string that `date -d` accepts (Documentation/kbuild/kbuild.rst).
+When it is not set, the date is the current time, as before.
+
+Upstream mkdebian still uses `date -R` (v6.18 and master on 2026-11-21).
+---
+ scripts/package/mkdebian | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/package/mkdebian b/scripts/package/mkdebian
+--- a/scripts/package/mkdebian
++++ b/scripts/package/mkdebian
+@@ -197,7 +197,7 @@
+
+   * Custom built Linux kernel.
+
+- -- $maintainer  $(date -R)
++ -- $maintainer  $(date -R ${KBUILD_BUILD_TIMESTAMP:+-d "$KBUILD_BUILD_TIMESTAMP"})
+ EOF
+
+ # Generate a control file
