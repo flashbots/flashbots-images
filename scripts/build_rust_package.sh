@@ -89,7 +89,7 @@ build_rust_package() {
                CARGO_PROFILE_RELEASE_OPT_LEVEL='3' \
                CARGO_TERM_COLOR='never'
         cd '/build/$package'
-        cargo fetch
+        cargo fetch --locked &&
         cargo auditable build --release --frozen ${extra_features:+--features $extra_features} --package $cargo_package
     "
     local seconds=$(( $( date +%s ) - ts ))
