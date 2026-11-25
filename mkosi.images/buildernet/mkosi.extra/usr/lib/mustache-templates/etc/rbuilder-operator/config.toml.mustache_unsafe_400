@@ -107,6 +107,12 @@ router_url = "http://127.0.0.1:50051"
 {{/rbuilder.jit_sidecar_url}}
 simulation_failed_tob_to_any_position = {{rbuilder.simulation_failed_tob_to_any_position}}
 simulation_spoof_balance_reads = {{rbuilder.simulation_spoof_balance_reads}}
+{{#rbuilder.high_only_simulation_threads}}
+high_only_simulation_threads = {{rbuilder.high_only_simulation_threads}}
+{{/rbuilder.high_only_simulation_threads}}
+{{#rbuilder.high_medium_simulation_threads}}
+high_medium_simulation_threads = {{rbuilder.high_medium_simulation_threads}}
+{{/rbuilder.high_medium_simulation_threads}}
 simulation_threads = {{rbuilder.simulation_threads}}
 simulation_use_random_coinbase = {{rbuilder.simulation_use_random_coinbase}}
 shared_orderflow_signers = {{{rbuilder.shared_orderflow_signers}}}
