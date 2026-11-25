@@ -42,13 +42,14 @@ make_git_package \
 
 
 # Install the proxy and quote provider from the same release.
-ATTESTED_TLS_VERSION="v2.0.8"
+# The devops Flashbox integration workflow reads this VERSION assignment.
+VERSION="v2.0.8"
 
 download_attested_tls_deb() {
     local package="$1" expected_sha256="$2"
     local deb="$PACKAGEDIR/$package.deb"
 
-    curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${ATTESTED_TLS_VERSION}/${package}_1.${ATTESTED_TLS_VERSION}_amd64.deb" \
+    curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/${package}_1.${VERSION}_amd64.deb" \
         -o "$deb"
     printf '%s  %s\n' "$expected_sha256" "$deb" | sha256sum --check
 }
