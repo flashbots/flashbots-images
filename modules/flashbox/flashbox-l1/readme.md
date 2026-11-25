@@ -259,6 +259,7 @@ cd attested-tls-proxy
 # and use the server reverse proxy on the deployed image as a target,
 # marshalling the measurements.json for validation of the attestation.
 cargo run --locked -- client \
+  --client-attestation-type none \
   --listen-addr 127.0.0.1:8080 \
   --allow-self-signed \
   --measurements-file ./measurements.json \
@@ -288,10 +289,10 @@ http://127.0.0.1:8080 \
 
     ```bash
     # Start the proxy client
-    $ cargo run -- client --listen-addr 127.0.0.1:8080 --allow-self-signed --measurements-file ./measurements.json --log-debug 35.255.95.67:8745
+    $ cargo run -- client --client-attestation-type none --listen-addr 127.0.0.1:8080 --allow-self-signed --measurements-file ./measurements.json --log-debug 35.255.95.67:8745
      Compiling attested-tls-proxy v1.1.1 (/home/pumkin/src/flashbots/attested-tls-proxy)
       Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.17s
-       Running `target/debug/attested-tls-proxy client --listen-addr '127.0.0.1:8080' --allow-self-signed --measurements-file ./measurements.json --log-debug '35.255.95.67:8745'`
+       Running `target/debug/attested-tls-proxy client --client-attestation-type none --listen-addr '127.0.0.1:8080' --allow-self-signed --measurements-file ./measurements.json --log-debug '35.255.95.67:8745'`
     2026-06-22T07:07:38.553942Z DEBUG attested_tls_proxy: [proxy-client] Connected to proxy server with measurements: Some(DCAP({MRTD: "feb7486608382c1ff0e15b4648ddc0acea6ca974eb53e3529f4c4bd5ffbaa20bf335cb75965cea65fe473aed9647c162", RTMR0: "e1d0235496f93f9475bf0b26d33da5c15831cfc94104d6bea7ab82db027c5f1e917d47dda6953eefae7dcb20ab6f75c4", RTMR1: "4ea5a990afef023f89e11fc32d99103d0adc91d5734664542eb980cdabc88224e1fd206d1d3b2eda71f713fdf8308a2b", RTMR2: "c42ba4fb83f99e4b90bc2a3aa9a2e81c5ac578e9a439c23b457ff7dd0d0eae958760616eff05d827289e47608e757547", RTMR3: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}))
       at src/lib.rs:674
 
@@ -646,7 +647,10 @@ Developer Notes
 7. Lighthouse (**name:** `lighthouse.service`) (**after:** `/persistent` is mounted)
 8. Start the podman container (**name:** `searcher-container.service`) (**after:** `dropbear.service`, `lighthouse.service`, `searcher-firewall.service`, `/persistent` is mounted)
 9. SSH pubkey server (**name:** `ssh-pubkey-server.service`) (**after:** `dropbear.service`) — starts at boot and no longer waits for `searcher-container.service`, so `/pubkey` serves the host (dropbear) key before disk init. The container key is generated on the guest OS by `searcher-container.service` (the container only gets a read-only mount of it, so it cannot influence what `/pubkey` serves) and is served by `/pubkey` lazily once it exists.
-10. Attested TLS proxy for SSH pubkey server (**name:** `attested-tls-proxy.service`) (**after:** `ssh-pubkey-server.service`) — consequently the attested `:8745` channel is also available at boot, before the searcher's first SSH.
+10. TDX attestation provider (`attestation-provider-server.service`) — runs as root with access to the local TDX quote interface. It accepts requests over `/run/attestation-provider/attestation.sock`, which the dedicated `attestation-provider` group can access.
+11. Attested TLS proxy (`attested-tls-proxy.service`) — runs as an unprivileged user after the SSH pubkey server and once the provider socket accepts connections. The attested `:8745` channel is available after key registration, before the searcher's first SSH.
+
+The provider runs without IP networking. Azure quote generation requires network access, so Azure builds have the attested endpoint disabled.
 
 ### Testing
 

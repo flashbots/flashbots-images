@@ -68,6 +68,7 @@ def fetch_attested_host_keys(vm_ip, tmp_path):
     proxy = subprocess.Popen(
         [
             os.environ["PROXY_CLIENT"], "client",
+            "--client-attestation-type", "none",
             "--log-debug",
             "--listen-addr", PROXY_LISTEN,
             "--measurements-file", os.environ["MEASUREMENTS_DCAP"],

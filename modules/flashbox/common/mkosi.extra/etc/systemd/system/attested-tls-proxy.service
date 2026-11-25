@@ -1,13 +1,20 @@
 [Unit]
 Description=Attested TLS Proxy Server
-After=ssh-pubkey-server.service
+ConditionVirtualization=!microsoft
+ConditionPathExists=/dev/tdx_guest
+After=ssh-pubkey-server.service attestation-provider-server.service
 Requires=ssh-pubkey-server.service
+Wants=attestation-provider-server.service
 
 [Service]
 Type=simple
-ExecStart=attested-tls-proxy server \
+User=attested-tls-proxy
+Group=attested-tls-proxy
+NoNewPrivileges=yes
+ExecStartPre=/usr/bin/socat -u OPEN:/dev/null UNIX-CONNECT:/run/attestation-provider/attestation.sock,retry=10,interval=1
+ExecStart=/usr/bin/attested-tls-proxy server \
             --listen-addr=0.0.0.0:8745 \
-            --server-attestation-type=auto \
+            --attestation-provider-socket=/run/attestation-provider/attestation.sock \
             --allowed-remote-attestation-type none \
             127.0.0.1:5001
 Restart=always

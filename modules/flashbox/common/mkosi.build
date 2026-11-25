@@ -41,12 +41,20 @@ make_git_package \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
 
-# Install attested-tls-proxy
-VERSION="v2.0.5"
-EXPECTED_SHA256=b20229ab5107070defe72a29c07f2962a58721925a0e2a9e0181ec58250e1799
-curl -sSfL https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/attested-tls-proxy_1.${VERSION}_amd64.deb \
-  -o $PACKAGEDIR/attested-tls-proxy.deb
-echo "${EXPECTED_SHA256}" $PACKAGEDIR/attested-tls-proxy.deb | sha256sum --check
+# Install the proxy and quote provider from the same release.
+ATTESTED_TLS_VERSION="v2.0.8"
+
+download_attested_tls_deb() {
+    local package="$1" expected_sha256="$2"
+    local deb="$PACKAGEDIR/$package.deb"
+
+    curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${ATTESTED_TLS_VERSION}/${package}_1.${ATTESTED_TLS_VERSION}_amd64.deb" \
+        -o "$deb"
+    printf '%s  %s\n' "$expected_sha256" "$deb" | sha256sum --check
+}
+
+download_attested_tls_deb attested-tls-proxy b3b0f82d1b8dce3d2ff87a59e492e77efcbfe43a6dc081d867fa70161019cbce
+download_attested_tls_deb attestation-provider-server d47875590ea54b0e61892f1b789514050c27e1fbddb126e389cb74e864c0f5ff
 
 # Build input-only-proxy
 build_rust_package \
