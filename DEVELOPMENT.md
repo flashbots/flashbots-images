@@ -215,7 +215,7 @@ Flashboxes provides helper scripts for building software from source repositorie
 
 ### Building Rust Projects
 
-Use the `build_rust_package.sh` script for Rust/Cargo projects:
+Use the `build_rust_package.sh` script for Rust/Cargo projects. Source builds require a committed `Cargo.lock` that matches the workspace manifests.
 
 **In your `mkosi.build` script**:
 ```bash
