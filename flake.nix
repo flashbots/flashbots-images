@@ -22,17 +22,6 @@
         vendorHash = "sha256-NrZjORe/MjfbRDcuYVOGjNMCo1JGWvJDNVEPojI3L/g=";
       };
 
-      measured-boot-gcp = pkgs.buildGoModule {
-        pname = "measured-boot-gcp";
-        version = "main";
-        src = pkgs.fetchFromGitHub {
-          owner = "flashbots";
-          repo = "dstack-mr-gcp";
-          rev = "b16e08b32b3dc8f1af7087e12f9970dc91a0b9a0";
-          sha256 = "sha256-3KIKgWsDzmLXuRK9YVxX2zJ6jAlZSmRm/bLYE1kJY7k=";
-        };
-        vendorHash = "sha256-glOyRTrIF/zP78XGV+v58a1Bec6C3Fvc5c8G3PglzPM=";
-      };
       attest-src = pkgs.fetchFromGitHub {
         owner = "Easy-TEE";
         repo = "attest";
@@ -124,7 +113,6 @@
         nativeBuildInputs = with pkgs; [
           mkosi
           measured-boot
-          measured-boot-gcp
           attest
           bash
           curl

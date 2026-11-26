@@ -5,6 +5,8 @@ SHELL := /usr/bin/env bash
 WRAPPER := scripts/env_wrapper.sh
 
 FILE ?= build/latest.efi
+# Use the GCP disk's GPT for RTMR1, including any verity-root partitions.
+GCP_FILE ?= build/latest.tar.gz
 
 ##@ Help
 
@@ -26,7 +28,7 @@ ifndef IMAGE
 	$(error IMAGE is not set. Please specify IMAGE=<image> when running make build or make build-dev)
 endif
 
-.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp clean check-module
+.PHONY: all build build-dev setup measure measure-portable measure-portable-gcp measure-gcp clean check-module
 
 # Default target
 all: build
@@ -60,8 +62,8 @@ measure-portable-gcp: measure-portable ## Export a portable GCP-only attestation
 	@$(WRAPPER) bash -c 'jq -e "[{attestation_type: \"gcp-tdx\", dcap_image_hashes: .dcap}]" build/portable_measurements.json > build/measurements-gcp.json'
 	echo "GCP attestation policy exported to build/measurements-gcp.json"
 
-measure-gcp: ## Export TDX measurements for GCP
-	@$(WRAPPER) dstack-mr -uki $(FILE) > build/gcp_measurements.json
+measure-gcp: ## Export TDX measurements for the GCP disk image (GCP_FILE)
+	@$(WRAPPER) bash -c 'attest measure gcp "$$1" > build/gcp_measurements.json' _ "$(GCP_FILE)"
 	echo "GCP Measurements exported to build/gcp_measurements.json"
 
 # Clean build artifacts
