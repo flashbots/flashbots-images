@@ -13,8 +13,8 @@ package_raw_as_tar() {
 }
 
 # In verity-root mode, use existing mkosi disk image
+# (its disk GUID is set by shared/mkosi.postoutput.d/90-disk-guid.sh, before the SBOM hashes it)
 if [ "$(jq -r .Format "$MKOSI_CONFIG")" = "disk" ]; then
-    sgdisk --disk-guid "12345678-1234-5678-1234-567812345678" ${OUTPUTDIR}/${IMAGE_ID}_${IMAGE_VERSION}.raw
     package_raw_as_tar
     exit 0
 fi
