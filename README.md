@@ -9,8 +9,7 @@ security-focused Linux distributions with strong network isolation, attestation
 capabilities, and blockchain infrastructure support.
 
 It contains our [bottom-of-block searcher sandbox](https://collective.flashbots.net/t/searching-in-tdx/3902)
-infrastructure and will soon contain our [BuilderNet](https://buildernet.org/blog/introducing-buildernet)
-infrastructure as well, along with any future TDX projects we implement.
+infrastructure, along with any future TDX projects we implement.
 
 For more information about this repository, see
 [the Flashbots collective post](https://collective.flashbots.net/t/beyond-yocto-exploring-mkosi-for-tdx-images/4739).
@@ -37,9 +36,6 @@ Build the image:
 ```bash
 # Build the Flashbox (searcher sandbox) image
 make build IMAGE=flashbox-l1
-
-# Build the Buildernet image
-make build IMAGE=buildernet
 
 # Build with development tools
 make build-dev IMAGE=flashbox-l1

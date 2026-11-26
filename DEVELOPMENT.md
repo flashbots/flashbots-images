@@ -35,7 +35,6 @@ flashboxes/
 │       └── flashbox-l1/             # L1 TEE Searcher sandbox image
 ├── images/                          # Top-level image configs
 │   └── flashbox-l1.conf
-├── buildernet/                      # BuilderNet
 ├── scripts/                         # Build helper scripts
 │   └── verification/                # Image verification tools
 ├── services/                        # Shared systemd services
