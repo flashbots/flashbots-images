@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-set -euxo pipefail
-
-systemctl add-wants minimal.target disable-root-login.service

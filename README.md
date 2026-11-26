@@ -41,9 +41,6 @@ make build IMAGE=flashbox-l1
 # Build the Buildernet image
 make build IMAGE=buildernet
 
-# Build the l2 builder image
-make build IMAGE=l2-builder
-
 # Build with development tools
 make build-dev IMAGE=flashbox-l1
 
