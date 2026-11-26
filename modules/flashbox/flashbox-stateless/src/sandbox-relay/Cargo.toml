@@ -1,0 +1,19 @@
+[package]
+name = "sandbox-relay"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "sandbox-relay"
+path = "sandbox-relay.rs"
+
+[dependencies]
+bytes = "1"
+http-body-util = "0.1"
+hyper = { version = "1", default-features = false, features = ["client", "server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt", "net", "time", "macros", "process", "sync"] }
+
+[profile.release]
+strip = "debuginfo"
