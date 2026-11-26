@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -euxo pipefail
-
-# Enable systemd services
-
-systemctl add-wants minimal.target set-hostname.service
