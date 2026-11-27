@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Detect GCP by checking whether the SMBIOS product name or system vendor
+# starts with "Google Compute Engine".
+attestation_type=dcap-tdx
+for field in /sys/class/dmi/id/{product_name,sys_vendor}; do
+    if [[ -r "$field" && "$(< "$field")" == "Google Compute Engine"* ]]; then
+        attestation_type=gcp-tdx
+        break
+    fi
+done
+
+exec /usr/bin/attestation-provider-server server \
+    --socket-path /run/attestation-provider/attestation.sock \
+    --server-attestation-type "$attestation_type"

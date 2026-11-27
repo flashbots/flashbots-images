@@ -1,0 +1,21 @@
+[Unit]
+Description=Flashbox TDX Attestation Provider
+# Skip Azure because the provider does not support Azure TDX attestation.
+ConditionVirtualization=!microsoft
+ConditionPathExists=/dev/tdx_guest
+
+[Service]
+Type=exec
+User=root
+Group=attestation-provider
+PrivateNetwork=yes
+# Keep the configfs mount under /sys available for TDX quote generation.
+PrivateMounts=no
+RestrictAddressFamilies=AF_UNIX
+RuntimeDirectory=attestation-provider
+RuntimeDirectoryMode=2750
+RuntimeDirectoryPreserve=restart
+UMask=0007
+ExecStart=/usr/bin/flashbox-attestation-provider
+Restart=on-failure
+RestartSec=5
