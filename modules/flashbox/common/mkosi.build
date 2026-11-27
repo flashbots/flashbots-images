@@ -41,21 +41,13 @@ make_git_package \
     "build/ssh-pubkey-server:/usr/bin/ssh-pubkey-server"
 
 
-# Install the proxy and quote provider from the same release.
+# The proxy package also includes the attestation provider server.
 # The devops Flashbox integration workflow reads this VERSION assignment.
-VERSION="v2.0.8"
-
-download_attested_tls_deb() {
-    local package="$1" expected_sha256="$2"
-    local deb="$PACKAGEDIR/$package.deb"
-
-    curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/${package}_1.${VERSION}_amd64.deb" \
-        -o "$deb"
-    printf '%s  %s\n' "$expected_sha256" "$deb" | sha256sum --check
-}
-
-download_attested_tls_deb attested-tls-proxy b3b0f82d1b8dce3d2ff87a59e492e77efcbfe43a6dc081d867fa70161019cbce
-download_attested_tls_deb attestation-provider-server d47875590ea54b0e61892f1b789514050c27e1fbddb126e389cb74e864c0f5ff
+VERSION="v2.0.9"
+attested_tls_deb="$PACKAGEDIR/attested-tls-proxy.deb"
+curl -sSfL "https://github.com/flashbots/attested-tls-proxy/releases/download/${VERSION}/attested-tls-proxy_1.${VERSION}_amd64.deb" \
+    -o "$attested_tls_deb"
+printf '%s  %s\n' '3854c4363a0fe48477a6d79c3bc31abb8e0bac92b84875baac07f304c0575b8f' "$attested_tls_deb" | sha256sum --check
 
 # Build input-only-proxy
 build_rust_package \
