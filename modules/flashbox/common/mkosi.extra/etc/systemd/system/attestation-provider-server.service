@@ -1,6 +1,6 @@
 [Unit]
 Description=Flashbox TDX Attestation Provider
-# Azure evidence generation requires network access.
+# Skip Azure because the provider does not support Azure TDX attestation.
 ConditionVirtualization=!microsoft
 ConditionPathExists=/dev/tdx_guest
 
